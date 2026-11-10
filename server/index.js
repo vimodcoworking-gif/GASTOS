@@ -12,6 +12,7 @@ import { rutasApi } from './routes.js';
 import { manejarErrores } from './errores.js';
 import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
 import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail } from './google.js';
+import { prepararLicencias } from './licencias.js';
 
 const publico = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -48,6 +49,7 @@ app.use(manejarErrores);
 const servidor = app.listen(config.puerto, () => {
   console.log(`Registro de gastos escuchando en http://localhost:${config.puerto}`);
 });
+prepararLicencias();
 conectar()
   .catch((err) => {
     estadoBd.causa = 'No se pudo iniciar la base de datos local.';

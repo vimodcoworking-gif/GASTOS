@@ -8,6 +8,7 @@ import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
 import { librosDe, libroActivo, registrarMovimiento, hoyLocal } from './bot.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
+import { comprobarLicencia } from './licencias.js';
 
 const GMAIL_LECTURA = 'https://www.googleapis.com/auth/gmail.readonly';
 const COOKIE_ESTADO = 'google_estado';
@@ -118,6 +119,9 @@ rutasGoogle.get('/callback', async (req, res) => {
 
     // Entrar: la cuenta vinculada a ese Google, o la que tenga ese mismo correo verificado, o una nueva.
     let usuario = await Usuario.findOne({ googleId: perfil.sub });
+    // Hace falta licencia de VIMOD para el correo de la cuenta (o el de Google, si la cuenta es nueva).
+    const licencia = await comprobarLicencia(usuario?.email ?? email);
+    if (!licencia.ok) return volver('errorGoogle', licencia.motivo);
     let nueva = false;
     if (!usuario && perfil.email_verified) {
       usuario = await Usuario.findOne({ email });
@@ -516,7 +520,8 @@ async function revisarTodos() {
   revisando = true;
   try {
     const usuarios = await Usuario.find({ 'gmail.activo': true, 'gmail.token': { $exists: true } }).limit(500);
-    for (const usuario of usuarios) await revisarUsuario(usuario);
+    // Sin licencia de VIMOD vigente no se sigue leyendo su correo.
+    for (const usuario of usuarios) if ((await comprobarLicencia(usuario.email)).ok) await revisarUsuario(usuario);
   } catch (err) {
     console.error('Revisión de Gmail:', err.message);
   } finally {

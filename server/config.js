@@ -65,4 +65,14 @@ export const config = {
   // Cada cuántos minutos se revisa el Gmail de quienes lo vincularon.
   minutosGmail: Math.max(2, Number(process.env.GMAIL_MINUTOS) || 10),
   produccion: process.env.NODE_ENV === 'production',
+  // Licencias de VIMOD: la base del Panel administrador y el software de esta app en su catálogo
+  // (su nombre tal como aparece en «Softwares y planes», o su id).
+  // Sin VIMOD_MONGODB_URI la app no pide licencia.
+  vimod: {
+    uri: process.env.VIMOD_MONGODB_URI?.trim() || '',
+    db: process.env.VIMOD_MONGODB_DB?.trim() || 'vimod',
+    software: process.env.VIMOD_SOFTWARE?.trim() || '',
+    // Correos que entran sin licencia (cuentas propias), separados por comas.
+    libres: (process.env.LICENCIA_LIBRE || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
+  },
 };

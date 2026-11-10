@@ -8,6 +8,7 @@ import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { ErrorHttp, texto } from './errores.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { correoDisponible, enviarCorreo } from './correo.js';
+import { comprobarLicencia, exigirLicencia } from './licencias.js';
 
 const COOKIE = 'sesion';
 const DURACION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -79,9 +80,18 @@ export async function requiereSesion(req, res, next) {
   let id = idDeSesion(req);
   // Se comprueba que la cuenta siga existiendo, para que una eliminada pierda el acceso al momento.
   // La comprobación se recuerda un minuto: así no cuesta una consulta a la base en cada petición.
+  // También se comprueba la licencia de VIMOD: si se suspende o vence, se pierde el acceso en un minuto.
   if (id && (cuentasVistas.get(id) ?? 0) < Date.now()) {
-    if (await Usuario.exists({ _id: id })) cuentasVistas.set(id, Date.now() + 60_000);
-    else id = null;
+    const cuenta = await Usuario.findById(id).select('email');
+    if (!cuenta) id = null;
+    else {
+      const licencia = await comprobarLicencia(cuenta.email);
+      if (!licencia.ok) {
+        res.clearCookie(COOKIE);
+        return res.status(401).json({ error: licencia.motivo });
+      }
+      cuentasVistas.set(id, Date.now() + 60_000);
+    }
   }
   if (!id) return res.status(401).json({ error: 'Inicia sesión para continuar' });
   req.usuario = { id };
@@ -124,6 +134,7 @@ const limite = rateLimit({
 export const rutasAuth = Router();
 
 rutasAuth.post('/registro', limite, async (req, res) => {
+  await exigirLicencia(texto(req.body.email, 'el correo'));
   const usuario = await crearUsuario(req.body, { whatsappObligatorio: true });
   iniciarSesion(res, usuario);
   res.status(201).json({ usuario: await publico(usuario) });
@@ -137,6 +148,7 @@ rutasAuth.post('/login', limite, async (req, res) => {
     // El mismo mensaje exista o no la cuenta; la pista de Google sirve a quien se registró con ella.
     throw new ErrorHttp(401, `Correo o contraseña incorrectos${config.google.clienteId ? '. Si creaste la cuenta con Google, usa «Continuar con Google».' : ''}`);
   }
+  await exigirLicencia(usuario.email);
   iniciarSesion(res, usuario);
   res.json({ usuario: await publico(usuario) });
 });
@@ -223,6 +235,7 @@ rutasAuth.post('/restablecer', limite, async (req, res) => {
   }
 
   await cambiarPassword(usuario, password);
+  await exigirLicencia(usuario.email);
   iniciarSesion(res, usuario);
   res.json({ usuario: await publico(usuario) });
 });

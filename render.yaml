@@ -28,3 +28,10 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # Licencias de VIMOD: sin estas variables la app no pide licencia.
+      - key: VIMOD_MONGODB_URI
+        sync: false
+      - key: VIMOD_SOFTWARE
+        value: VIMOD Gastos
+      - key: LICENCIA_LIBRE
+        sync: false

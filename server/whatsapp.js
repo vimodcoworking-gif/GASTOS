@@ -17,6 +17,7 @@ import QRCode from 'qrcode';
 import { SesionWa, Usuario } from './models.js';
 import { responder, estadoDeCuenta, conversar, ejecutarAcciones, librosDe, textoMenu } from './bot.js';
 import { iaDisponible } from './ia.js';
+import { comprobarLicencia } from './licencias.js';
 
 // Estado visible para el panel del administrador.
 export const wa = { estado: 'desconectado', qr: null, numero: null, aviso: '' };
@@ -295,6 +296,9 @@ async function atender(sock, mensaje) {
   // Solo se responde a números registrados en la app: el resto de contactos no nota nada.
   const usuario = await Usuario.findOne({ whatsapp: numero });
   if (!usuario) return;
+  // Sin licencia de VIMOD vigente, el bot no atiende a esa cuenta.
+  const licencia = await comprobarLicencia(usuario.email);
+  if (!licencia.ok) return;
 
   // Freno sencillo contra ráfagas: un mensaje por segundo y usuario.
   const ahora = Date.now();

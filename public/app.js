@@ -55,7 +55,11 @@ async function api(ruta, { method = 'GET', body } = {}) {
   });
   const datos = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) {
-    if (res.status === 401 && estado.usuario) mostrarAcceso();
+    if (res.status === 401 && estado.usuario) {
+      mostrarAcceso();
+      // Por ejemplo, la licencia de VIMOD venció o se suspendió: se explica en la pantalla de acceso.
+      if (datos?.error) $('#auth-error').textContent = datos.error;
+    }
     const error = new Error(datos?.error ?? 'No se pudo completar la operación');
     error.estado = res.status;
     throw error;
