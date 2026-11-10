@@ -75,6 +75,9 @@ p { margin: 0 0 .75rem; }
 .logo i { font-family: var(--normal); font-style: normal; font-weight: 300; font-size: .6rem; letter-spacing: .42em; margin: .2rem -.42em 0 0; }
 .logo.grande b { font-size: 3rem; }
 .logo.grande i { font-size: 1.3rem; margin-top: .45rem; }
+/* Logo de VIMOD en imagen: es blanco sobre transparente, así que en modo claro se invierte a negro. */
+.logo img { display: block; max-width: 100%; height: auto; }
+:root[data-tema="claro"] .logo img { filter: invert(1); }
 
 /* ---------- Controles ---------- */
 button, input, select { font: inherit; color: inherit; }
