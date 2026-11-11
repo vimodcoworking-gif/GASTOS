@@ -474,12 +474,19 @@ export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', pue
   const libro = await libroParaIa(usuario, libroId);
   if (!libro) return null;
   const d = await datosDe(libro);
-  const [delCorreo, historico] = await Promise.all([
+  const [delCorreo, historico, recientes] = await Promise.all([
     usuario.gmail?.token
       ? Movimiento.find({ libro: libro._id, correoId: { $exists: true } }).sort('-fecha').limit(150).lean()
       : [],
     resumenHistorico(libro, d.hoy),
+    Movimiento.find({ libro: libro._id, fecha: { $gte: aFecha(sumarDias(d.hoy, -6)), $lte: aFecha(d.hoy) } }).sort({ fecha: 1, createdAt: 1 }).limit(300).lean(),
   ]);
+  // Días recientes ya separados y sumados, para responder «¿qué gasté hoy?» sin que la IA tenga que filtrar.
+  const delDia = (fecha) => {
+    const lista = recientes.filter((m) => aTexto(m.fecha) === fecha);
+    return { fecha, totales: totales(lista), movimientos: lista.map(corto) };
+  };
+  const ayer = sumarDias(d.hoy, -1);
   const escaneo = usuario.gmail?.escaneo?.estado ? usuario.gmail.escaneo : null;
   return {
     canal,
@@ -501,6 +508,9 @@ export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', pue
           gastosRegistrados: delCorreo.map(corto),
         }
       : { vinculado: false },
+    diaDeHoy: delDia(d.hoy),
+    diaDeAyer: delDia(ayer),
+    ultimos7Dias: { desde: sumarDias(d.hoy, -6), hasta: d.hoy, totales: totales(recientes), movimientos: recientes.map(corto) },
     mesActual: { mes: d.mes, totales: d.totalMes, movimientos: d.delMes.slice(0, 200).map(corto) },
     mesSiguiente: { mes: d.proximo, totales: d.totalProximo, movimientos: d.delProximo.slice(0, 100).map(corto) },
     pendientesVencidosYProximos30Dias: d.pendientes.map(corto),
