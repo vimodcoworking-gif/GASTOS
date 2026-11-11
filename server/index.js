@@ -38,6 +38,8 @@ app.use('/api/admin', requiereSesion, requiereAdmin, rutasAdmin);
 app.use('/api', requiereSesion, rutasApi);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 app.use(express.static(publico, {
+  // «/privacidad» y «/terminos» sirven privacidad.html y terminos.html.
+  extensions: ['html'],
   setHeaders(res, ruta) {
     // Los iconos no cambian: el navegador puede guardarlos una semana sin volver a preguntar.
     if (ruta.includes(`${path.sep}icons${path.sep}`)) res.setHeader('Cache-Control', 'public, max-age=604800');

@@ -1,5 +1,5 @@
 // Cambia la versión al publicar cambios para que se descarte la caché anterior.
-const CACHE = 'nfta-gastos-v27';
+const CACHE = 'nfta-gastos-v28';
 const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-vimod.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 // Si la red tarda más que esto (servidor dormido), se enseña la copia guardada.
 const ESPERA_RED_MS = 4000;
@@ -20,6 +20,8 @@ self.addEventListener('fetch', (ev) => {
   const url = new URL(ev.request.url);
   // Los datos (/api) siempre van a la red: nunca se guardan gastos en la caché.
   if (ev.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
+  // Otras páginas (privacidad, términos) van directas a la red: no deben guardarse como la app.
+  if (ev.request.mode === 'navigate' && url.pathname !== '/' && url.pathname !== '/index.html') return;
 
   // La página se guarda siempre como «/», aunque llegue con parámetros (?google=…).
   const clave = ev.request.mode === 'navigate' ? '/' : ev.request;
