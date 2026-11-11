@@ -105,7 +105,7 @@ export async function datosDe(libro) {
 
 function lineaMovimiento(m, dinero, hoy) {
   const vencido = !m.pagado && aTexto(m.fecha) < hoy;
-  return `• ${diaMes(m.fecha)} — ${m.descripcion}: ${m.tipo === 'gasto' ? '-' : '+'}${dinero(m.monto)}${vencido ? ' ⚠️ vencido' : ''}`;
+  return `• ${diaMes(m.fecha)} — ${m.descripcion}: ${m.tipo === 'gasto' ? '-' : '+'}${dinero(m.monto)}${m.moneda ? ` (${m.moneda} ${m.montoOriginal.toFixed(2)})` : ''}${vencido ? ' ⚠️ vencido' : ''}`;
 }
 
 function textoTotales(titulo, libro, t, dinero) {
@@ -251,6 +251,9 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
     fechaPago: pagado ? new Date() : null,
     creadoPor: usuario._id,
     ...(extra.correoId && { correoId: extra.correoId }),
+    // Cobrado en otra moneda: «monto» ya viene convertido a la del libro.
+    ...(/^[A-Z]{3}$/.test(datos.moneda ?? '') && datos.moneda !== libro.moneda && datos.montoOriginal > 0
+      && { moneda: datos.moneda, montoOriginal: Math.round(datos.montoOriginal * 100) / 100 }),
   });
   ultimoRegistrado.set(usuario.id, { id: mov._id, cuando: Date.now() });
 
@@ -258,7 +261,9 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
   const estado = tipo === 'gasto' ? (pagado ? 'pagado' : 'pendiente de pago') : pagado ? 'recibido' : 'por recibir';
   return [
     `✅ *${tipo === 'gasto' ? 'Gasto' : 'Ingreso'} registrado* en ${libro.nombre}`,
-    `${mov.descripcion}: *${dinero(monto)}*`,
+    mov.moneda
+      ? `${mov.descripcion}: *${mov.moneda} ${mov.montoOriginal.toFixed(2)}* (≈ ${dinero(monto)})`
+      : `${mov.descripcion}: *${dinero(monto)}*`,
     `${fechaLarga(fecha)} · ${mov.categoria} · ${estado}`,
     'Si no es correcto, escribe *deshacer*.',
   ].join('\n');
@@ -413,7 +418,7 @@ async function libroParaIa(usuario, libroId) {
   return libros.find((l) => libroId && String(l._id) === String(libroId)) ?? libroActivo(usuario, libros);
 }
 
-const corto = (m) => ({ fecha: aTexto(m.fecha), tipo: m.tipo, descripcion: m.descripcion, categoria: m.categoria, monto: m.monto, pagado: m.pagado, ...(m.correoId && { desdeCorreo: true }) });
+const corto = (m) => ({ fecha: aTexto(m.fecha), tipo: m.tipo, descripcion: m.descripcion, categoria: m.categoria, monto: m.monto, ...(m.moneda && { cobradoEn: `${m.moneda} ${m.montoOriginal}` }), pagado: m.pagado, ...(m.correoId && { desdeCorreo: true }) });
 const redondear = (n) => Math.round(n * 100) / 100;
 
 // Totales mes a mes (24 meses atrás y 12 adelante, donde hay pagos programados): ingresos, gastos,

@@ -233,6 +233,8 @@ const movPublico = (m) => ({
   descripcion: m.descripcion,
   categoria: m.categoria,
   monto: m.monto,
+  // Cobrado en otra moneda: «monto» es su equivalente en la moneda del libro.
+  ...(m.moneda && { moneda: m.moneda, montoOriginal: m.montoOriginal }),
   fecha: fechaTexto(m.fecha),
   pagado: m.pagado,
   fechaPago: fechaTexto(m.fechaPago),
@@ -334,7 +336,13 @@ libro.post('/movimientos', puedeEditar, async (req, res) => {
 libro.patch('/movimientos/:id', puedeEditar, async (req, res) => {
   const mov = await cargarMovimiento(req);
   const repeticion = leerRepeticion(req.body);
-  Object.assign(mov, leerMovimiento(req.body, true));
+  const cambios = leerMovimiento(req.body, true);
+  // El formulario usa la moneda del libro: si se cambia el monto, deja de contar el importe en la otra moneda.
+  if (mov.moneda && cambios.monto !== undefined && cambios.monto !== mov.monto) {
+    mov.moneda = undefined;
+    mov.montoOriginal = undefined;
+  }
+  Object.assign(mov, cambios);
 
   let creados = 0;
   if (repeticion) {

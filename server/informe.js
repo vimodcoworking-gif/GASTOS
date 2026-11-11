@@ -85,7 +85,7 @@ function tabla(doc, titulo, movimientos, dinero, hoy) {
     if (i % 2 === 1) doc.rect(MARGEN, y, ANCHO, ALTO_FILA).fill('#f3f3f3');
 
     const estado = estadoDe(mov, hoy);
-    const celdas = [fechaCorta(mov.fecha), limpio(mov.descripcion), limpio(mov.categoria), estado, dinero(mov.monto)];
+    const celdas = [fechaCorta(mov.fecha), limpio(mov.moneda ? `${mov.descripcion} (${mov.moneda} ${mov.montoOriginal.toFixed(2)})` : mov.descripcion), limpio(mov.categoria), estado, dinero(mov.monto)];
     let x = MARGEN;
     COLUMNAS.forEach((col, c) => {
       const destacado = c === 3 && (estado === 'Vencido' || estado === 'Pendiente' || estado === 'Por recibir');

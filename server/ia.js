@@ -430,6 +430,9 @@ No es ni gasto ni ingreso («ninguno»):
 - movimientos entre sus propias cuentas, en cualquier sentido: transferencias desde o hacia una cuenta o billetera a nombre del propio titular (el titular se indica en <titular>; compara nombres y apellidos aunque estén incompletos), recargas de sus propias billeteras o tarjetas prepago, cambios de moneda;
 - pagos de su tarjeta de crédito o de su deuda con el banco («pago de tarjeta», «pago realizado a tu tarjeta»): las compras con esa tarjeta ya se registran por separado.
 
+Los avisos del banco del tipo «Realizaste un consumo de S/ 12.99 con tu Tarjeta de Crédito en COMERCIO» o «Consumo Tarjeta de Crédito/Débito» son SIEMPRE un gasto, aunque digan «por tu seguridad, te enviamos los datos de tu operación» y aunque el comercio tenga un nombre raro o abreviado («CARGO DA 7021988» es un cargo automático de un servicio: es un gasto). La descripción es el comercio.
+Usa la moneda en la que se cobró (US$ o USD → "USD", S/ → "PEN") y el importe en esa moneda, sin convertirlo.
+
 Categorías de gasto: farmacia o botica → Salud; restaurante, supermercado, bodega, delivery de comida → Comida; taxi, Uber, Didi, pasajes, combustible → Transporte; Spotify, Netflix, juegos, apps con cobro periódico → Suscripciones; Yape, Plin o transferencias a otras personas → Transferencias; luz, agua, internet, teléfono → Servicios; si no encaja, Compras u Otros.
 Categorías de ingreso: Salario (sueldo, planilla, honorarios), Ventas, Transferencias (dinero recibido de otras personas), Reembolsos (devoluciones), Otros.
 

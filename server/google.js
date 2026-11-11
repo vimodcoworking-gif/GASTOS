@@ -2,13 +2,14 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'node:crypto';
 import { config } from './config.js';
-import { Usuario, Libro, Movimiento, CorreoVisto } from './models.js';
+import { Usuario, Libro, Movimiento, CorreoVisto, Ajuste } from './models.js';
 import { ErrorHttp } from './errores.js';
 import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
 import { librosDe, libroActivo, registrarMovimiento, hoyLocal } from './bot.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { comprobarLicencia } from './licencias.js';
+import { convertir, ErrorCambio } from './cambio.js';
 
 const GMAIL_LECTURA = 'https://www.googleapis.com/auth/gmail.readonly';
 const COOKIE_ESTADO = 'google_estado';
@@ -264,34 +265,87 @@ function gastoSinIa(correo) {
   const todo = `${correo.asunto}\n${correo.texto}`;
   if (!/(compra|consumo|pago|pagaste|cargo|yapeaste|transferencia|transferiste)/i.test(correo.asunto)) return null;
   if (/(recibiste|te yapearon|te transfirieron|abono|dep[oó]sito|devoluci|reembolso|oferta|promo|descuento|recordatorio|vence)/i.test(correo.asunto)) return null;
-  const importe = /(S\/\.?|PEN|US\$|USD|\$|€|EUR)\s?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\b/i.exec(todo);
+  const importe = new RegExp(`${SIMBOLO}\\s?${NUMERO}`, 'i').exec(todo);
   if (!importe) return null;
-  let numero = importe[2];
-  const decimales = /[.,]\d{1,2}$/.exec(numero)?.[0] ?? '';
-  numero = numero.slice(0, numero.length - decimales.length).replace(/[.,]/g, '') + decimales.replace(',', '.');
-  const simbolo = importe[1].toUpperCase();
-  const moneda = simbolo.startsWith('S') || simbolo === 'PEN' ? 'PEN' : simbolo === '€' || simbolo === 'EUR' ? 'EUR' : 'USD';
   const quien = correo.remitente.replace(/<.*>/, '').replace(/"/g, '').trim();
-  return { tipo: 'gasto', monto: Number(numero), moneda, descripcion: `${quien ? `${quien}: ` : ''}${correo.asunto}`, categoria: 'Otros', fecha: correo.fecha };
+  return { tipo: 'gasto', ...leerImporte(importe[1], importe[2]), descripcion: `${quien ? `${quien}: ` : ''}${correo.asunto}`, categoria: 'Otros', fecha: correo.fecha };
+}
+
+const SIMBOLO = '(S\\/\\.?|PEN|US\\$|USD|\\$|€|EUR)';
+const NUMERO = '(\\d{1,3}(?:[.,]\\d{3})*(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)\\b';
+
+// «S/ 1,234.50» o «US$ 12,99» → { monto, moneda }.
+function leerImporte(simbolo, numero) {
+  const decimales = /[.,]\d{1,2}$/.exec(numero)?.[0] ?? '';
+  const limpio = numero.slice(0, numero.length - decimales.length).replace(/[.,]/g, '') + decimales.replace(',', '.');
+  const s = simbolo.toUpperCase();
+  const moneda = s.startsWith('S') || s === 'PEN' ? 'PEN' : s === '€' || s === 'EUR' ? 'EUR' : 'USD';
+  return { monto: Number(limpio), moneda };
+}
+
+// Avisos de consumo con tarjeta que no dejan dudas («Realizaste un consumo de S/ 12.99 con tu Tarjeta
+// de Crédito BCP en CARGO DA 7021988.»). Se registran aunque la IA los descarte: algunos modelos los
+// confunden con avisos de seguridad («Por tu seguridad, te enviamos…») o con pagos de la tarjeta.
+const AVISO_CONSUMO = new RegExp(
+  `(?:realizaste|hiciste|has realizado|se (?:ha )?realizado|se registr[oó])\\s+(?:un|una)\\s+(?:consumo|compra|cargo)\\s+(?:de|por)\\s+${SIMBOLO}\\s?${NUMERO}([^\\n]{0,160})`,
+  'i',
+);
+
+function avisoDeConsumo(correo) {
+  const aviso = AVISO_CONSUMO.exec(`${correo.asunto}\n${correo.texto}`);
+  if (!aviso) return null;
+  const { monto, moneda } = leerImporte(aviso[1], aviso[2]);
+  if (!(monto > 0)) return null;
+  // El comercio suele venir tras «en»: «… con tu Tarjeta de Crédito BCP en CARGO DA 7021988.»
+  const comercio = /\ben\s+(.{2,60}?)(?:\.\s|\.$|,|$)/i.exec(aviso[3])?.[1]?.trim();
+  const banco = correo.remitente.replace(/<.*>/, '').replace(/"/g, '').replace(/notificaciones?/i, '').trim();
+  return {
+    tipo: 'gasto',
+    monto,
+    moneda,
+    descripcion: comercio ? `${comercio}${banco ? ` (${banco})` : ''}` : correo.asunto || 'Consumo con tarjeta',
+    categoria: 'Compras',
+    fecha: correo.fecha,
+  };
 }
 
 const dias = (a, b) => Math.abs(new Date(`${a}T00:00:00Z`) - new Date(`${b}T00:00:00Z`)) / 86400000;
 
 // Convierte lo que dijo la IA (o el filtro sin IA) en datos para registrar, o null si no es un gasto.
 async function interpretar(correo, monedaLibro, titular) {
-  const gasto = (await leerGastoDeCorreo(correo, titular)) ?? gastoSinIa(correo);
+  let gasto = await leerGastoDeCorreo(correo, titular);
+  const esGasto = (g) => g?.tipo === 'gasto' || g?.esGasto === true;
+  // Un aviso de consumo con tarjeta inequívoco se registra aunque la IA diga otra cosa.
+  if (!esGasto(gasto)) gasto = avisoDeConsumo(correo) ?? gasto;
+  gasto ??= gastoSinIa(correo);
   // «esGasto» es el formato anterior de la respuesta; se sigue aceptando.
-  const tipo = gasto?.tipo === 'ingreso' ? 'ingreso' : gasto?.tipo === 'gasto' || gasto?.esGasto === true ? 'gasto' : null;
+  const tipo = gasto?.tipo === 'ingreso' ? 'ingreso' : esGasto(gasto) ? 'gasto' : null;
   if (!tipo) return null;
-  const monto = Number(gasto.monto);
+  const monto = Math.round(Number(gasto.monto) * 100) / 100;
   if (!Number.isFinite(monto) || monto <= 0) return null;
-  const moneda = typeof gasto.moneda === 'string' && /^[A-Za-z]{3}$/.test(gasto.moneda) ? gasto.moneda.toUpperCase() : monedaLibro;
-  let descripcion = typeof gasto.descripcion === 'string' && gasto.descripcion.trim() ? gasto.descripcion.trim() : correo.asunto || (tipo === 'gasto' ? 'Gasto por correo' : 'Ingreso por correo');
-  // El libro guarda una sola moneda: si el cobro fue en otra, se avisa en la descripción.
-  if (moneda !== monedaLibro) descripcion = `[${moneda}] ${descripcion}`;
+  const descripcion = typeof gasto.descripcion === 'string' && gasto.descripcion.trim() ? gasto.descripcion.trim() : correo.asunto || (tipo === 'gasto' ? 'Gasto por correo' : 'Ingreso por correo');
   // La fecha de la IA solo se acepta si cuadra con la del correo.
   const fecha = typeof gasto.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(gasto.fecha) && gasto.fecha <= correo.fecha && dias(gasto.fecha, correo.fecha) <= 3 ? gasto.fecha : correo.fecha;
-  return { tipo, monto, descripcion: descripcion.slice(0, 120), categoria: typeof gasto.categoria === 'string' ? gasto.categoria : 'Otros', fecha, pagado: true };
+  const datos = { tipo, monto, descripcion: descripcion.slice(0, 120), categoria: typeof gasto.categoria === 'string' ? gasto.categoria : 'Otros', fecha, pagado: true };
+
+  // Cobrado en otra moneda (p. ej. dólares en un libro en soles): se guarda tal cual se cobró
+  // y, para los totales, su equivalente en la moneda del libro.
+  const moneda = normalizarMoneda(gasto.moneda) ?? monedaLibro;
+  if (moneda !== monedaLibro) {
+    const equivalente = await convertir(monto, moneda, monedaLibro);
+    if (equivalente !== null) Object.assign(datos, { moneda, montoOriginal: monto, monto: Math.max(equivalente, 0.01) });
+  }
+  return datos;
+}
+
+// La IA a veces responde «SOL», «S/» o «US$» en vez del código ISO.
+function normalizarMoneda(valor) {
+  if (typeof valor !== 'string') return null;
+  const v = valor.trim().toUpperCase();
+  if (/^(S\/\.?|SOL|SOLES|PEN)$/.test(v)) return 'PEN';
+  if (/^(US\$|\$|USD|DOLAR|DÓLAR|DOLARES|DÓLARES)$/.test(v)) return 'USD';
+  if (/^(€|EUR|EUROS?)$/.test(v)) return 'EUR';
+  return /^[A-Z]{3}$/.test(v) ? v : null;
 }
 
 const enCurso = new Set();
@@ -329,12 +383,13 @@ async function buscarPendientes(usuario, autorizacion, q, cuantos) {
 }
 
 // Un movimiento igual (mismo tipo y monto, un día arriba o abajo) ya anotado, por ejemplo a mano: no se duplica.
+// En otra moneda se compara el importe cobrado, que no depende del tipo de cambio.
 async function yaRegistrado(libro, datos) {
   const fecha = new Date(`${datos.fecha}T00:00:00Z`).getTime();
   return Movimiento.exists({
     libro: libro._id,
     tipo: datos.tipo,
-    monto: Math.round(datos.monto * 100) / 100,
+    ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: Math.round(datos.monto * 100) / 100 }),
     fecha: { $gte: new Date(fecha - DIA), $lte: new Date(fecha + DIA) },
   });
 }
@@ -349,6 +404,11 @@ async function procesarCorreos(usuario, libro, autorizacion, q, resultado, { max
 
   for (const id of pendientes.slice(0, maxCorreos)) {
     if (debeParar?.()) return;
+    // Ya hay un movimiento sacado de este correo (p. ej. si se vuelve a revisar): no se lee otra vez.
+    if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) {
+      await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
+      continue;
+    }
     const correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`, autorizacion));
     // Si la IA falla, el correo no se marca como visto y se vuelve a intentar en la próxima revisión.
     const datos = await interpretar(correo, libro.moneda, titularDe(usuario));
@@ -380,7 +440,7 @@ function motivoDeError(err) {
   const motivo = permisoRetirado
     ? 'Google retiró el permiso para leer tu correo. Vuelve a vincular Gmail.'
     : err instanceof ErrorGoogle ? `Gmail respondió con un error (${err.estado}). Se reintentará solo.`
-    : err.message?.startsWith('No tienes') ? err.message
+    : err.message?.startsWith('No tienes') || err instanceof ErrorCambio ? err.message
     : `No se pudo consultar la IA: ${explicarError(err)}`;
   return { motivo, permisoRetirado };
 }
@@ -545,9 +605,50 @@ async function reanudarEscaneos() {
   }
 }
 
+/**
+ * Correcciones que se hacen una sola vez (se anotan en Ajuste para no repetirlas):
+ * - Los gastos en otra moneda se guardaban con el importe tal cual y «[USD]» delante de la descripción,
+ *   como si fueran de la moneda del libro. Se pasan al formato nuevo: moneda e importe originales
+ *   y su equivalente en la moneda del libro.
+ * - Los correos de la última semana se vuelven a mirar, para recoger los avisos de consumo que la IA
+ *   descartó. Los que ya dieron un movimiento se saltan sin leerse.
+ */
+async function correccionesUnicas() {
+  const hecha = async (id) => Boolean(await Ajuste.exists({ _id: id }));
+  const marcar = (id) => Ajuste.updateOne({ _id: id }, { $set: { valor: new Date() } }, { upsert: true });
+  try {
+    if (!(await hecha('correccion:moneda-correo'))) {
+      const antiguos = await Movimiento.find({ correoId: { $exists: true }, moneda: { $exists: false }, descripcion: /^\[[A-Z]{3}\] / });
+      const monedas = new Map();
+      for (const mov of antiguos) {
+        const moneda = mov.descripcion.slice(1, 4);
+        if (!monedas.has(String(mov.libro))) monedas.set(String(mov.libro), (await Libro.findById(mov.libro).select('moneda').lean())?.moneda);
+        const monedaLibro = monedas.get(String(mov.libro));
+        if (!monedaLibro) continue;
+        const descripcion = mov.descripcion.slice(6).trim() || mov.descripcion;
+        const equivalente = moneda === monedaLibro ? null : await convertir(mov.monto, moneda, monedaLibro);
+        await Movimiento.updateOne({ _id: mov._id }, {
+          $set: { descripcion, ...(equivalente !== null && { moneda, montoOriginal: mov.monto, monto: Math.max(equivalente, 0.01) }) },
+        });
+      }
+      await marcar('correccion:moneda-correo');
+      if (antiguos.length) console.log(`Gmail: ${antiguos.length} movimientos en otra moneda corregidos.`);
+    }
+    if (!(await hecha('correccion:avisos-consumo'))) {
+      const { deletedCount } = await CorreoVisto.deleteMany({ visto: { $gte: new Date(Date.now() - 7 * DIA) } });
+      await marcar('correccion:avisos-consumo');
+      console.log(`Gmail: ${deletedCount} correos de la última semana se volverán a revisar.`);
+    }
+  } catch (err) {
+    console.error('Correcciones de Gmail:', err.message);
+  }
+}
+
 // Revisa el correo de todos los que lo vincularon cada pocos minutos.
 export function iniciarRevisionGmail() {
   if (!googleDisponible() || temporizador) return;
+  // Antes de la primera revisión (que empieza a los 30 segundos).
+  setTimeout(correccionesUnicas, 5_000);
   // Los escaneos que estaban en marcha cuando se reinició el servidor siguen solos donde quedaron.
   setTimeout(reanudarEscaneos, 20_000);
   setTimeout(revisarTodos, 30_000);

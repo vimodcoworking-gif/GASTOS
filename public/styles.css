@@ -240,6 +240,8 @@ button.tira:hover { background: var(--realce); border-color: var(--superficie); 
 .ingreso { color: var(--tinta); }
 .gasto { color: var(--suave); }
 .monto { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; font-weight: 700; }
+/* Equivalente en la moneda del libro de un cobro hecho en otra moneda. */
+.monto .equivalente { display: block; font-size: .75em; font-weight: 400; color: var(--tenue); }
 .vacio { padding: 1.5rem 1rem; margin: 0; text-align: center; color: var(--tenue); }
 /* Solo la primera letra: «Septiembre de 2026», no «Septiembre De 2026». */
 .capital::first-letter { text-transform: uppercase; }

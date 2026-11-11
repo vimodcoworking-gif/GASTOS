@@ -101,6 +101,16 @@ function dinero(monto) {
   }
 }
 
+// Importe de un movimiento: si se cobró en otra moneda, esa (p. ej. «US$ 94.39»); si no, la del libro.
+function dineroMov(m) {
+  if (!m.moneda || !(m.montoOriginal > 0)) return dinero(m.monto);
+  try {
+    return new Intl.NumberFormat('es-PE', { style: 'currency', currency: m.moneda }).format(m.montoOriginal);
+  } catch {
+    return `${m.montoOriginal.toFixed(2)} ${m.moneda}`;
+  }
+}
+
 const entero = (n) => new Intl.NumberFormat('es-PE').format(n);
 
 let temporizadorAviso;
@@ -514,7 +524,9 @@ function filaMovimiento(m, editar) {
       h('small', null, `${fechaCorta(m.fecha)} · ${m.categoria} `),
       chipEstado(m),
     ),
-    h('span', { class: `monto ${m.tipo}` }, `${m.tipo === 'gasto' ? '−' : '+'}${dinero(m.monto)}`),
+    h('span', { class: `monto ${m.tipo}`, ...(m.moneda && { title: `Equivale a ${dinero(m.monto)} con el tipo de cambio del día` }) },
+      `${m.tipo === 'gasto' ? '−' : '+'}${dineroMov(m)}`,
+      m.moneda && h('small', { class: 'equivalente' }, `≈ ${dinero(m.monto)}`)),
   ];
   if (!editar) return h('li', { class: 'mov' }, h('div', { class: 'mov-abrir' }, contenido));
 

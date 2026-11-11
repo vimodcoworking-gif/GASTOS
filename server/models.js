@@ -80,7 +80,12 @@ const movimientoSchema = new Schema(
     tipo: { type: String, enum: ['gasto', 'ingreso'], required: true },
     descripcion: { type: String, required: true, trim: true, maxlength: 120 },
     categoria: { type: String, trim: true, maxlength: 40, default: 'General' },
+    // Siempre en la moneda del libro, para que los totales cuadren.
     monto: { type: Number, required: true, min: 0.01 },
+    // Si se cobró en otra moneda (p. ej. una compra en dólares en un libro en soles): la moneda
+    // y el importe tal como se cobraron. «monto» guarda su equivalente con el tipo de cambio del día.
+    moneda: { type: String, match: /^[A-Z]{3}$/ },
+    montoOriginal: Number,
     // Fecha del movimiento o de vencimiento, siempre a medianoche UTC.
     fecha: { type: Date, required: true },
     pagado: { type: Boolean, default: false },
@@ -95,6 +100,7 @@ const movimientoSchema = new Schema(
 );
 movimientoSchema.index({ libro: 1, fecha: 1 });
 movimientoSchema.index({ libro: 1, serie: 1 });
+movimientoSchema.index({ correoId: 1 }, { sparse: true });
 
 // Ajustes del administrador (IA, bot), uno por clave.
 const ajusteSchema = new Schema({ _id: String, valor: Schema.Types.Mixed }, { timestamps: true });
