@@ -28,6 +28,9 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # Opcional: entender audios de WhatsApp (gratis en console.groq.com).
+      - key: GROQ_API_KEY
+        sync: false
       # Licencias de VIMOD: sin estas variables la app no pide licencia.
       - key: VIMOD_MONGODB_URI
         sync: false

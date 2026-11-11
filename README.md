@@ -47,6 +47,13 @@ Aplicación web para llevar las finanzas personales o compartidas: gastos, ingre
 - **Continuar con Google:** en la pantalla de acceso, si Google está configurado. Entra en la cuenta con ese correo o crea una nueva (sin contraseña; se puede poner una después con «¿Olvidaste tu contraseña?»).
 - **Mi cuenta:** en el menú. Permite cambiar el nombre y el número de WhatsApp, y vincular Gmail para que los gastos que llegan por correo se registren solos (ver [Google y gastos desde Gmail](#google-y-gastos-desde-gmail)).
 
+### Fotos, PDF, audios y varios gastos por WhatsApp
+
+- **Varios gastos en un mensaje**: uno por línea (*gasté 30 en pasajes* ↵ *gasté 100 en corte* ↵ *y 60 en desayuno*). Las líneas que empiezan por el monto siguen el tipo de la anterior. *deshacer* los borra todos juntos.
+- **Fotos** (boletas, facturas, vouchers, capturas de Yape/Plin o del banco) y **PDF** (comprobantes, recibos, estados de cuenta): la IA lee los importes y registra cada movimiento. El texto que acompaña al archivo sirve de indicación («esto fue ayer», «es un ingreso»). Con Claude se leen también PDF escaneados; con NVIDIA se usa un modelo con visión para las fotos y el texto del PDF.
+- **Audios**: se transcriben (requiere `GROQ_API_KEY` u `OPENAI_API_KEY`) y se tratan como un mensaje escrito.
+- No se repiten movimientos ya anotados (mismo tipo, monto y fecha ±1 día).
+
 ### Asistente IA
 
 En el menú, **Asistente IA** abre un chat (requiere la IA activada en Admin → IA). Se le puede preguntar por los gastos, pedir un análisis de los gastos que llegaron por Gmail (por comercio, categoría, suscripciones y cargos repetidos), registrar movimientos, pedir un PDF o pedir que la respuesta llegue por WhatsApp («mándamelo por WhatsApp»). Cada respuesta tiene además un botón «Enviar por WhatsApp». Conoce el resumen de cada mes (24 atrás y 12 adelante) y, si hace falta, consulta el detalle de cualquier periodo, así que se le puede preguntar por meses pasados o por todo el historial. También puede revisar los correos de Gmail de meses anteriores («escanea mis correos de los últimos 3 meses»), igual que el botón «Escanear correos» de *Mi cuenta*: de los meses elegidos o de todo el correo, por tandas de 100 avisos hasta terminar (máximo 5000 por escaneo), sin duplicar movimientos ya anotados (mismo tipo, monto y fecha ±1 día). Se puede detener, y si el servidor se reinicia sigue solo donde quedó. Mientras escanea, y siempre que haya algún Gmail activo, la app se visita a sí misma cada 4 minutos (con `APP_URL` o, en Render, `RENDER_EXTERNAL_URL`) para que Render no la apague y la sincronización automática siga funcionando. La conversación se comparte con el bot: se puede seguir en WhatsApp escribiendo «ia» y la pregunta. Trabaja sobre el libro elegido en la app.
@@ -268,6 +275,7 @@ Si hay varios métodos configurados, se usa Brevo, después Cloudflare y por úl
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | ID de cliente OAuth de Google. Sin ellos no aparece el botón de Google |
 | `APP_URL` | Dirección pública (`https://…`) para la vuelta desde Google. Si falta, se deduce de la petición |
 | `GMAIL_MINUTOS` | Cada cuántos minutos se revisa el Gmail vinculado (por defecto 10, mínimo 2) |
+| `GROQ_API_KEY` | Opcional. Para que el bot de WhatsApp entienda audios (Whisper en Groq, gratis en console.groq.com). También vale `OPENAI_API_KEY` |
 
 ---
 

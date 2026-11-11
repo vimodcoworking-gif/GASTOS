@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { Libro, Movimiento } from './models.js';
 import { generarInforme, formateador } from './informe.js';
 import { preguntar } from './ia.js';
+import { convertir } from './cambio.js';
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -162,6 +163,9 @@ const AYUDA_REGISTRAR = [
   'Opcional: una fecha (*ayer*, *mañana* o *15/10*), la categoría con # (*#comida*) y la palabra *pendiente* si aún no está pagado.',
   'Ejemplo: *gasto 110 internet 28/10 #servicios pendiente*',
   '',
+  'Varios a la vez: uno por línea (*gasté 30 en pasajes* ↵ *gasté 60 en desayuno*).',
+  'También puedes mandar una *foto* de la boleta o del Yape, un *PDF* o un *audio*.',
+  '',
   'Si te equivocas, escribe *deshacer*.',
 ].join('\n');
 
@@ -271,6 +275,11 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
 
 export async function deshacerUltimo(usuario) {
   const ultimo = ultimoRegistrado.get(usuario.id);
+  if (ultimo?.ids && Date.now() - ultimo.cuando <= 24 * 3600 * 1000) {
+    const { deletedCount } = await Movimiento.deleteMany({ _id: { $in: ultimo.ids }, creadoPor: usuario._id });
+    ultimoRegistrado.delete(usuario.id);
+    return deletedCount ? `↩️ Borrados los ${deletedCount} movimientos que acababa de registrar.` : 'Esos movimientos ya no existen.';
+  }
   if (!ultimo || Date.now() - ultimo.cuando > 24 * 3600 * 1000) return 'No tengo ningún registro reciente tuyo que deshacer. Para borrar otros movimientos usa la app.';
   const mov = await Movimiento.findOneAndDelete({ _id: ultimo.id, creadoPor: usuario._id });
   ultimoRegistrado.delete(usuario.id);
@@ -356,13 +365,116 @@ function reconocer(usuario, texto) {
   return comando ? { accion: comando.accion, resto: palabras.slice(1) } : null;
 }
 
+// Varias líneas, un movimiento por línea: «gasté 30 en pasajes ↵ gasté 100 en corte ↵ y 60 en desayuno».
+// Las líneas que empiezan por el monto heredan el tipo de la anterior. Si alguna no se entiende, null.
+function leerVarios(mensaje, hoy) {
+  const lineas = mensaje.split(/\n+/).map((l) => l.trim().replace(/^[-•*·]\s*/, '')).filter(Boolean);
+  if (lineas.length < 2 || lineas.length > 30) return null;
+  const registros = [];
+  let anterior = null;
+  for (const linea of lineas) {
+    const texto = linea.replace(/^(y|tambi[eé]n|adem[aá]s|luego)\s+/i, '');
+    let registro = leerRegistro(texto, hoy);
+    if (!registro && anterior && leerMonto(texto.split(/\s+/)[0]) !== null) registro = leerRegistro(`${anterior} ${texto}`, hoy);
+    if (!registro) return null;
+    registros.push(registro);
+    anterior = registro.tipo;
+  }
+  return registros;
+}
+
+/**
+ * Registra varios movimientos de una vez (un mensaje con varias líneas, una boleta, un estado de cuenta).
+ * Convierte los cobrados en otra moneda y se salta los que ya estaban anotados (mismo tipo, monto y fecha ±1 día).
+ * Devuelve el texto de confirmación; «deshacer» los borra todos juntos.
+ */
+export async function registrarVarios(usuario, movimientos, { origen = '', libro: fijo = null } = {}) {
+  const libros = await librosDe(usuario);
+  // El libro abierto en la app (si se pide desde allí) o el elegido en WhatsApp.
+  const elegido = fijo ?? libroActivo(usuario, libros);
+  const libro = elegido && puedeEscribir(usuario, elegido) ? elegido : libros.find((l) => puedeEscribir(usuario, l));
+  if (!libro) return libros.length ? '🔒 No tienes ningún libro donde puedas registrar movimientos.' : 'Todavía no tienes ningún libro. Entra en la app y crea uno.';
+  const dinero = formateador(libro.moneda);
+  const hoy = hoyLocal();
+  const hechos = [];
+  const repetidos = [];
+  const fallos = [];
+  const ids = [];
+
+  for (const original of movimientos.slice(0, 30)) {
+    const tipo = original?.tipo === 'ingreso' ? 'ingreso' : original?.tipo === 'gasto' ? 'gasto' : null;
+    const monto = Math.round(Number(original?.monto) * 100) / 100;
+    if (!tipo || !Number.isFinite(monto) || monto <= 0 || monto > 1e9) continue;
+    const fecha = typeof original.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(original.fecha) ? original.fecha : hoy;
+    const datos = { ...original, tipo, monto, fecha };
+    const moneda = normalizarMoneda(original.moneda) ?? libro.moneda;
+    delete datos.moneda;
+    delete datos.montoOriginal;
+    if (moneda !== libro.moneda) {
+      const equivalente = await convertir(monto, moneda, libro.moneda).catch(() => null);
+      if (equivalente === null) {
+        fallos.push(`${datos.descripcion ?? 'Movimiento'}: no pude convertir ${moneda} ${monto} a ${libro.moneda}`);
+        continue;
+      }
+      Object.assign(datos, { moneda, montoOriginal: monto, monto: Math.max(equivalente, 0.01) });
+    }
+    // Mismo movimiento ya anotado (p. ej. la misma boleta enviada dos veces, o ya llegado por correo).
+    const dia = aFecha(fecha).getTime();
+    const igual = await Movimiento.exists({
+      libro: libro._id,
+      tipo,
+      ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: datos.monto }),
+      fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) },
+    });
+    if (igual) {
+      repetidos.push(`${datos.descripcion ?? tipo}: ${datos.moneda ? `${datos.moneda} ${monto.toFixed(2)}` : dinero(monto)}`);
+      continue;
+    }
+    const confirmacion = await registrarMovimiento(usuario, libro, datos);
+    if (!confirmacion.startsWith('✅')) {
+      fallos.push(confirmacion);
+      continue;
+    }
+    ids.push(ultimoRegistrado.get(usuario.id)?.id);
+    hechos.push({ tipo, linea: confirmacion.split('\n')[1], monto: datos.monto });
+  }
+  if (ids.length > 1) ultimoRegistrado.set(usuario.id, { ids: ids.filter(Boolean), cuando: Date.now() });
+
+  const gastos = hechos.filter((h) => h.tipo === 'gasto').reduce((t, h) => t + h.monto, 0);
+  const ingresos = hechos.filter((h) => h.tipo === 'ingreso').reduce((t, h) => t + h.monto, 0);
+  const lineas = [];
+  if (hechos.length) {
+    const cuantos = hechos.length === 1 ? `1 ${hechos[0].tipo} registrado` : `${hechos.length} movimientos registrados`;
+    lineas.push(`✅ *${cuantos}* en ${libro.nombre}${origen ? ` ${origen}` : ''}`, ...hechos.map((h) => `• ${h.tipo === 'ingreso' ? '➕ ' : ''}${h.linea}`));
+    if (hechos.length > 1) lineas.push('', [gastos && `Total gastos: *${dinero(gastos)}*`, ingresos && `Total ingresos: *${dinero(ingresos)}*`].filter(Boolean).join(' · '));
+  }
+  if (repetidos.length) lineas.push('', `↪️ Ya estaban anotados, no los repetí:`, ...repetidos.map((r) => `• ${r}`));
+  if (fallos.length) lineas.push('', '⚠️ No pude registrar:', ...fallos.map((f) => `• ${f}`));
+  if (!lineas.length) return 'No encontré ningún monto válido para registrar.';
+  if (hechos.length) lineas.push('', hechos.length > 1 ? 'Si algo no es correcto, escribe *deshacer* y los borro todos.' : 'Si no es correcto, escribe *deshacer*.');
+  return lineas.join('\n').trim();
+}
+
+// La IA a veces responde «SOL», «S/» o «US$» en vez del código ISO.
+function normalizarMoneda(valor) {
+  if (typeof valor !== 'string') return null;
+  const v = valor.trim().toUpperCase();
+  if (/^(S\/\.?|SOL|SOLES|PEN)$/.test(v)) return 'PEN';
+  if (/^(US\$|\$|USD|DOLAR|DÓLAR|DOLARES|DÓLARES)$/.test(v)) return 'USD';
+  if (/^(€|EUR|EUROS?)$/.test(v)) return 'EUR';
+  return /^[A-Z]{3}$/.test(v) ? v : null;
+}
+
 /**
  * Responde a un mensaje de un usuario registrado.
  * Devuelve { texto, pdf? } si era un comando, o null si no lo era.
  */
 export async function responder(usuario, mensaje, { conIa = false } = {}) {
   const hoy = hoyLocal();
-  const registro = leerRegistro(mensaje, hoy);
+  const varios = leerVarios(mensaje, hoy);
+  if (varios) return { texto: await registrarVarios(usuario, varios) };
+  // Un solo movimiento en varias líneas no se toma como registro: es otra cosa (p. ej. para la IA).
+  const registro = mensaje.trim().includes('\n') ? null : leerRegistro(mensaje, hoy);
   const comando = registro ? { accion: 'crear' } : reconocer(usuario, mensaje);
   if (!comando) return null;
 
@@ -568,8 +680,11 @@ export async function ejecutarAcciones(usuario, acciones, { libroId } = {}) {
   const libro = await libroParaIa(usuario, libroId);
   if (!libro) return { textos, pdfs };
 
+  // Varios gastos en un mismo mensaje («gasté 30 en taxi y 20 en almuerzo»): se registran juntos.
+  const registros = acciones.filter((a) => a?.tipo === 'registrar' && a.movimiento && typeof a.movimiento === 'object').map((a) => a.movimiento);
+  if (registros.length > 1) textos.push(await registrarVarios(usuario, registros.slice(0, 20), { libro }));
   // Como mucho unas pocas acciones por mensaje: un modelo confundido no debe llenar el libro.
-  for (const accion of acciones.slice(0, 5)) {
+  for (const accion of acciones.filter((a) => a?.tipo !== 'registrar' || registros.length <= 1).slice(0, 5)) {
     if (accion?.tipo === 'registrar' && accion.movimiento && typeof accion.movimiento === 'object') {
       textos.push(await registrarMovimiento(usuario, libro, accion.movimiento));
     } else if (accion?.tipo === 'deshacer') {

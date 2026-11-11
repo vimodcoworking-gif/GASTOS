@@ -2,6 +2,7 @@ import makeWASocket, {
   Browsers,
   BufferJSON,
   DisconnectReason,
+  downloadMediaMessage,
   fetchLatestWaWebVersion,
   initAuthCreds,
   isJidBroadcast,
@@ -15,8 +16,8 @@ import makeWASocket, {
 } from 'baileys';
 import QRCode from 'qrcode';
 import { SesionWa, Usuario } from './models.js';
-import { responder, estadoDeCuenta, conversar, ejecutarAcciones, librosDe, textoMenu } from './bot.js';
-import { iaDisponible } from './ia.js';
+import { responder, estadoDeCuenta, conversar, ejecutarAcciones, librosDe, libroActivo, textoMenu, registrarVarios, hoyLocal } from './bot.js';
+import { iaDisponible, leerComprobante, transcribir, transcripcionDisponible, explicarError } from './ia.js';
 import { comprobarLicencia } from './licencias.js';
 
 // Estado visible para el panel del administrador.
@@ -272,14 +273,58 @@ function esMiPropioChat(sock, jid) {
   return chat === jidNormalizedUser(sock.user?.id) || (sock.user?.lid && chat === jidNormalizedUser(sock.user.lid));
 }
 
+// El contenido real del mensaje: WhatsApp envuelve a veces el mensaje (mensajes temporales, «ver una vez»,
+// documentos con texto).
+function contenidoDe(mensaje) {
+  let m = mensaje.message ?? {};
+  for (let i = 0; i < 3; i += 1) {
+    const dentro = m.ephemeralMessage?.message ?? m.viewOnceMessage?.message ?? m.viewOnceMessageV2?.message ?? m.documentWithCaptionMessage?.message;
+    if (!dentro) break;
+    m = dentro;
+  }
+  return m;
+}
+
+// Foto, audio o documento que trae el mensaje, o null. «texto» es lo que se escribió junto al archivo.
+function archivoDe(m) {
+  if (m.imageMessage) return { tipo: 'imagen', mime: m.imageMessage.mimetype || 'image/jpeg', texto: m.imageMessage.caption ?? '', tamano: Number(m.imageMessage.fileLength ?? 0) };
+  if (m.audioMessage) return { tipo: 'audio', mime: m.audioMessage.mimetype || 'audio/ogg', texto: '', tamano: Number(m.audioMessage.fileLength ?? 0) };
+  if (m.documentMessage) {
+    const d = m.documentMessage;
+    const mime = d.mimetype || '';
+    const nombre = d.fileName || '';
+    const tipo = mime === 'application/pdf' || /\.pdf$/i.test(nombre) ? 'pdf'
+      : /^image\/(jpeg|png|webp|gif)$/.test(mime) ? 'imagen'
+      : /^audio\//.test(mime) ? 'audio'
+      : /^text\/|csv/.test(mime) || /\.(txt|csv)$/i.test(nombre) ? 'texto'
+      : 'otro';
+    return { tipo, mime, nombre, texto: d.caption ?? '', tamano: Number(d.fileLength ?? 0) };
+  }
+  return null;
+}
+
+const MAX_ARCHIVO = 15 * 1024 * 1024;
+
+// Cada persona tiene su propia cola: si manda varias fotos seguidas, se leen una tras otra, sin perder ninguna.
+const colas = new Map();
+function enCola(numero, tarea) {
+  const anterior = colas.get(numero) ?? Promise.resolve();
+  const siguiente = anterior.catch(() => {}).then(tarea);
+  colas.set(numero, siguiente);
+  siguiente.finally(() => colas.get(numero) === siguiente && colas.delete(numero)).catch(() => {});
+  return siguiente;
+}
+
 async function atender(sock, mensaje) {
   const { key } = mensaje;
   const jid = key.remoteJid;
   if (!jid || !mensaje.message || isJidGroup(jid) || isJidBroadcast(jid) || isJidNewsletter(jid)) return;
   if (enviados.has(key.id)) return;
 
-  const texto = (mensaje.message.conversation ?? mensaje.message.extendedTextMessage?.text ?? '').trim();
-  if (!texto || texto.length > 1000) return;
+  const contenido = contenidoDe(mensaje);
+  const archivo = archivoDe(contenido);
+  const texto = (contenido.conversation ?? contenido.extendedTextMessage?.text ?? '').trim();
+  if (!archivo && (!texto || texto.length > 4000)) return;
   // Al reconectar pueden llegar mensajes atrasados: no se contestan los de hace más de dos minutos.
   if (Date.now() / 1000 - Number(mensaje.messageTimestamp ?? 0) > 120) return;
 
@@ -300,21 +345,30 @@ async function atender(sock, mensaje) {
   const licencia = await comprobarLicencia(usuario);
   if (!licencia.ok) return;
 
-  // Freno sencillo contra ráfagas: un mensaje por segundo y usuario.
-  const ahora = Date.now();
-  if (ahora - (ultimoMensaje.get(numero) ?? 0) < 1000) return;
-  ultimoMensaje.set(numero, ahora);
+  if (!archivo) {
+    // Freno sencillo contra ráfagas de texto: un mensaje por segundo y usuario.
+    const ahora = Date.now();
+    if (ahora - (ultimoMensaje.get(numero) ?? 0) < 1000) return;
+    ultimoMensaje.set(numero, ahora);
+  }
 
-  // «Escribiendo…» aparece al momento, sin esperar a tener lista la respuesta.
-  sock.sendPresenceUpdate('composing', jid).catch(() => {});
+  return enCola(numero, async () => {
+    // «Escribiendo…» aparece al momento, sin esperar a tener lista la respuesta.
+    sock.sendPresenceUpdate('composing', jid).catch(() => {});
+    if (archivo) return atenderArchivo(sock, jid, usuario, mensaje, archivo);
+    return atenderTexto(jid, usuario, texto);
+  });
+}
 
+/** Responde a un texto (escrito o sacado de un audio). Con «forzarIa» se habla con la IA aunque no empiece por «ia». */
+async function atenderTexto(jid, usuario, texto, { forzarIa = false } = {}) {
   const ia = await iaDisponible();
   const comando = await responder(usuario, texto, { conIa: ia.disponible });
   if (comando) return enviarRespuesta(jid, comando);
 
   // No es un comando. A la IA se le habla empezando por «ia» o «bot», salvo que esté puesta a responder todo.
   const conPrefijo = /^(ia|bot)\b[\s,:]*/i.exec(texto);
-  if (!conPrefijo && !ia.responderTodo) return;
+  if (!conPrefijo && !ia.responderTodo && !forzarIa) return;
   const pregunta = conPrefijo ? texto.slice(conPrefijo[0].length).trim() : texto;
 
   if (ia.disponible && pregunta) {
@@ -328,9 +382,76 @@ async function atender(sock, mensaje) {
       return;
     }
   }
+  if (forzarIa) return enviar(jid, { text: 'No supe qué hacer con eso. Dime, por ejemplo: *gasté 30 en taxi*, o escribe *menu*.' });
   // Se dirigió al bot pero no hay IA (o no escribió nada tras «ia»): se le muestra el menú.
   if (conPrefijo) {
     const [libro] = await librosDe(usuario);
     if (libro) await enviar(jid, { text: textoMenu(usuario, libro, ia.disponible) });
+  }
+}
+
+// Texto de un PDF (para la IA de NVIDIA, que no abre PDF). Se carga solo al usarlo.
+async function textoDePdf(buffer) {
+  try {
+    const { extractText, getDocumentProxy } = await import('unpdf');
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    return String(text ?? '').replace(/[ \t]+/g, ' ').trim();
+  } catch (err) {
+    console.error('WhatsApp (PDF):', err.message);
+    return '';
+  }
+}
+
+/** Foto, PDF o audio: se lee con la IA (o se transcribe) y se registran los movimientos que haya. */
+async function atenderArchivo(sock, jid, usuario, mensaje, archivo) {
+  const responderTexto = (text) => enviar(jid, { text });
+  if (archivo.tipo === 'otro') return responderTexto('Ese tipo de archivo no lo puedo leer. Mándame una *foto* (boleta, voucher, captura de Yape), un *PDF* o un *audio*.');
+  if (archivo.tamano > MAX_ARCHIVO) return responderTexto('El archivo es demasiado grande (máximo 15 MB).');
+
+  const ia = await iaDisponible();
+  if (archivo.tipo === 'audio' && !transcripcionDisponible()) {
+    return responderTexto('Todavía no puedo escuchar audios: el administrador debe añadir la clave *GROQ_API_KEY* en el servidor. Mientras tanto, escríbeme el gasto (por ejemplo *gasté 30 en taxi*).');
+  }
+  if (archivo.tipo !== 'audio' && !ia.disponible) {
+    return responderTexto('Para leer fotos y PDF hace falta tener activada la IA (Admin → IA). Mientras tanto, escríbeme el gasto (por ejemplo *gasté 30 en taxi*).');
+  }
+
+  let buffer;
+  try {
+    buffer = await downloadMediaMessage(mensaje, 'buffer', {}, { logger: silencio, reuploadRequest: sock.updateMediaMessage });
+  } catch (err) {
+    console.error('WhatsApp (descarga):', err.message);
+    return responderTexto('No pude descargar el archivo. Vuelve a enviarlo, por favor.');
+  }
+  if (!buffer?.length) return responderTexto('El archivo llegó vacío. Vuelve a enviarlo, por favor.');
+  if (buffer.length > MAX_ARCHIVO) return responderTexto('El archivo es demasiado grande (máximo 15 MB).');
+
+  try {
+    if (archivo.tipo === 'audio') {
+      const dicho = await transcribir(buffer, archivo.mime);
+      if (!dicho) return responderTexto('No entendí el audio. ¿Puedes repetirlo o escribírmelo?');
+      await responderTexto(`🎙️ Entendí: «${dicho}»`);
+      return atenderTexto(jid, usuario, dicho, { forzarIa: true });
+    }
+
+    const entrada = archivo.tipo === 'imagen'
+      ? { imagen: { base64: buffer.toString('base64'), mime: archivo.mime.split(';')[0] } }
+      : archivo.tipo === 'pdf'
+        ? { pdf: { base64: buffer.toString('base64'), texto: await textoDePdf(buffer) } }
+        : { texto: buffer.toString('utf8') };
+    const libros = await librosDe(usuario);
+    const libro = libroActivo(usuario, libros);
+    if (!libro) return responderTexto('Todavía no tienes ningún libro. Entra en la app y crea uno.');
+    const lectura = await leerComprobante(entrada, { hoy: hoyLocal(), moneda: libro.moneda, titular: usuario.nombre, mensaje: archivo.texto });
+    if (!lectura) return responderTexto('La IA no está disponible ahora mismo. Escríbeme el gasto, por ejemplo *gasté 30 en taxi*.');
+    if (!lectura.movimientos.length) return responderTexto(lectura.nota || 'No encontré ningún pago ni ingreso en ese archivo. Si es un gasto, escríbemelo (por ejemplo *gasté 30 en taxi*).');
+    const origen = archivo.tipo === 'pdf' ? 'desde tu PDF' : archivo.tipo === 'imagen' ? 'desde tu foto' : 'desde tu archivo';
+    const resultado = await registrarVarios(usuario, lectura.movimientos, { origen });
+    return responderTexto(`${resultado}${lectura.nota ? `\n\n📝 ${lectura.nota}` : ''}`);
+  } catch (err) {
+    console.error(`WhatsApp (${archivo.tipo}):`, err.message);
+    const motivo = err.message?.startsWith('El servicio de audio') ? err.message : explicarError(err);
+    return responderTexto(`No pude leer ${archivo.tipo === 'audio' ? 'el audio' : 'el archivo'}. Motivo: ${motivo}\nMientras tanto, escríbeme el gasto (por ejemplo *gasté 30 en taxi*).`);
   }
 }
