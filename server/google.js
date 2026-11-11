@@ -336,7 +336,7 @@ async function accesoGmail(usuario, cuenta) {
 }
 
 // Palabras de avisos de compra y pago; los demás correos ni se abren.
-const FILTRO = '{category:purchases from:yape from:plin yape yapeo compra compraste consumo consumiste cargo pago pagaste yapeaste plin transferencia transferiste boleta factura recibo comprobante voucher pedido orden viaje suscripcion purchase receipt payment order invoice recibiste yapearon plinearon abono depósito deposito sueldo haberes remuneración devolución reembolso}';
+const FILTRO = '{category:purchases from:yape from:plin from:bcp from:viabcp from:interbank from:bbva from:scotiabank from:bancodelanacion from:bn.com.pe from:mibanco from:pichincha from:banbif from:falabella from:ripley from:izipay from:niubiz from:culqi from:mercadopago from:paypal from:rappi from:uber from:didi from:cabify from:pedidosya from:netflix from:spotify from:sunat yape yapeo compra compraste consumo consumiste cargo cargos pago pagaste pagado yapeaste plin transferencia transferiste constancia operación operacion movimiento boleta factura recibo comprobante voucher pedido orden viaje suscripción suscripcion renovación cobro débito debito purchase receipt payment order invoice charged recibiste yapearon plinearon abono depósito deposito sueldo haberes remuneración devolución reembolso}';
 
 const base64url = (datos) => Buffer.from(datos.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
 
@@ -496,7 +496,8 @@ const titularDe = (usuario) => [usuario.nombre, ...cuentasDe(usuario).flatMap((c
 const DIA = 86400000;
 // Los escaneos de meses anteriores avanzan por tandas hasta terminar, con este tope por escaneo.
 const POR_TANDA = 100;
-const MAX_ESCANEO = 5000;
+// Tope por escaneo (si quedan más, se puede pedir otra vez y sigue donde quedó).
+const MAX_ESCANEO = 20000;
 // Gmail existe desde 2004: «todo el correo» empieza ahí.
 const INICIO_GMAIL = '2004-01-01';
 // Escaneos que la persona pidió detener.
@@ -703,9 +704,9 @@ export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, { cuenta: 
   if (desde < INICIO_GMAIL) desde = INICIO_GMAIL;
   if (desde > hasta) return 'Las fechas para revisar el correo no son válidas.';
   const todo = desde === INICIO_GMAIL;
-  // En periodos cortos (hasta un mes) se vuelven a leer también los avisos ya vistos que no dieron
-  // ningún movimiento: quien escanea «hoy» espera que se miren todos sus correos de hoy.
-  const releer = !todo && (new Date(`${hasta}T00:00:00Z`) - new Date(`${desde}T00:00:00Z`)) / DIA <= 31;
+  // Un escaneo pedido a mano mira TODOS los avisos del periodo: también los ya vistos que no dieron ningún
+  // movimiento (descartados antes por error). Solo se saltan los que ya están registrados.
+  const releer = true;
   const periodo = todo ? 'de todo tu correo' : `del ${fechaCorta(desde)} al ${fechaCorta(hasta)}`;
 
   const libres = elegidas.filter((c) => !escaneos.has(claveDe(usuario, c)));

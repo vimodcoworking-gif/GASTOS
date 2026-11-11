@@ -66,6 +66,18 @@ function avisarPorWhatsapp(usuario, texto) {
   enviarANumero(usuario.whatsapp, { texto }).catch((err) => console.error('Aviso del teléfono por WhatsApp:', err.message));
 }
 
+const pagina = (titulo, texto) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${titulo}</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px 16px;background:#f1f1f1;color:#0b0b0b}@media(prefers-color-scheme:dark){body{background:#000;color:#fff}}</style></head><body><h1>${titulo}</h1>${texto}</body></html>`;
+
+// Al abrir el enlace en el navegador se explica para qué sirve (los avisos llegan por POST).
+rutasAvisos.get('/:token', limite, async (req, res) => {
+  const token = String(req.params.token);
+  const usuario = /^[0-9a-f]{36}$/.test(token) ? await Usuario.findOne({ tokenAvisos: token }).select('nombre') : null;
+  if (!usuario) {
+    return res.status(404).type('html').send(pagina('Enlace no válido', '<p>Este enlace no existe o se cambió por otro. Cópialo otra vez desde <b>Mi cuenta → Yape, Plin y avisos del teléfono</b>.</p>'));
+  }
+  res.type('html').send(pagina('✅ Tu enlace funciona', `<p>Este es el enlace de avisos de <b>${usuario.nombre.replace(/[<>&"]/g, '')}</b>. No hace falta abrirlo: pégalo en <b>MacroDroid</b> (Android) o en el atajo del <b>iPhone</b>, que le enviarán cada aviso de Yape, Plin o del banco, o la captura de la constancia.</p><p>Los pasos están en la app, en <b>Mi cuenta → Yape, Plin y avisos del teléfono</b>.</p>`));
+});
+
 rutasAvisos.post('/:token', limite, async (req, res) => {
   const token = String(req.params.token);
   if (!/^[0-9a-f]{36}$/.test(token)) return res.status(404).json({ error: 'Enlace no válido' });
