@@ -303,7 +303,7 @@ const COMANDOS = [
   { accion: 'libros', palabras: ['libros', 'libro'] },
 ];
 
-const TIPOS_REGISTRO = { gasto: 'gasto', gaste: 'gasto', pague: 'gasto', ingreso: 'ingreso', cobre: 'ingreso', recibi: 'ingreso' };
+const TIPOS_REGISTRO = { gasto: 'gasto', gaste: 'gasto', pague: 'gasto', compre: 'gasto', yapee: 'gasto', ingreso: 'ingreso', cobre: 'ingreso', recibi: 'ingreso' };
 
 // «25», «25.50», «25,5», «S/30», «1,200», «1.200,50», «1,200.50» → número; null si no es un monto.
 function leerMonto(ficha) {
@@ -323,7 +323,12 @@ function leerMonto(ficha) {
 
 // «gasto 25.50 almuerzo ayer #comida pendiente» → datos del movimiento, o null si no es un registro.
 function leerRegistro(mensaje, hoy) {
-  const fichas = mensaje.trim().split(/\s+/);
+  const frase = mensaje.trim()
+    .replace(/[.!¡¿?]+$/, '')
+    .replace(/^(?:(?:por\s+favor|porfa)[,\s]+)?(?:(?:registra(?:me)?|anota(?:me)?|apunta(?:me)?|agrega(?:me)?|añade(?:me)?|pon(?:me)?)\s+)?(?:(?:un|una|el|mi)\s+)?/i, '')
+    .replace(/\bel\s+d[ií]a\s+de\s+(hoy|ayer|anteayer|ma[nñ]ana)\b/gi, '$1')
+    .replace(/\bd[ií]a\s+de\s+(hoy|ayer)\b/gi, '$1');
+  const fichas = frase.split(/\s+/);
   const tipo = TIPOS_REGISTRO[sinAcentos(fichas[0] ?? '')];
   if (!tipo) return null;
   // El monto debe venir entre las primeras palabras; si no, es una frase normal que empieza por «gasto».
@@ -334,7 +339,8 @@ function leerRegistro(mensaje, hoy) {
   const descripcion = [];
   fichas.forEach((ficha, i) => {
     if (i === 0 || i === posMonto) return;
-    const llana = sinAcentos(ficha);
+    // Sin la puntuación final («hoy,» o «taxi.»).
+    const llana = sinAcentos(ficha).replace(/[.,;:!?]+$/, '');
     const dia = /^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$/.exec(ficha);
     if (llana === 'hoy') datos.fecha = hoy;
     else if (llana === 'ayer') datos.fecha = sumarDias(hoy, -1);
@@ -347,7 +353,7 @@ function leerRegistro(mensaje, hoy) {
     else if (llana === 'pagado' || llana === 'recibido') datos.pagado = true;
     else if (ficha.startsWith('#') && ficha.length > 1) datos.categoria = ficha[1].toUpperCase() + ficha.slice(2);
     // Palabras de relleno al principio: «gasté 30 en taxi», «soles».
-    else if (!(descripcion.length === 0 && ['en', 'de', 'por', 'soles', 'sol', 'dolares'].includes(llana))) descripcion.push(ficha);
+    else if (!(descripcion.length === 0 && ['en', 'de', 'del', 'por', 'para', 'soles', 'sol', 'dolares', 'lucas', 'el', 'la', 'un', 'una'].includes(llana))) descripcion.push(ficha);
   });
   if (descripcion.length) datos.descripcion = descripcion.join(' ').replace(/^./, (c) => c.toUpperCase());
   return datos;

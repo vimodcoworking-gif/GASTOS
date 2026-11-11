@@ -297,6 +297,7 @@ Tipo de cada movimiento: «tipo» indica si fue gasto o ingreso. Si la descripci
 
 Qué puedes hacer, además de responder:
 - Varios movimientos en un mensaje («gasté 30 en taxi, 100 en corte y 60 en desayuno»): una acción «registrar» por cada uno, como mucho 20.
+- Una frase que describe un movimiento con su monto, aunque no diga «anota» ni tenga concepto, es un pedido de registrar: «un ingreso de 5 soles hoy», «pagué 20 de luz», «me yapearon 50». Las notas de voz transcritas suelen ser así. Nunca digas que algo «ya está registrado» si no aparece en los datos o no lo registras tú con una acción.
 - Una frase corta con monto y concepto, aunque no tenga verbo, es un registro: «y 30 soles en pasajes», «50 almuerzo», «taxi 15». «Y …» continúa lo anterior: si venía registrando gastos, es otro gasto. No respondas con un resumen en esos casos.
 - Al resumir lo que gastó, no cuentes como gasto las compras o traslados de deuda ni los pagos de su tarjeta, aunque estén anotados así: menciónalos aparte y sugiere corregirlos en la app.
 - Registrar un gasto o un ingreso cuando el usuario lo pida con claridad e indique el monto («gasté 30 en taxi ayer», «anota un ingreso de 500 por una venta»). Si falta el monto o no queda claro si es gasto o ingreso, pregunta y no registres nada. La fecha por defecto es «hoy» de los datos; calcula tú las fechas relativas («ayer», «el viernes pasado»). Elige una categoría breve y razonable (Comida, Transporte, Vivienda, Servicios, Salud, Ocio, Salario…). «pagado» es true salvo que diga que aún no lo ha pagado o cobrado, o que la fecha sea futura. Si «puedeRegistrar» es false, explica que en ese libro solo tiene permiso de lectura.
@@ -513,13 +514,38 @@ Responde SOLO con un objeto JSON válido, sin texto antes ni después:
 {"movimientos": [{"tipo": "gasto" o "ingreso", "monto": número, "moneda": "PEN", "descripcion": "máximo 60 caracteres", "categoria": "…", "fecha": "AAAA-MM-DD", "pagado": true}], "nota": "frase corta para la persona si no hay movimientos o si algo no se pudo leer; vacía si todo fue bien"}`;
 
 // Modelos de NVIDIA que ven imágenes, por orden de preferencia.
+// NVIDIA retira modelos con frecuencia: además de estos, se prueban los que la cuenta tenga a la vista
+// con nombre de modelo con visión.
 const VISION_NVIDIA = [
-  'meta/llama-4-maverick-17b-128e-instruct',
   'meta/llama-3.2-90b-vision-instruct',
-  'microsoft/phi-4-multimodal-instruct',
   'meta/llama-3.2-11b-vision-instruct',
+  'microsoft/phi-4-multimodal-instruct',
   'nvidia/llama-3.1-nemotron-nano-vl-8b-v1',
+  'meta/llama-4-scout-17b-16e-instruct',
+  'meta/llama-4-maverick-17b-128e-instruct',
 ];
+const PARECE_VISION = /vision|[-_/]vl\b|-vl-|multimodal|llama-4|gemma-3|qwen[\d.]*-?vl|mistral-small-3\.[12]|pixtral|kimi-k2\.5|kimi-vl|nemotron-nano-vl|nemotron.*-vl/i;
+
+// Modelo con visión que respondió la última vez (se prueba primero) y lista de la cuenta (una vez por hora).
+let visionQueFunciona = null;
+let cacheVision = { clave: '', hasta: 0, modelos: [] };
+async function modelosConVision(clave) {
+  if (cacheVision.clave !== clave || Date.now() > cacheVision.hasta) {
+    let deLaCuenta = [];
+    try {
+      const res = await fetch(`${NVIDIA_URL}/models`, { headers: { Authorization: `Bearer ${clave}` }, signal: AbortSignal.timeout(10000) });
+      if (res.ok) deLaCuenta = (await res.json()).data.map((m) => m.id).filter((id) => PARECE_VISION.test(id) && !/embed|rerank|guard|safety|ocr|parse|clip|retriev/i.test(id));
+    } catch {
+      // Sin lista: se usan solo los conocidos.
+    }
+    // Primero los conocidos que la cuenta tiene, luego el resto de la cuenta; si no hay lista, los conocidos.
+    const ordenados = deLaCuenta.length
+      ? [...VISION_NVIDIA.filter((m) => deLaCuenta.includes(m)), ...deLaCuenta.filter((m) => !VISION_NVIDIA.includes(m))]
+      : VISION_NVIDIA;
+    cacheVision = { clave, hasta: Date.now() + 60 * 60 * 1000, modelos: ordenados };
+  }
+  return [...new Set([visionQueFunciona, ...cacheVision.modelos].filter(Boolean))];
+}
 
 /**
  * Lee un comprobante y devuelve { movimientos: [...], nota } (sin validar), o null si la IA no está activa.
@@ -576,17 +602,26 @@ async function verConNvidia(ajustes, encabezado, imagen) {
     ],
   }];
   let ultimoError;
-  for (const modelo of VISION_NVIDIA) {
+  const candidatos = (await modelosConVision(ajustes.clave)).slice(0, 8);
+  for (const modelo of candidatos) {
     try {
-      return await pedirANvidia({ ...ajustes, modelo }, { system: INSTRUCCIONES_COMPROBANTE, messages: mensajes, esperaMs: 90_000 });
+      const respuesta = await pedirANvidia({ ...ajustes, modelo }, { system: INSTRUCCIONES_COMPROBANTE, messages: mensajes, esperaMs: 90_000 });
+      visionQueFunciona = modelo;
+      return respuesta;
     } catch (err) {
       ultimoError = err;
-      // Modelo no disponible para la cuenta o que no acepta la imagen: se prueba el siguiente.
-      if (err instanceof ErrorNvidia && [400, 404, 413, 422].includes(err.estado)) continue;
+      if (visionQueFunciona === modelo) visionQueFunciona = null;
+      // Modelo retirado (410), no disponible (404), que no acepta la imagen (400, 413, 415, 422)
+      // o que tarda demasiado: se prueba el siguiente.
+      const otroModelo = err instanceof ErrorNvidia && ([400, 404, 405, 410, 413, 415, 422, 500, 502, 503].includes(err.estado) || err.estado === 0);
+      if (otroModelo) {
+        console.log(`IA (imagen): ${modelo} no sirvió (${err.estado} ${err.message.slice(0, 120)}); se prueba otro.`);
+        continue;
+      }
       throw err;
     }
   }
-  throw ultimoError ?? new ErrorNvidia(404, 'Ningún modelo de NVIDIA con visión está disponible para tu cuenta.');
+  throw new ErrorNvidia(ultimoError?.estado ?? 404, `ningún modelo de NVIDIA con visión pudo leer la imagen (${candidatos.length} probados${ultimoError ? `; último error: ${ultimoError.message.slice(0, 120)}` : ''}). Prueba a configurar Claude en Admin → IA, o escríbeme el gasto.`);
 }
 
 /** ¿Hay un servicio configurado para pasar audios a texto? */
