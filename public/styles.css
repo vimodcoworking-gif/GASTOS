@@ -470,3 +470,4 @@ dialog h2 { margin-bottom: 1rem; }
 .cuenta-correo-cabecera { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; overflow-wrap: anywhere; }
 .cuenta-correo .etiqueta { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: .15rem .55rem; border-radius: 999px; border: 1px solid var(--linea-fuerte); color: var(--tenue); }
 .cuenta-correo .etiqueta.ok { color: var(--tinta); border-color: var(--tinta); }
+.sincronizacion { font-weight: 600; }

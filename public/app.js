@@ -155,6 +155,10 @@ function irAMes(mes) {
 let modoAcceso = 'entrar';
 // Si el servidor tiene configurado el acceso con Google.
 let googleDisponible = false;
+// Cada cuántos minutos revisa el servidor los Gmail vinculados.
+let minutosGmail = 10;
+// Recarga el progreso de un escaneo mientras está en curso.
+let temporizadorEscaneo = null;
 const MODOS_ACCESO = {
   entrar: { boton: 'Entrar', pregunta: '¿No tienes cuenta?', cambiar: 'Crear una', destino: 'registro' },
   registro: { boton: 'Crear cuenta', pregunta: '¿Ya tienes cuenta?', cambiar: 'Entrar', destino: 'entrar' },
@@ -1218,11 +1222,25 @@ function pintarCuenta() {
   const recargarCuenta = () => intentar(async () => actualizar((await api('/auth/yo')).usuario));
   const fechaDe = (f) => new Date(f).toLocaleDateString('es', { timeZone: 'UTC' });
   const textoEscaneo = (e) => (e.estado === 'en curso'
-    ? `⏳ Revisando tus correos ${e.desde.startsWith('2004-01-01') ? 'de todo tu Gmail' : `del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}`}: ${e.revisados} revisados, ${e.registrados} movimientos registrados hasta ahora.`
+    ? `⏳ Revisando tus correos ${e.desde.startsWith('2004-01-01') ? 'de todo tu Gmail' : `del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}`}: ${e.revisados} revisados, ${e.registrados} movimientos registrados hasta ahora${e.yaVistos ? ` (${e.yaVistos} ya se habían revisado antes)` : ''}. Se actualiza solo.`
     : e.estado === 'error'
       ? `La última revisión de correos anteriores falló: ${e.error}`
-      : `Última revisión de correos anteriores (del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}): ${e.revisados} correos revisados, ${e.registrados} movimientos registrados${e.duplicados ? `, ${e.duplicados} ya estaban anotados` : ''}.${e.quedan ? ' Quedan más correos en ese periodo: vuelve a escanear para seguir.' : ''}`);
+      : `✅ Última revisión de correos anteriores (del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}): ${e.revisados} correos nuevos revisados, ${e.registrados} movimientos registrados${e.duplicados ? `, ${e.duplicados} ya estaban anotados` : ''}.${e.yaVistos ? ` Otros ${e.yaVistos} avisos de ese periodo ya los había revisado la sincronización automática: mira qué se hizo con cada uno en «Correos revisados».` : ''}${e.quedan ? ' Quedan más correos en ese periodo: vuelve a escanear para seguir.' : ''}`);
   const escaneando = correos.some((c) => c.escaneo?.estado === 'en curso');
+  // Mientras escanea, el progreso se recarga solo cada pocos segundos (sin pulsar nada).
+  clearTimeout(temporizadorEscaneo);
+  if (escaneando) {
+    temporizadorEscaneo = setTimeout(async () => {
+      if (estado.vista !== 'cuenta' || document.hidden) return;
+      try {
+        const { usuario } = await api('/auth/yo');
+        // Si se está escribiendo en un campo, no se redibuja para no borrar lo escrito.
+        if (estado.vista === 'cuenta' && !document.activeElement?.matches('input, select, textarea')) actualizar(usuario);
+      } catch {
+        // Sin conexión: se volverá a intentar al pulsar «Actualizar progreso».
+      }
+    }, 5000);
+  }
 
   const seccionEscaneo = correos.length > 0 && h('div', { class: 'escaneo' },
     h('h4', null, 'Correos anteriores'),
@@ -1308,6 +1326,7 @@ function pintarCuenta() {
     h('header', null, h('h3', null, 'Gastos desde tu Gmail'), varios && h('span', { class: 'tenue' }, `${correos.length} correos vinculados`)),
     correos.length
       ? [
+          correos.some((c) => c.activo) && h('p', { class: 'sincronizacion' }, `🔄 Sincronización automática activa: cada ${minutosGmail} minutos se leen los avisos nuevos y se registran solos, también los de hoy.`),
           h('p', null, 'El bot revisa tus correos cada pocos minutos y registra solo en tu libro y en el calendario los gastos e ingresos que te avisan tus bancos, Yape, Plin, tiendas y apps (compras, pagos, transferencias, yapeos recibidos, sueldo). Los verás marcados con 📧.'),
           u.whatsapp
             ? h('p', { class: 'tenue' }, 'Cada movimiento que se registre te llegará también por WhatsApp; si alguno no es correcto, responde «deshacer».')
@@ -1882,7 +1901,10 @@ const errorGoogle = vuelta.get('errorGoogle');
 if (resultadoGoogle || errorGoogle) history.replaceState(null, '', location.pathname);
 if (resultadoGoogle === 'gmail' || resultadoGoogle === 'nueva') estado.vista = 'cuenta';
 
-googleDisponible = await api('/auth/google/estado').then((r) => r.disponible).catch(() => false);
+googleDisponible = await api('/auth/google/estado').then((r) => {
+  minutosGmail = r.minutos ?? minutosGmail;
+  return r.disponible;
+}).catch(() => false);
 pintarModoAcceso();
 try {
   const { usuario } = await api('/auth/yo');

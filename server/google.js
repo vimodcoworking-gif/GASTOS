@@ -46,7 +46,7 @@ const formulario = (datos) => ({
 
 export const rutasGoogle = Router();
 
-rutasGoogle.get('/estado', (req, res) => res.json({ disponible: googleDisponible() }));
+rutasGoogle.get('/estado', (req, res) => res.json({ disponible: googleDisponible(), minutos: config.minutosGmail }));
 
 // Lleva a la pantalla de Google. modo=entrar (iniciar sesión o crear cuenta) o modo=gmail (vincular el correo).
 rutasGoogle.get('/', (req, res) => {
@@ -493,6 +493,7 @@ const fechaCorta = (texto) => new Date(`${texto}T00:00:00Z`).toLocaleDateString(
 // hasta reunir «cuantos» (o uno más, para saber si quedan).
 async function buscarPendientes(usuario, autorizacion, q, cuantos) {
   const pendientes = [];
+  let yaVistos = 0;
   let pagina;
   let paginas = 0;
   do {
@@ -501,10 +502,11 @@ async function buscarPendientes(usuario, autorizacion, q, cuantos) {
     const ids = (r.messages ?? []).map((m) => m.id);
     const vistos = new Set((await CorreoVisto.find({ _id: { $in: ids.map((id) => `${usuario.id}:${id}`) } }).select('_id').lean()).map((v) => v._id));
     pendientes.push(...ids.filter((id) => !vistos.has(`${usuario.id}:${id}`)));
+    yaVistos += vistos.size;
     pagina = r.nextPageToken;
     paginas += 1;
   } while (pagina && pendientes.length <= cuantos && paginas < 300);
-  return pendientes;
+  return { pendientes, yaVistos };
 }
 
 // Un movimiento igual (mismo tipo y monto, un día arriba o abajo) ya anotado, por ejemplo a mano: no se duplica.
@@ -558,7 +560,10 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
  * Va anotando en «resultado» { revisados, registrados, duplicados, quedan }: así se sabe lo hecho aunque falle a mitad.
  */
 async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultado, { maxCorreos, alRegistrar, alAvanzar, debeParar }) {
-  const pendientes = (await buscarPendientes(usuario, autorizacion, q, maxCorreos)).reverse();
+  const busqueda = await buscarPendientes(usuario, autorizacion, q, maxCorreos);
+  const pendientes = busqueda.pendientes.reverse();
+  // Solo en la primera tanda: en las siguientes ya se cuentan también los que acaba de leer.
+  resultado.yaVistos ??= busqueda.yaVistos;
   resultado.quedan = pendientes.length > maxCorreos;
 
   for (const id of pendientes.slice(0, maxCorreos)) {
@@ -692,6 +697,7 @@ async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
     revisados: previo?.revisados ?? 0,
     registrados: previo?.registrados ?? 0,
     duplicados: previo?.duplicados ?? 0,
+    ...(previo?.yaVistos != null && { yaVistos: previo.yaVistos }),
     quedan: false,
     inicio: previo?.inicio ?? new Date(),
   };
@@ -721,7 +727,7 @@ async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
       Object.assign(estado, { estado: 'terminado', fin: new Date(), ...(detenido && { quedan: true }) });
       avisarPorWhatsapp(usuario, [
         `📧 *Revisión ${periodo}${donde} ${detenido ? 'detenida' : 'terminada'}*`,
-        `Revisé ${estado.revisados} correos y registré *${estado.registrados} movimientos*${estado.duplicados ? `; ${estado.duplicados} ya estaban anotados` : ''}. Ya están en tu calendario de la app.`,
+        `Revisé ${estado.revisados} correos y registré *${estado.registrados} movimientos*${estado.duplicados ? `; ${estado.duplicados} ya estaban anotados` : ''}.${estado.yaVistos ? ` Otros ${estado.yaVistos} ya se habían revisado antes.` : ''} Ya están en tu calendario de la app.`,
         ...(estado.quedan ? ['Quedan correos por revisar: pídemelo otra vez y sigo donde quedé.'] : []),
         'Pregúntame por cualquier mes, por ejemplo: «ia ¿cuánto gasté en septiembre?».',
       ].join('\n'));
@@ -779,7 +785,7 @@ async function reanudarEscaneos() {
         console.log(`Gmail: se reanuda el escaneo de ${usuario.email} · ${cuenta.datos.email}.`);
         await iniciarEscaneo(usuario, texto(e.desde), texto(e.hasta), {
           cuenta: cuenta.clave,
-          previo: { revisados: e.revisados, registrados: e.registrados, duplicados: e.duplicados, inicio: e.inicio },
+          previo: { revisados: e.revisados, registrados: e.registrados, duplicados: e.duplicados, yaVistos: e.yaVistos, inicio: e.inicio },
         });
       }
     }
@@ -838,6 +844,24 @@ export function iniciarRevisionGmail() {
   setTimeout(reanudarEscaneos, 20_000);
   setTimeout(revisarTodos, 30_000);
   temporizador = setInterval(revisarTodos, config.minutosGmail * 60_000);
+  // El plan gratuito de Render apaga la app tras 15 minutos sin visitas y con ella la revisión
+  // automática: mientras haya algún Gmail activo, la app se visita sola para seguir despierta.
+  setTimeout(vigilarDespierto, 40_000);
+  setInterval(vigilarDespierto, 30 * 60_000);
+}
+
+let despiertoPorGmail = false;
+async function vigilarDespierto() {
+  try {
+    const hayActivos = Boolean(await Usuario.exists({ $or: [{ 'gmail.activo': true, 'gmail.token': { $exists: true } }, { 'gmailExtra.activo': true }] }));
+    if (hayActivos !== despiertoPorGmail) {
+      despiertoPorGmail = hayActivos;
+      mantenerDespierto(hayActivos);
+      if (hayActivos && !config.urlPublica) console.warn('Gmail: falta APP_URL; Render puede apagar la app y parar la revisión automática.');
+    }
+  } catch (err) {
+    console.error('Gmail (mantener despierto):', err.message);
+  }
 }
 
 export function pararRevisionGmail() {
