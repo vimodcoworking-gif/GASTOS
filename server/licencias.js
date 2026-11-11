@@ -54,7 +54,7 @@ const recuerdo = new Map(); // email -> { ok, motivo, hasta, ultimoOk }
 async function consultar(email) {
   const c = await bd().asPromise();
   const cliente = await c.collection('usuarios').findOne({ email }, { projection: { _id: 1, activo: 1 } });
-  if (!cliente) return { ok: false, motivo: `No hay una cuenta de VIMOD con el correo ${email}. Entra con el mismo correo con el que contrataste el software.` };
+  if (!cliente) return { ok: false, sinCuenta: true, motivo: `No hay una cuenta de VIMOD con el correo ${email}. Entra con el mismo correo con el que contrataste el software.` };
   if (cliente.activo === false) return { ok: false, motivo: 'Tu cuenta de VIMOD está desactivada. Escríbenos para reactivarla.' };
 
   const licencias = await c.collection('licencias')
@@ -79,8 +79,13 @@ async function correosAdmin() {
 // { ok: true } o { ok: false, motivo }. Las cuentas de LICENCIA_LIBRE entran siempre.
 export async function comprobarLicencia(cuentaOEmail) {
   if (cuentaOEmail && typeof cuentaOEmail === 'object') {
-    if (!cuentaOEmail.altaAdmin) return comprobarLicencia(cuentaOEmail.email);
     if (!licenciasActivas()) return { ok: true };
+    if (!cuentaOEmail.altaAdmin) {
+      // Una cuenta de esta app sin cuenta en el Panel de VIMOD es de alguien que añadió el
+      // administrador (o de antes de las licencias): también entra con la licencia del administrador.
+      const propia = await comprobarLicencia(cuentaOEmail.email);
+      if (propia.ok || !propia.sinCuenta) return propia;
+    }
     const admins = await correosAdmin();
     let ultimo = { ok: false, motivo: 'La licencia de VIMOD del administrador no está vigente. Avisa al administrador.' };
     for (const correo of admins) {
