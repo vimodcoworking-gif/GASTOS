@@ -2,7 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'node:crypto';
 import { config } from './config.js';
-import { Usuario, Libro, Movimiento, CorreoVisto, Ajuste } from './models.js';
+import { Usuario, Libro, Movimiento, CorreoVisto, CorreoRevisado, Ajuste } from './models.js';
 import { ErrorHttp } from './errores.js';
 import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
@@ -245,18 +245,28 @@ function htmlATexto(html) {
 
 function leerMensaje(mensaje) {
   const cabecera = (nombre) => mensaje.payload?.headers?.find((h) => h.name.toLowerCase() === nombre)?.value ?? '';
-  const plano = cuerpos(mensaje.payload ?? {}, 'text/plain').join('\n');
-  const texto = (plano.trim() ? plano : htmlATexto(cuerpos(mensaje.payload ?? {}, 'text/html').join('\n')))
-    .replace(/[ \t ]+/g, ' ')
+  // Espacios raros e invisibles (de ancho cero, guiones suaves) que usan los bancos y cortan las frases.
+  const limpiar = (t) => t
+    .replace(/[\u200b-\u200d\u2060\ufeff\u00ad\u034f]/g, '')
+    .replace(/&(shy|zwnj|zwj|#8203|#x200b);/gi, '')
+    .replace(/[ \t\u00a0\u2000-\u200a\u202f]+/g, ' ')
     .replace(/\s*\n\s*/g, '\n')
-    .trim()
-    .slice(0, 6000);
+    .trim();
+  const plano = limpiar(cuerpos(mensaje.payload ?? {}, 'text/plain').join('\n'));
+  const html = limpiar(htmlATexto(cuerpos(mensaje.payload ?? {}, 'text/html').join('\n')));
+  // Muchos avisos traen un texto plano de relleno («activa HTML para ver este correo»): se usa el HTML
+  // cuando el texto plano es mucho más corto o no trae ningún importe.
+  const usarHtml = html && (!plano || plano.length < html.length / 3 || (!/\d/.test(plano) && /\d/.test(html)));
+  const texto = (usarHtml ? html : plano).slice(0, 6000);
   const recibido = new Date(Number(mensaje.internalDate) || Date.now());
+  const resumen = limpiar(htmlATexto(mensaje.snippet ?? ''));
   return {
     asunto: cabecera('subject').slice(0, 200),
     remitente: cabecera('from').slice(0, 200),
     fecha: new Intl.DateTimeFormat('en-CA', { timeZone: config.zona }).format(recibido),
-    texto: texto || mensaje.snippet || '',
+    texto: texto || resumen,
+    // El resumen de Gmail (primeras líneas del correo): sirve de respaldo si el cuerpo no se lee bien.
+    resumen,
   };
 }
 
@@ -292,7 +302,7 @@ const AVISO_CONSUMO = new RegExp(
 );
 
 function avisoDeConsumo(correo) {
-  const aviso = AVISO_CONSUMO.exec(`${correo.asunto}\n${correo.texto}`);
+  const aviso = AVISO_CONSUMO.exec(`${correo.asunto}\n${correo.texto}`) ?? AVISO_CONSUMO.exec(correo.resumen ?? '');
   if (!aviso) return null;
   const { monto, moneda } = leerImporte(aviso[1], aviso[2]);
   if (!(monto > 0)) return null;
@@ -414,17 +424,23 @@ async function procesarCorreos(usuario, libro, autorizacion, q, resultado, { max
     const datos = await interpretar(correo, libro.moneda, titularDe(usuario));
     await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
     resultado.revisados += 1;
+    let decision = 'no es gasto ni ingreso';
     if (datos) {
       if (await yaRegistrado(libro, datos)) {
         resultado.duplicados += 1;
+        decision = `duplicado: ${datos.tipo} ${datos.monto}`;
       } else {
         const confirmacion = await registrarMovimiento(usuario, libro, datos, { correoId: id });
+        decision = confirmacion.split('\n').slice(0, 2).join(' · ');
         if (confirmacion.startsWith('✅')) {
           resultado.registrados += 1;
           alRegistrar?.(confirmacion, correo);
         }
       }
     }
+    await CorreoRevisado.updateOne({ _id: `${usuario.id}:${id}` }, {
+      $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 400), cuando: new Date() },
+    }, { upsert: true }).catch(() => {});
     if (resultado.revisados % 10 === 0) await alAvanzar?.();
   }
 }
@@ -634,9 +650,11 @@ async function correccionesUnicas() {
       await marcar('correccion:moneda-correo');
       if (antiguos.length) console.log(`Gmail: ${antiguos.length} movimientos en otra moneda corregidos.`);
     }
-    if (!(await hecha('correccion:avisos-consumo'))) {
+    // La segunda vuelta es para los avisos cuyo texto no se leía bien (texto plano de relleno, caracteres invisibles).
+    if (!(await hecha('correccion:avisos-consumo-2'))) {
       const { deletedCount } = await CorreoVisto.deleteMany({ visto: { $gte: new Date(Date.now() - 7 * DIA) } });
       await marcar('correccion:avisos-consumo');
+      await marcar('correccion:avisos-consumo-2');
       console.log(`Gmail: ${deletedCount} correos de la última semana se volverán a revisar.`);
     }
   } catch (err) {
