@@ -1236,6 +1236,33 @@ function pintarCuenta() {
         ),
   );
 
+  // Qué se hizo con cada correo revisado en la última semana, para entender por qué un aviso no aparece.
+  const seccionRevisados = () => {
+    const lista = h('div', { class: 'revisados' });
+    const cargar = () => intentar(async () => {
+      const { correos } = await api('/auth/google/gmail/revisados');
+      lista.replaceChildren(correos.length
+        ? h('ul', null, correos.map((c) => h('li', { class: c.registrado ? 'ok' : null },
+            h('div', null, h('strong', null, c.asunto || '(sin asunto)'), h('span', { class: 'tenue' }, ` · ${c.remitente.replace(/<.*>/, '').replace(/"/g, '').trim()} · ${cuando(c.cuando)}`)),
+            h('div', { class: 'tenue' }, c.resultado || '—'),
+            !c.registrado && h('button', { type: 'button', onclick: () => reintentar(c.id) }, 'Volver a revisar'),
+          )))
+        : h('p', { class: 'tenue' }, 'Todavía no se ha revisado ningún correo esta semana.'));
+    });
+    const reintentar = (id) => intentar(async () => {
+      avisar('Revisando ese correo…');
+      const { nuevos, resultado } = await api(`/auth/google/gmail/revisados/${encodeURIComponent(id)}/reintentar`, { method: 'POST' });
+      avisar(nuevos ? 'Registrado: ya está en tu calendario' : resultado || 'No se registró nada');
+      cargar();
+    });
+    return h('div', { class: 'escaneo' },
+      h('h4', null, 'Correos revisados'),
+      h('p', { class: 'tenue' }, 'Los avisos que se leyeron en la última semana y qué se hizo con cada uno. Si uno no se registró por error, pulsa «Volver a revisar».'),
+      h('button', { type: 'button', onclick: cargar }, 'Ver correos revisados'),
+      lista,
+    );
+  };
+
   const seccionGmail = googleDisponible && h('section', { class: 'panel' },
     h('header', null, h('h3', null, 'Gastos desde tu Gmail'), g && h('span', { class: 'tenue' }, g.email)),
     g
@@ -1254,6 +1281,7 @@ function pintarCuenta() {
             h('button', { type: 'button', class: 'peligro', onclick: desvincular }, 'Desvincular'),
           ),
           seccionEscaneo,
+          seccionRevisados(),
         ]
       : [
           h('p', null, 'Vincula tu cuenta de Google para que el bot lea los avisos de compra y pago que te llegan por correo y los registre solo como gastos en tu libro.'),

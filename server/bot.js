@@ -76,7 +76,7 @@ export async function librosDe(usuario) {
 
 export const libroActivo = (usuario, libros) => libros.find((l) => l._id.equals(usuario.libroBot)) ?? libros[0];
 
-function puedeEscribir(usuario, libro) {
+export function puedeEscribir(usuario, libro) {
   if (libro.propietario.equals(usuario._id)) return true;
   return libro.miembros.some((m) => m.usuario.equals(usuario._id) && m.rol === 'editor');
 }

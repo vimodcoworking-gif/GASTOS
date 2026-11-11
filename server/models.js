@@ -115,15 +115,16 @@ const correoVistoSchema = new Schema({ _id: String, visto: { type: Date, default
 export const CorreoVisto = model('CorreoVisto', correoVistoSchema);
 
 // Qué se decidió con cada correo revisado, para poder averiguar por qué un aviso no se registró.
-// Se borra solo a los 3 días.
+// Se borra solo a los 8 días (algo más que la semana que se revisa).
 const correoRevisadoSchema = new Schema({
   _id: String,
   usuario: ObjectId,
   asunto: String,
   remitente: String,
   resultado: String,
+  registrado: Boolean,
   extracto: String,
-  cuando: { type: Date, default: Date.now, expires: 3 * 24 * 3600 },
+  cuando: { type: Date, default: Date.now, expires: 8 * 24 * 3600 },
 });
 export const CorreoRevisado = model('CorreoRevisado', correoRevisadoSchema);
 export const Ajuste = model('Ajuste', ajusteSchema);

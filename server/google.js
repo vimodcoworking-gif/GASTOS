@@ -6,7 +6,7 @@ import { Usuario, Libro, Movimiento, CorreoVisto, CorreoRevisado, Ajuste } from 
 import { ErrorHttp } from './errores.js';
 import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
-import { librosDe, libroActivo, registrarMovimiento, hoyLocal } from './bot.js';
+import { librosDe, libroActivo, registrarMovimiento, hoyLocal, puedeEscribir } from './bot.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { comprobarLicencia } from './licencias.js';
 import { convertir, ErrorCambio } from './cambio.js';
@@ -154,6 +154,45 @@ rutasGoogle.post('/gmail/revisar', requiereSesion, async (req, res) => {
   if (enCurso.has(usuario.id)) throw new ErrorHttp(409, 'Ya se está revisando tu correo. Espera unos segundos.');
   const nuevos = await revisarUsuario(usuario);
   res.json({ nuevos, usuario: await publico(await Usuario.findById(usuario._id)) });
+});
+
+// Los últimos correos revisados y qué se hizo con cada uno, para saber por qué un aviso no aparece.
+rutasGoogle.get('/gmail/revisados', requiereSesion, async (req, res) => {
+  const lista = await CorreoRevisado.find({ usuario: req.usuario.id }).sort('-cuando').limit(40).lean();
+  res.json({
+    correos: lista.map((c) => ({
+      id: c._id.split(':')[1],
+      asunto: c.asunto,
+      remitente: c.remitente,
+      resultado: c.resultado,
+      registrado: c.registrado ?? Boolean(c.resultado?.startsWith('✅')),
+      cuando: c.cuando,
+    })),
+  });
+});
+
+// Vuelve a leer un correo ya revisado (p. ej. uno descartado por error) y lo registra si procede.
+rutasGoogle.post('/gmail/revisados/:id/reintentar', requiereSesion, async (req, res) => {
+  const usuario = await Usuario.findById(req.usuario.id);
+  if (!usuario.gmail?.token) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
+  if (enCurso.has(usuario.id)) throw new ErrorHttp(409, 'Ya se está revisando tu correo. Espera unos segundos.');
+  const id = String(req.params.id);
+  if (!/^[0-9a-f]{6,32}$/i.test(id)) throw new ErrorHttp(400, 'Correo no válido');
+  if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) throw new ErrorHttp(409, 'Ese correo ya está registrado en tu libro.');
+  const resultado = { revisados: 0, registrados: 0, duplicados: 0 };
+  enCurso.add(usuario.id);
+  try {
+    const { libro, autorizacion } = await prepararLectura(usuario);
+    await procesarUno(usuario, libro, autorizacion, id, resultado);
+  } catch (err) {
+    throw new ErrorHttp(502, motivoDeError(err).motivo);
+  } finally {
+    enCurso.delete(usuario.id);
+  }
+  if (resultado.registrados) await Usuario.updateOne({ _id: usuario._id }, { $inc: { 'gmail.registrados': resultado.registrados } });
+  const nuevos = resultado.registrados;
+  const revisado = await CorreoRevisado.findById(`${usuario.id}:${id}`).lean();
+  res.json({ nuevos, resultado: revisado?.resultado ?? '', usuario: await publico(await Usuario.findById(usuario._id)) });
 });
 
 // Revisa los correos de los últimos meses (1, 3, 6, 12 o 24) o de todo el correo ("todo"),
@@ -396,12 +435,46 @@ async function buscarPendientes(usuario, autorizacion, q, cuantos) {
 // En otra moneda se compara el importe cobrado, que no depende del tipo de cambio.
 async function yaRegistrado(libro, datos) {
   const fecha = new Date(`${datos.fecha}T00:00:00Z`).getTime();
-  return Movimiento.exists({
+  return Movimiento.findOne({
     libro: libro._id,
     tipo: datos.tipo,
     ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: Math.round(datos.monto * 100) / 100 }),
     fecha: { $gte: new Date(fecha - DIA), $lte: new Date(fecha + DIA) },
-  });
+  }).select('descripcion fecha').lean();
+}
+
+// Lee un correo y registra el gasto o ingreso que avise, anotando en «resultado» lo hecho.
+async function procesarUno(usuario, libro, autorizacion, id, resultado, alRegistrar) {
+  // Ya hay un movimiento sacado de este correo (p. ej. si se vuelve a revisar): no se lee otra vez.
+  if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) {
+    await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
+    return;
+  }
+  const correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`, autorizacion));
+  // Si la IA falla, el correo no se marca como visto y se vuelve a intentar en la próxima revisión.
+  const datos = await interpretar(correo, libro.moneda, titularDe(usuario));
+  await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
+  resultado.revisados += 1;
+  let decision = 'No es un gasto ni un ingreso';
+  let registrado = false;
+  if (datos) {
+    const igual = await yaRegistrado(libro, datos);
+    if (igual) {
+      resultado.duplicados += 1;
+      decision = `No se anotó: ya había un ${datos.tipo} de ${datos.monto} en «${libro.nombre}» (${igual.descripcion}, ${igual.fecha.toISOString().slice(0, 10)})`;
+    } else {
+      const confirmacion = await registrarMovimiento(usuario, libro, datos, { correoId: id });
+      decision = confirmacion.split('\n').slice(0, 2).join(' · ').replace(/\*/g, '');
+      if (confirmacion.startsWith('✅')) {
+        registrado = true;
+        resultado.registrados += 1;
+        alRegistrar?.(confirmacion, correo);
+      }
+    }
+  }
+  await CorreoRevisado.updateOne({ _id: `${usuario.id}:${id}` }, {
+    $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, registrado, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 400), cuando: new Date() },
+  }, { upsert: true }).catch(() => {});
 }
 
 /**
@@ -414,33 +487,7 @@ async function procesarCorreos(usuario, libro, autorizacion, q, resultado, { max
 
   for (const id of pendientes.slice(0, maxCorreos)) {
     if (debeParar?.()) return;
-    // Ya hay un movimiento sacado de este correo (p. ej. si se vuelve a revisar): no se lee otra vez.
-    if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) {
-      await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
-      continue;
-    }
-    const correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`, autorizacion));
-    // Si la IA falla, el correo no se marca como visto y se vuelve a intentar en la próxima revisión.
-    const datos = await interpretar(correo, libro.moneda, titularDe(usuario));
-    await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
-    resultado.revisados += 1;
-    let decision = 'no es gasto ni ingreso';
-    if (datos) {
-      if (await yaRegistrado(libro, datos)) {
-        resultado.duplicados += 1;
-        decision = `duplicado: ${datos.tipo} ${datos.monto}`;
-      } else {
-        const confirmacion = await registrarMovimiento(usuario, libro, datos, { correoId: id });
-        decision = confirmacion.split('\n').slice(0, 2).join(' · ');
-        if (confirmacion.startsWith('✅')) {
-          resultado.registrados += 1;
-          alRegistrar?.(confirmacion, correo);
-        }
-      }
-    }
-    await CorreoRevisado.updateOne({ _id: `${usuario.id}:${id}` }, {
-      $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 400), cuando: new Date() },
-    }, { upsert: true }).catch(() => {});
+    await procesarUno(usuario, libro, autorizacion, id, resultado, alRegistrar);
     if (resultado.revisados % 10 === 0) await alAvanzar?.();
   }
 }
@@ -462,8 +509,11 @@ function motivoDeError(err) {
 }
 
 async function prepararLectura(usuario) {
-  const libro = libroActivo(usuario, await librosDe(usuario));
-  if (!libro) throw new Error('No tienes ningún libro donde registrar los movimientos.');
+  // El libro elegido en WhatsApp; si en ese solo puede leer, el primero donde pueda escribir (los suyos van antes).
+  const libros = await librosDe(usuario);
+  const activo = libroActivo(usuario, libros);
+  const libro = activo && puedeEscribir(usuario, activo) ? activo : libros.find((l) => puedeEscribir(usuario, l));
+  if (!libro) throw new Error('No tienes ningún libro donde puedas registrar los movimientos.');
   return { libro, autorizacion: { headers: { Authorization: `Bearer ${await accesoGmail(usuario)}` } } };
 }
 
