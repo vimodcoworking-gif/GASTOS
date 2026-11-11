@@ -289,6 +289,46 @@ export async function deshacerUltimo(usuario) {
   return mov ? `↩️ Borrado: ${mov.descripcion} (${mov.monto}).` : 'Ese movimiento ya no existe.';
 }
 
+// ---------- corrección única de registros unidos ----------
+
+/**
+ * Antes, un mensaje con varias líneas («gasté 30 en pasajes ↵ gasté 100 en corte…») se guardaba como un
+ * solo gasto con todo el texto en la descripción. Se separan: el primero se queda con su descripción
+ * y los demás se crean aparte, salvo que ese día ya exista uno parecido (p. ej. registrado otra vez después).
+ */
+export async function separarRegistrosUnidos() {
+  const unidos = await Movimiento.find({ correoId: { $exists: false }, descripcion: /\s(gast[eé]|pagu[eé]|ingreso|cobr[eé]|recib[ií])\s+(s\/\.?\s?)?\d/i }).limit(500);
+  let separados = 0;
+  for (const mov of unidos) {
+    // «Pasajes Gasté 100 en corte de cabello Gasté 60 en desayuno» → «Pasajes», «Gasté 100 en corte…», «Gasté 60 en…»
+    const trozos = mov.descripcion.split(/\s(?=(?:gast[eé]|pagu[eé]|ingreso|cobr[eé]|recib[ií])\s+(?:s\/\.?\s?)?\d)/i);
+    const extras = trozos.slice(1).map((t) => leerRegistro(t, aTexto(mov.fecha))).filter(Boolean);
+    if (!extras.length || !trozos[0].trim()) continue;
+    const dia = mov.fecha.getTime();
+    for (const extra of extras) {
+      const palabra = sinAcentos(extra.descripcion ?? '').split(/\s+/)[0];
+      // Ya hay uno del mismo concepto ese día (p. ej. «Desayuno» registrado otra vez después): no se crea otro.
+      const parecidos = await Movimiento.find({ libro: mov.libro, _id: { $ne: mov._id }, tipo: extra.tipo, fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) } }).select('descripcion').lean();
+      if (palabra.length > 2 && parecidos.some((p) => sinAcentos(p.descripcion).includes(palabra))) continue;
+      await Movimiento.create({
+        libro: mov.libro,
+        tipo: extra.tipo,
+        descripcion: extra.descripcion ?? (extra.tipo === 'gasto' ? 'Gasto por WhatsApp' : 'Ingreso por WhatsApp'),
+        categoria: extra.categoria ?? mov.categoria,
+        monto: extra.monto,
+        fecha: mov.fecha,
+        pagado: true,
+        fechaPago: mov.createdAt ?? new Date(),
+        creadoPor: mov.creadoPor,
+      });
+    }
+    mov.descripcion = trozos[0].trim().slice(0, 120);
+    await mov.save();
+    separados += 1;
+  }
+  return separados;
+}
+
 // ---------- corregir y anular movimientos ya registrados ----------
 
 /** Un movimiento que la persona puede cambiar (está en un libro donde puede escribir), o null. */
@@ -523,15 +563,21 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
       Object.assign(datos, { moneda, montoOriginal: monto, monto: Math.max(equivalente, 0.01) });
     }
     // Mismo movimiento ya anotado (p. ej. la misma boleta enviada dos veces, o ya llegado por correo).
-    // Con «reciente» solo cuenta lo anotado en los últimos 20 minutos (el mismo aviso llegado por correo y por el teléfono).
+    // Qué cuenta como «ya anotado» según de dónde viene:
+    // - «dia» (boletas, fotos, correos): mismo tipo y monto con un día de diferencia como mucho.
+    // - «reciente» (notificaciones del teléfono): lo anotado en los últimos 20 minutos.
+    // - «manual» (lo que la persona escribe o dicta): solo el doble envío accidental, mismo monto y descripción
+    //   en los últimos 3 minutos. Si alguien dice «gasté 30 en taxi», se registra aunque ya haya otro de 30.
     const dia = aFecha(fecha).getTime();
     const igual = await Movimiento.exists({
       libro: libro._id,
       tipo,
       ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: datos.monto }),
-      ...(modoRepetidos === 'reciente'
-        ? { createdAt: { $gte: new Date(Date.now() - 20 * 60_000) } }
-        : { fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) } }),
+      ...(modoRepetidos === 'manual'
+        ? { createdAt: { $gte: new Date(Date.now() - 3 * 60_000) }, descripcion: String(datos.descripcion ?? '').trim().slice(0, 120) }
+        : modoRepetidos === 'reciente'
+          ? { createdAt: { $gte: new Date(Date.now() - 20 * 60_000) } }
+          : { fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) } }),
     });
     if (igual) {
       repetidos.push(`${datos.descripcion ?? tipo}: ${datos.moneda ? `${datos.moneda} ${monto.toFixed(2)}` : dinero(monto)}`);
@@ -555,7 +601,10 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
     lineas.push(`✅ *${cuantos}* en ${libro.nombre}${origen ? ` ${origen}` : ''}`, ...hechos.map((h) => `• ${h.tipo === 'ingreso' ? '➕ ' : ''}${h.linea}`));
     if (hechos.length > 1) lineas.push('', [gastos && `Total gastos: *${dinero(gastos)}*`, ingresos && `Total ingresos: *${dinero(ingresos)}*`].filter(Boolean).join(' · '));
   }
-  if (repetidos.length) lineas.push('', `↪️ Ya estaban anotados, no los repetí:`, ...repetidos.map((r) => `• ${r}`));
+  if (repetidos.length) {
+    lineas.push('', modoRepetidos === 'manual' ? '↪️ Me los acabas de mandar, no los repetí:' : '↪️ Ya estaban anotados (mismo monto y fecha), no los repetí:', ...repetidos.map((r) => `• ${r}`));
+    if (modoRepetidos !== 'manual') lineas.push('Si sí eran otros, escríbemelos (p. ej. *gasté 30 en taxi*) y los registro.');
+  }
   if (fallos.length) lineas.push('', '⚠️ No pude registrar:', ...fallos.map((f) => `• ${f}`));
   if (!lineas.length) return 'No encontré ningún monto válido para registrar.';
   if (hechos.length) lineas.push('', hechos.length > 1 ? 'Si algo no es correcto, responde a este mensaje (p. ej. «el de 30 era ingreso» o «anula el segundo») o escribe *deshacer* para borrarlos todos.' : 'Para corregirlo, responde a este mensaje: «era gasto», «son 30», «fue ayer» o «anúlalo».');
@@ -579,7 +628,7 @@ function normalizarMoneda(valor) {
 export async function responder(usuario, mensaje, { conIa = false } = {}) {
   const hoy = hoyLocal();
   const varios = leerVarios(mensaje, hoy);
-  if (varios) return { texto: await registrarVarios(usuario, varios) };
+  if (varios) return { texto: await registrarVarios(usuario, varios, { repetidos: 'manual' }) };
   // Un solo movimiento en varias líneas no se toma como registro: es otra cosa (p. ej. para la IA).
   const registro = mensaje.trim().includes('\n') ? null : leerRegistro(mensaje, hoy);
   const comando = registro ? { accion: 'crear' } : reconocer(usuario, mensaje);
@@ -804,7 +853,7 @@ export async function ejecutarAcciones(usuario, acciones, { libroId } = {}) {
 
   // Varios gastos en un mismo mensaje («gasté 30 en taxi y 20 en almuerzo»): se registran juntos.
   const registros = acciones.filter((a) => a?.tipo === 'registrar' && a.movimiento && typeof a.movimiento === 'object').map((a) => a.movimiento);
-  if (registros.length > 1) textos.push(await registrarVarios(usuario, registros.slice(0, 20), { libro }));
+  if (registros.length > 1) textos.push(await registrarVarios(usuario, registros.slice(0, 20), { libro, repetidos: 'manual' }));
   // Como mucho unas pocas acciones por mensaje: un modelo confundido no debe llenar el libro.
   for (const accion of acciones.filter((a) => a?.tipo !== 'registrar' || registros.length <= 1).slice(0, 10)) {
     if (accion?.tipo === 'registrar' && accion.movimiento && typeof accion.movimiento === 'object') {

@@ -14,6 +14,8 @@ import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
 import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail } from './google.js';
 import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
+import { separarRegistrosUnidos } from './bot.js';
+import { Ajuste } from './models.js';
 
 const publico = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -63,11 +65,24 @@ conectar()
   // Si el bot de WhatsApp ya estaba vinculado, se reconecta solo con la sesión guardada.
   .then(() => {
     if (!estadoBd.lista) return;
+    // Correcciones de datos que se hacen una sola vez (quedan anotadas en Ajuste).
+    corregirUnaVez('correccion:registros-unidos', separarRegistrosUnidos);
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
     return reanudarWhatsapp();
   })
   .catch((err) => console.error('No se pudo reanudar WhatsApp:', err.message));
+
+async function corregirUnaVez(id, correccion) {
+  try {
+    if (await Ajuste.exists({ _id: id })) return;
+    const cuantos = await correccion();
+    await Ajuste.updateOne({ _id: id }, { $set: { valor: new Date() } }, { upsert: true });
+    if (cuantos) console.log(`Corrección «${id}»: ${cuantos} registros arreglados.`);
+  } catch (err) {
+    console.error(`Corrección «${id}»:`, err.message);
+  }
+}
 
 for (const senal of ['SIGINT', 'SIGTERM']) {
   process.on(senal, async () => {
