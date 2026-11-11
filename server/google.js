@@ -6,7 +6,7 @@ import { Usuario, Libro, Movimiento, CorreoVisto, CorreoRevisado, Ajuste } from 
 import { ErrorHttp } from './errores.js';
 import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
-import { librosDe, libroActivo, registrarMovimiento, hoyLocal, puedeEscribir } from './bot.js';
+import { librosDe, libroActivo, registrarMovimiento, hoyLocal, puedeEscribir, leerAvisoDePago } from './bot.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { comprobarLicencia } from './licencias.js';
 import { convertir, ErrorCambio } from './cambio.js';
@@ -336,7 +336,7 @@ async function accesoGmail(usuario, cuenta) {
 }
 
 // Palabras de avisos de compra y pago; los demás correos ni se abren.
-const FILTRO = '{category:purchases compra compraste consumo consumiste cargo pago pagaste yapeaste plin transferencia transferiste boleta factura recibo comprobante voucher pedido orden viaje suscripcion purchase receipt payment order invoice recibiste yapearon plinearon abono depósito deposito sueldo haberes remuneración devolución reembolso}';
+const FILTRO = '{category:purchases from:yape from:plin yape yapeo compra compraste consumo consumiste cargo pago pagaste yapeaste plin transferencia transferiste boleta factura recibo comprobante voucher pedido orden viaje suscripcion purchase receipt payment order invoice recibiste yapearon plinearon abono depósito deposito sueldo haberes remuneración devolución reembolso}';
 
 const base64url = (datos) => Buffer.from(datos.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
 
@@ -442,6 +442,11 @@ async function interpretar(correo, monedaLibro, titular) {
   const esGasto = (g) => g?.tipo === 'gasto' || g?.esGasto === true;
   // Un aviso de consumo con tarjeta inequívoco se registra aunque la IA diga otra cosa.
   if (!esGasto(gasto)) gasto = avisoDeConsumo(correo) ?? gasto;
+  // Los avisos de Yape y Plin («Yapeaste S/ 25 a…», «JUAN te envió un pago por S/ 10») se reconocen aunque la IA dude.
+  if (!esGasto(gasto) && gasto?.tipo !== 'ingreso' && /yape|plin/i.test(`${correo.remitente} ${correo.asunto}`)) {
+    const aviso = leerAvisoDePago(`${correo.asunto}\n${correo.texto}`, { app: correo.remitente });
+    if (aviso) gasto = { ...aviso, fecha: correo.fecha };
+  }
   gasto ??= gastoSinIa(correo);
   // «esGasto» es el formato anterior de la respuesta; se sigue aceptando.
   const tipo = gasto?.tipo === 'ingreso' ? 'ingreso' : esGasto(gasto) ? 'gasto' : null;

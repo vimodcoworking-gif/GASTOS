@@ -13,6 +13,7 @@ import { manejarErrores } from './errores.js';
 import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
 import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail } from './google.js';
 import { prepararLicencias } from './licencias.js';
+import { rutasAvisos } from './avisos.js';
 
 const publico = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -24,6 +25,8 @@ if (config.produccion) app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } }));
 // Respuestas comprimidas: la interfaz y los listados viajan en una fracción de su tamaño.
 app.use(compression());
+// Avisos del teléfono (Yape, Plin, capturas): lee su propio cuerpo, que puede ser una imagen.
+app.use('/api/avisos', rutasAvisos);
 app.use(express.json({ limit: '50kb' }));
 app.use(cookieParser());
 

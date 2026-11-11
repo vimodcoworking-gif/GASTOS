@@ -1371,7 +1371,61 @@ function pintarCuenta() {
       !u.tienePassword && h('p', { class: 'tenue' }, 'Tu cuenta usa Google para entrar. Si quieres entrar también con contraseña, cierra sesión y usa «¿Olvidaste tu contraseña?».'),
     ),
     seccionGmail,
+    seccionAvisosTelefono(),
   ];
+}
+
+// Yape, Plin y avisos del banco desde el teléfono: un enlace personal al que el teléfono reenvía cada
+// notificación (Android) o la captura de la constancia (iPhone). El enlace se pide solo al abrir la sección.
+function seccionAvisosTelefono() {
+  const zona = h('div');
+  const pintar = (enlace) => {
+    const copiar = () => intentar(async () => {
+      await navigator.clipboard.writeText(enlace);
+      avisar('Enlace copiado');
+    });
+    const crear = (cambiar) => intentar(async () => {
+      if (cambiar && !confirm('El enlace actual dejará de funcionar y tendrás que pegar el nuevo en tu teléfono. ¿Cambiarlo?')) return;
+      pintar((await api('/avisos/enlace', { method: 'POST' })).enlace);
+    });
+    zona.replaceChildren(enlace
+      ? h('div', null,
+          h('label', null, 'Tu enlace personal (no lo compartas)', h('input', { value: enlace, readOnly: true, onfocus: (ev) => ev.target.select() })),
+          h('div', { class: 'acciones' },
+            h('button', { type: 'button', class: 'primario', onclick: copiar }, 'Copiar enlace'),
+            h('button', { type: 'button', onclick: () => crear(true) }, 'Cambiar enlace'),
+          ),
+          h('details', { class: 'instrucciones' },
+            h('summary', null, '🤖 Android: registrar cada Yape al instante (MacroDroid, gratis)'),
+            h('ol', null,
+              h('li', null, 'Instala MacroDroid desde Play Store y crea una macro nueva.'),
+              h('li', null, 'Disparador: Dispositivo / Notificación → Notificación recibida → elige la app Yape (y si quieres Plin o tu banco).'),
+              h('li', null, 'Acción: Conectividad → Solicitud HTTP → método POST, URL: tu enlace. En «Cuerpo» elige JSON y escribe: {"titulo":"[notification_title]","texto":"[notification]","app":"[app_name]"}'),
+              h('li', null, 'Guarda la macro y dale a MacroDroid permiso de acceso a notificaciones. Haz un yape de prueba: te llegará la confirmación por WhatsApp.'),
+            ),
+          ),
+          h('details', { class: 'instrucciones' },
+            h('summary', null, '🍎 iPhone: registrar desde la constancia (Atajos)'),
+            h('ol', null,
+              h('li', null, 'Abre la app Atajos → «+» → añade la acción «Obtener contenido de URL».'),
+              h('li', null, 'URL: tu enlace. Pulsa «Mostrar más»: Método POST, Cuerpo de la solicitud «Archivo» y elige «Entrada del atajo».'),
+              h('li', null, 'En los ajustes del atajo activa «Mostrar en hoja de compartir» (tipo: Imágenes) y ponle de nombre «Registrar gasto».'),
+              h('li', null, 'Después de yapear, en la constancia pulsa Compartir → «Registrar gasto». También sirve con una captura de pantalla.'),
+            ),
+            h('p', { class: 'tenue' }, 'iPhone no deja que otras apps lean las notificaciones de Yape, por eso se usa la constancia. Leer capturas requiere la IA activada.'),
+          ),
+        )
+      : h('div', null,
+          h('p', { class: 'tenue' }, 'Crea tu enlace personal y pégalo en tu teléfono para que cada Yape, Plin o aviso del banco se registre solo.'),
+          h('button', { type: 'button', class: 'primario', onclick: () => crear(false) }, 'Crear mi enlace'),
+        ));
+  };
+  api('/avisos/enlace').then(({ enlace }) => pintar(enlace)).catch(() => zona.replaceChildren(h('p', { class: 'tenue' }, 'No se pudo cargar tu enlace. Recarga la página.')));
+  return h('section', { class: 'panel' },
+    h('header', null, h('h3', null, 'Yape, Plin y avisos del teléfono')),
+    h('p', null, 'No todos los yapes llegan por correo. Para no perder ninguno, tu teléfono puede reenviar a la app cada notificación de Yape, Plin o de tu banco (Android) o la constancia del yape (iPhone). Se registran al momento, sin repetir los que ya llegaron por correo, y te llega la confirmación por WhatsApp.'),
+    zona,
+  );
 }
 
 // ---------- vista: asistente de IA ----------

@@ -394,7 +394,7 @@ function leerVarios(mensaje, hoy) {
  * Convierte los cobrados en otra moneda y se salta los que ya estaban anotados (mismo tipo, monto y fecha ±1 día).
  * Devuelve el texto de confirmación; «deshacer» los borra todos juntos.
  */
-export async function registrarVarios(usuario, movimientos, { origen = '', libro: fijo = null } = {}) {
+export async function registrarVarios(usuario, movimientos, { origen = '', libro: fijo = null, repetidos: modoRepetidos = 'dia' } = {}) {
   const libros = await librosDe(usuario);
   // El libro abierto en la app (si se pide desde allí) o el elegido en WhatsApp.
   const elegido = fijo ?? libroActivo(usuario, libros);
@@ -425,12 +425,15 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
       Object.assign(datos, { moneda, montoOriginal: monto, monto: Math.max(equivalente, 0.01) });
     }
     // Mismo movimiento ya anotado (p. ej. la misma boleta enviada dos veces, o ya llegado por correo).
+    // Con «reciente» solo cuenta lo anotado en los últimos 20 minutos (el mismo aviso llegado por correo y por el teléfono).
     const dia = aFecha(fecha).getTime();
     const igual = await Movimiento.exists({
       libro: libro._id,
       tipo,
       ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: datos.monto }),
-      fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) },
+      ...(modoRepetidos === 'reciente'
+        ? { createdAt: { $gte: new Date(Date.now() - 20 * 60_000) } }
+        : { fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) } }),
     });
     if (igual) {
       repetidos.push(`${datos.descripcion ?? tipo}: ${datos.moneda ? `${datos.moneda} ${monto.toFixed(2)}` : dinero(monto)}`);
@@ -707,4 +710,45 @@ export async function ejecutarAcciones(usuario, acciones, { libroId } = {}) {
     }
   }
   return { textos, pdfs };
+}
+
+// ---------- avisos de Yape, Plin y transferencias (notificaciones del teléfono y correos) ----------
+
+const IMPORTE = '(S\\/\\.?|US\\$|\\$)\\s?(\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)';
+const AVISOS_DE_PAGO = [
+  // «Yape! JUAN PEREZ te envió un pago por S/ 25. El cód. de seguridad es: 427»
+  { tipo: 'ingreso', patron: new RegExp(`(?:^|[!:]\\s*|\\.\\s+)([^!:\\n]{2,60}?)\\s+te\\s+(?:envi[oó]|yape[oó]|pline[oó]|pag[oó]|transfiri[oó]|deposit[oó])\\s+(?:un\\s+(?:pago|yape|plin|dinero)\\s+)?(?:de|por)\\s+${IMPORTE}`, 'i'), quien: 1, simbolo: 2, numero: 3 },
+  // «¡Te yapearon S/ 25!», «Te plinearon S/ 10 de MARIA»
+  { tipo: 'ingreso', patron: new RegExp(`te\\s+(?:yapearon|plinearon|transfirieron|depositaron|pagaron)\\s+${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Recibiste un yape de S/ 25 de JUAN», «Recibiste S/ 10 de MARIA»
+  { tipo: 'ingreso', patron: new RegExp(`recibiste\\s+(?:un\\s+(?:yape|plin|pago|dep[oó]sito|abono|transferencia)\\s+(?:de|por)\\s+)?${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Yapeaste S/ 25 a NILSON GON», «¡Yapeaste! S/ 25 Nilson Gon*», «Plineaste S/ 10 a…», «Enviaste S/ 50 a…»
+  { tipo: 'gasto', patron: new RegExp(`(?:yapeaste|plineaste|enviaste|transferiste|pagaste)[!¡]?\\s+(?:un\\s+(?:yape|plin|pago)\\s+(?:de|por)\\s+)?${IMPORTE}(?:\\s+(?:(?:a|para)\\s+)?([A-Za-zÁÉÍÓÚÑáéíóúñ][^.!\\n]{1,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+];
+
+/**
+ * Lee un aviso de pago corto (notificación de Yape/Plin, asunto o texto de un correo) sin IA.
+ * Devuelve { tipo, monto, moneda, descripcion, categoria } o null si no es un aviso reconocible.
+ */
+export function leerAvisoDePago(texto, { app = '' } = {}) {
+  const limpio = String(texto ?? '').replace(/[​-‍﻿ ]/g, ' ').replace(/[ \t]+/g, ' ');
+  for (const aviso of AVISOS_DE_PAGO) {
+    const m = aviso.patron.exec(limpio);
+    if (!m) continue;
+    const numero = m[aviso.numero];
+    // «1,234.50» → 1234.50 ; «12,50» → 12.50
+    const monto = Number(/^\d+,\d{1,2}$/.test(numero) ? numero.replace(',', '.') : numero.replace(/,/g, ''));
+    if (!(monto > 0)) continue;
+    const simbolo = m[aviso.simbolo];
+    const quien = (m[aviso.quien] ?? '').replace(/^(yape|plin|bcp|interbank|bbva)\s*[!:.-]?\s*/i, '').replace(/\s+/g, ' ').trim();
+    const origen = /plin/i.test(`${app} ${limpio}`) ? 'Plin' : /yape/i.test(`${app} ${limpio}`) ? 'Yape' : '';
+    return {
+      tipo: aviso.tipo,
+      monto,
+      moneda: simbolo.startsWith('S') ? 'PEN' : 'USD',
+      descripcion: [origen, quien].filter(Boolean).join(aviso.tipo === 'ingreso' ? ' de ' : ' a ').slice(0, 60) || (aviso.tipo === 'ingreso' ? 'Pago recibido' : 'Pago enviado'),
+      categoria: 'Transferencias',
+    };
+  }
+  return null;
 }

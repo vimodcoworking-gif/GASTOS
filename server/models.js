@@ -55,6 +55,8 @@ const usuarioSchema = new Schema(
     gmailExtra: [new Schema(cuentaGmail())],
     // Solo dígitos con código de país (51987654321). El bot lo usa para saber quién escribe y a quién enviar.
     whatsapp: { type: String, match: /^\d{10,15}$/ },
+    // Enlace personal para que el teléfono reenvíe los avisos de Yape, Plin o del banco (y capturas).
+    tokenAvisos: String,
     // Libro sobre el que responde el bot; si falta, el primero del usuario.
     libroBot: { type: ObjectId, ref: 'Libro' },
     // Recuperación de contraseña: huella del código enviado, su caducidad y los intentos fallidos.
@@ -66,6 +68,7 @@ const usuarioSchema = new Schema(
 );
 usuarioSchema.index({ whatsapp: 1 }, { unique: true, sparse: true });
 usuarioSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+usuarioSchema.index({ tokenAvisos: 1 }, { unique: true, sparse: true });
 usuarioSchema.index({ 'gmail.activo': 1 });
 usuarioSchema.index({ 'gmailExtra.activo': 1 });
 

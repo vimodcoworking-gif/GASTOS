@@ -473,3 +473,6 @@ dialog h2 { margin-bottom: 1rem; }
 .sincronizacion { font-weight: 600; }
 .legal-enlaces { font-size: .85rem; }
 .legal-enlaces a { color: inherit; }
+.instrucciones { margin-top: .75rem; border: 1px solid var(--linea); border-radius: var(--radio); padding: .6rem .9rem; }
+.instrucciones summary { cursor: pointer; font-weight: 600; }
+.instrucciones ol { margin: .6rem 0 .2rem; padding-left: 1.2rem; display: grid; gap: .35rem; overflow-wrap: anywhere; }
