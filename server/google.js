@@ -584,12 +584,19 @@ async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultad
   // Solo en la primera tanda: en las siguientes ya se cuentan también los que acaba de leer.
   resultado.yaVistos ??= busqueda.yaVistos;
   resultado.quedan = pendientes.length > maxCorreos;
+  // Cuántos avisos tiene esta tanda y por cuál va: así la pantalla muestra que avanza.
+  const tanda = pendientes.slice(0, maxCorreos);
+  resultado.porLeer = tanda.length;
+  resultado.leidos = 0;
+  await alAvanzar?.();
 
-  for (const id of pendientes.slice(0, maxCorreos)) {
+  for (const id of tanda) {
     if (debeParar?.()) return;
     await procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar);
     hechos?.add(id);
-    if (resultado.revisados % 10 === 0) await alAvanzar?.();
+    resultado.leidos += 1;
+    // Cada aviso pasa por la IA y tarda unos segundos: se guarda el avance tras cada uno.
+    await alAvanzar?.();
   }
 }
 

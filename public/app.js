@@ -159,6 +159,8 @@ let googleDisponible = false;
 let minutosGmail = 10;
 // Recarga el progreso de un escaneo mientras está en curso.
 let temporizadorEscaneo = null;
+// La lista de «Correos revisados» sigue abierta aunque la pantalla se redibuje.
+let revisadosAbiertos = false;
 const MODOS_ACCESO = {
   entrar: { boton: 'Entrar', pregunta: '¿No tienes cuenta?', cambiar: 'Crear una', destino: 'registro' },
   registro: { boton: 'Crear cuenta', pregunta: '¿Ya tienes cuenta?', cambiar: 'Entrar', destino: 'entrar' },
@@ -1222,7 +1224,7 @@ function pintarCuenta() {
   const recargarCuenta = () => intentar(async () => actualizar((await api('/auth/yo')).usuario));
   const fechaDe = (f) => new Date(f).toLocaleDateString('es', { timeZone: 'UTC' });
   const textoEscaneo = (e) => (e.estado === 'en curso'
-    ? `⏳ Revisando tus correos ${e.desde.startsWith('2004-01-01') ? 'de todo tu Gmail' : `del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}`}: ${e.revisados} revisados, ${e.registrados} movimientos registrados hasta ahora${e.yaVistos ? ` (${e.yaVistos} ${e.releido ? 'ya estaban registrados' : 'ya se habían revisado antes'})` : ''}. Se actualiza solo.`
+    ? `⏳ Revisando tus correos ${e.desde.startsWith('2004-01-01') ? 'de todo tu Gmail' : `del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}`}: ${e.porLeer == null ? 'buscando tus avisos en Gmail…' : e.porLeer === 0 ? 'no hay avisos nuevos que leer, terminando…' : `leyendo con la IA el aviso ${Math.min(e.leidos + 1, e.porLeer)} de ${e.porLeer} (cada uno tarda unos segundos)…`} Van ${e.revisados} revisados y ${e.registrados} movimientos registrados${e.yaVistos ? ` (${e.yaVistos} ${e.releido ? 'ya estaban registrados' : 'ya se habían revisado antes'})` : ''}. Se actualiza solo.`
     : e.estado === 'error'
       ? `La última revisión de correos anteriores falló: ${e.error}`
       : `✅ Última revisión de correos anteriores (del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}): ${e.revisados} correos ${e.releido ? '' : 'nuevos '}revisados, ${e.registrados} movimientos registrados${e.duplicados ? `, ${e.duplicados} ya estaban anotados` : ''}.${e.yaVistos ? (e.releido ? ` Otros ${e.yaVistos} avisos de ese periodo ya estaban registrados en tu libro.` : ` Otros ${e.yaVistos} avisos de ese periodo ya los había revisado la sincronización automática: mira qué se hizo con cada uno en «Correos revisados».`) : ''}${e.quedan ? ' Quedan más correos en ese periodo: vuelve a escanear para seguir.' : ''}`);
@@ -1279,6 +1281,7 @@ function pintarCuenta() {
   const seccionRevisados = () => {
     const lista = h('div', { class: 'revisados' });
     const cargar = () => intentar(async () => {
+      revisadosAbiertos = true;
       const { correos: revisados } = await api('/auth/google/gmail/revisados');
       lista.replaceChildren(revisados.length
         ? h('ul', null, revisados.map((c) => h('li', { class: c.registrado ? 'ok' : null },
@@ -1294,6 +1297,7 @@ function pintarCuenta() {
       avisar(nuevos ? 'Registrado: ya está en tu calendario' : resultado || 'No se registró nada');
       cargar();
     });
+    if (revisadosAbiertos) cargar();
     return h('div', { class: 'escaneo' },
       h('h4', null, 'Correos revisados'),
       h('p', { class: 'tenue' }, 'Los avisos que se leyeron en la última semana y qué se hizo con cada uno. Si uno no se registró por error, pulsa «Volver a revisar».'),

@@ -28,6 +28,9 @@ const cuentaGmail = () => ({
     yaVistos: Number,
     // Se volvieron a leer los avisos ya vistos sin movimiento (escaneos cortos pedidos a mano).
     releido: Boolean,
+    // Avance de la tanda en curso: cuántos avisos tiene y cuántos se han leído ya.
+    porLeer: Number,
+    leidos: Number,
     // Había más correos de los que se revisaron en esa vuelta.
     quedan: Boolean,
     inicio: Date,
