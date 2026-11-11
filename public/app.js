@@ -1200,9 +1200,13 @@ function pintarCuenta() {
 
   const escanear = (ev) => {
     ev.preventDefault();
-    const meses = ev.target.meses.value;
+    const form = ev.target;
+    const meses = form.meses.value;
+    const cuerpo = meses === 'fechas' ? { meses, desde: form.desde.value, hasta: form.hasta.value } : { meses };
+    if (meses === 'fechas' && (!cuerpo.desde || !cuerpo.hasta)) return avisar('Elige la fecha de inicio y la de fin.');
+    if (meses === 'fechas' && cuerpo.desde > cuerpo.hasta) return avisar('La fecha de inicio debe ser anterior a la de fin.');
     intentar(async () => {
-      const { mensaje, usuario } = await api('/auth/google/gmail/escanear', { method: 'POST', body: { meses } });
+      const { mensaje, usuario } = await api('/auth/google/gmail/escanear', { method: 'POST', body: cuerpo });
       actualizar(usuario);
       avisar(mensaje);
     });
@@ -1231,14 +1235,24 @@ function pintarCuenta() {
         )
       : h('form', { class: 'form-linea', onsubmit: escanear },
           h('label', null, 'Periodo',
-            h('select', { name: 'meses' },
+            h('select', {
+              name: 'meses',
+              // «Elegir fechas…» muestra las casillas de inicio y fin.
+              onchange: (ev) => {
+                const elegir = ev.target.value === 'fechas';
+                for (const campo of ev.target.form.querySelectorAll('.solo-fechas')) campo.hidden = !elegir;
+              },
+            },
               h('option', { value: '1' }, 'Último mes'),
               h('option', { value: '3' }, 'Últimos 3 meses'),
               h('option', { value: '6' }, 'Últimos 6 meses'),
               h('option', { value: '12' }, 'Último año'),
               h('option', { value: '24' }, 'Últimos 2 años'),
               h('option', { value: 'todo' }, 'Todo mi correo'),
+              h('option', { value: 'fechas' }, 'Elegir fechas…'),
             )),
+          h('label', { class: 'solo-fechas', hidden: true }, 'Desde', h('input', { type: 'date', name: 'desde', min: '2004-01-01', max: hoy() })),
+          h('label', { class: 'solo-fechas', hidden: true }, 'Hasta', h('input', { type: 'date', name: 'hasta', min: '2004-01-01', max: hoy(), value: hoy() })),
           h('button', { class: 'primario' }, varios ? 'Escanear todos mis correos' : 'Escanear correos'),
         ),
   );

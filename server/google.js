@@ -224,12 +224,21 @@ rutasGoogle.post('/gmail/escanear', requiereSesion, async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
   if (!cuentasDe(usuario).length) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
   const cuenta = req.body.cuenta ? cuentaPedida(usuario, req).clave : null;
+  const fecha = (t) => typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t) && !Number.isNaN(new Date(`${t}T00:00:00Z`).getTime());
   let desde = 'todo';
-  if (req.body.meses !== 'todo') {
+  let hasta = null;
+  if (req.body.meses === 'fechas') {
+    // Un periodo elegido a mano: «hasta» no puede pasar de hoy.
+    if (!fecha(req.body.desde) || !fecha(req.body.hasta)) throw new ErrorHttp(400, 'Elige la fecha de inicio y la de fin.');
+    if (req.body.desde > req.body.hasta) throw new ErrorHttp(400, 'La fecha de inicio debe ser anterior a la de fin.');
+    if (req.body.desde > hoyLocal()) throw new ErrorHttp(400, 'La fecha de inicio no puede ser posterior a hoy.');
+    desde = req.body.desde;
+    hasta = req.body.hasta > hoyLocal() ? hoyLocal() : req.body.hasta;
+  } else if (req.body.meses !== 'todo') {
     const meses = [1, 3, 6, 12, 24].includes(Number(req.body.meses)) ? Number(req.body.meses) : 1;
     desde = sumarDias(hoyLocal(), -Math.round(meses * 30.5));
   }
-  const mensaje = await iniciarEscaneo(usuario, desde, null, { cuenta });
+  const mensaje = await iniciarEscaneo(usuario, desde, hasta, { cuenta });
   res.json({ mensaje, usuario: await publico(await Usuario.findById(usuario._id)) });
 });
 
