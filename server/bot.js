@@ -4,6 +4,7 @@ import { Libro, Movimiento } from './models.js';
 import { generarInforme, formateador } from './informe.js';
 import { preguntar } from './ia.js';
 import { convertir } from './cambio.js';
+import { detectarMedio, leerMedio, sinMedioEnDescripcion } from './medios.js';
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -246,6 +247,12 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
   const limpiar = (valor, max, porDefecto) => (typeof valor === 'string' && valor.trim() ? valor.trim().slice(0, max) : porDefecto);
   // Sin indicación expresa: lo de hoy o antes se da por pagado y lo futuro queda pendiente.
   const pagado = typeof datos.pagado === 'boolean' ? datos.pagado : fechaTexto <= hoy;
+  // Medio de pago: el indicado (IA, formulario) o el que se deduzca de las pistas (aviso, correo, mensaje) y de la descripción.
+  const indicado = leerMedio(datos.medio, datos.entidad);
+  const deducido = detectarMedio(...(extra.pistas ?? []), datos.pistas, datos.descripcion);
+  const medio = indicado.medio ?? deducido.medio;
+  const entidad = indicado.entidad ?? deducido.entidad;
+  if (typeof datos.descripcion === 'string') datos.descripcion = sinMedioEnDescripcion(datos.descripcion) || datos.descripcion;
 
   const mov = await Movimiento.create({
     libro: libro._id,
@@ -257,6 +264,8 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
     pagado,
     fechaPago: pagado ? new Date() : null,
     creadoPor: usuario._id,
+    ...(medio && { medio }),
+    ...(entidad && { entidad }),
     ...(extra.correoId && { correoId: extra.correoId }),
     // Cobrado en otra moneda: «monto» ya viene convertido a la del libro.
     ...(/^[A-Z]{3}$/.test(datos.moneda ?? '') && datos.moneda !== libro.moneda && datos.montoOriginal > 0
@@ -271,7 +280,7 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
     mov.moneda
       ? `${mov.descripcion}: *${mov.moneda} ${mov.montoOriginal.toFixed(2)}* (≈ ${dinero(monto)})`
       : `${mov.descripcion}: *${dinero(monto)}*`,
-    `${fechaLarga(fecha)} · ${mov.categoria} · ${estado}`,
+    `${fechaLarga(fecha)} · ${mov.categoria}${textoMedio(mov) ? ` · ${textoMedio(mov)}` : ""} · ${estado}`,
     'Para corregirlo, responde a este mensaje: «era ingreso», «son 30», «fue ayer» o «anúlalo».',
   ].join('\n');
 }
@@ -339,9 +348,12 @@ async function movimientoEditable(usuario, id) {
   return libro && puedeEscribir(usuario, libro) ? { mov, libro } : null;
 }
 
+const NOMBRE_MEDIO = { yape: 'Yape', plin: 'Plin', tarjeta: 'Tarjeta', transferencia: 'Transferencia', efectivo: 'Efectivo', otro: 'Otro medio' };
+const textoMedio = (mov) => [NOMBRE_MEDIO[mov.medio], mov.entidad].filter(Boolean).join(' ');
+
 const describir = (mov, libro) => {
   const dinero = formateador(libro.moneda);
-  return `${mov.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'} · ${mov.descripcion}: *${mov.moneda ? `${mov.moneda} ${mov.montoOriginal.toFixed(2)} (≈ ${dinero(mov.monto)})` : dinero(mov.monto)}* · ${fechaLarga(mov.fecha)} · ${mov.categoria} · ${mov.pagado ? (mov.tipo === 'gasto' ? 'pagado' : 'recibido') : 'pendiente'}`;
+  return `${mov.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'} · ${mov.descripcion}: *${mov.moneda ? `${mov.moneda} ${mov.montoOriginal.toFixed(2)} (≈ ${dinero(mov.monto)})` : dinero(mov.monto)}* · ${fechaLarga(mov.fecha)} · ${mov.categoria}${textoMedio(mov) ? ` · ${textoMedio(mov)}` : ''} · ${mov.pagado ? (mov.tipo === 'gasto' ? 'pagado' : 'recibido') : 'pendiente'}`;
 };
 
 /**
@@ -383,6 +395,12 @@ export async function editarMovimiento(usuario, id, cambios = {}) {
     mov.fecha = aFecha(cambios.fecha);
     hecho.push('fecha');
   }
+  if (cambios.medio !== undefined || cambios.entidad !== undefined) {
+    const { medio, entidad } = leerMedio(cambios.medio, cambios.entidad);
+    if (medio) mov.medio = medio;
+    if (entidad) mov.entidad = entidad;
+    if (medio || entidad) hecho.push('medio de pago');
+  }
   if (typeof cambios.pagado === 'boolean') {
     mov.pagado = cambios.pagado;
     mov.fechaPago = cambios.pagado ? (mov.fechaPago ?? new Date()) : null;
@@ -391,6 +409,26 @@ export async function editarMovimiento(usuario, id, cambios = {}) {
   if (!hecho.length) return 'No vi qué querías cambiar. Dime, por ejemplo: «era ingreso», «son 30», «fue ayer», «categoría comida» o «anúlalo».';
   await mov.save();
   return `✏️ *Corregido* en ${libro.nombre}\n${describir(mov, libro)}`;
+}
+
+/**
+ * Corrección única: pone el medio de pago a los movimientos que no lo tienen, deducido de su descripción
+ * y, si vinieron del correo y aún se guarda su registro, del remitente y el asunto.
+ */
+export async function completarMedios() {
+  const { CorreoRevisado } = await import('./models.js');
+  let hechos = 0;
+  const cursor = Movimiento.find({ medio: { $exists: false } }).select('descripcion correoId creadoPor').lean().cursor();
+  for await (const mov of cursor) {
+    const correo = mov.correoId && mov.creadoPor
+      ? await CorreoRevisado.findById(`${mov.creadoPor}:${mov.correoId}`).select('remitente asunto extracto').lean()
+      : null;
+    const { medio, entidad } = detectarMedio(correo?.remitente, correo?.asunto, mov.descripcion, correo?.extracto);
+    if (!medio && !entidad) continue;
+    await Movimiento.updateOne({ _id: mov._id }, { $set: { ...(medio && { medio }), ...(entidad && { entidad }) } });
+    hechos += 1;
+  }
+  return hechos;
 }
 
 /** Borra un movimiento ya registrado (en un libro donde la persona puede escribir). */
@@ -417,6 +455,9 @@ export function leerCorreccion(texto, hoy) {
   const dia = /^(?:(?:fue|era|es|cambia(?:lo)? a|ponlo)\s+)?(?:de |el |del )?(hoy|ayer|anteayer|manana)$/.exec(t);
   if (dia) return { cambios: { fecha: { hoy, ayer: sumarDias(hoy, -1), anteayer: sumarDias(hoy, -2), manana: sumarDias(hoy, 1) }[dia[1]] } };
   if (/^(esta |esta )?(pendiente|no (lo )?he pagado|falta pagar|por pagar)$/.test(t)) return { cambios: { pagado: false } };
+  // «fue con yape», «con tarjeta bcp», «en efectivo», «fue por plin»
+  const medioDicho = /^(?:(?:fue|era|es|lo pague|pague|pagado)\s+)?(?:con|por|en|via)\s+(?:mi\s+|la\s+|el\s+)?(yape|plin|tarjeta|efectivo|transferencia)(?:\s+(?:de\s+|del\s+)?(.{2,30}))?$/.exec(t);
+  if (medioDicho) return { cambios: { medio: medioDicho[1], ...(medioDicho[2] && { entidad: medioDicho[2] }) } };
   if (/^(ya )?(esta |lo )?(pagado|pague|cobrado|recibido)$/.test(t)) return { cambios: { pagado: true } };
   return null;
 }
@@ -494,6 +535,7 @@ function leerRegistro(mensaje, hoy) {
     else if (!(descripcion.length === 0 && ['en', 'de', 'del', 'por', 'para', 'soles', 'sol', 'dolares', 'lucas', 'el', 'la', 'un', 'una'].includes(llana))) descripcion.push(ficha);
   });
   if (descripcion.length) datos.descripcion = descripcion.join(' ').replace(/^./, (c) => c.toUpperCase());
+  datos.pistas = frase;
   return datos;
 }
 
@@ -686,7 +728,7 @@ async function libroParaIa(usuario, libroId) {
   return libros.find((l) => libroId && String(l._id) === String(libroId)) ?? libroActivo(usuario, libros);
 }
 
-const corto = (m) => ({ fecha: aTexto(m.fecha), tipo: m.tipo, descripcion: m.descripcion, categoria: m.categoria, monto: m.monto, ...(m.moneda && { cobradoEn: `${m.moneda} ${m.montoOriginal}` }), pagado: m.pagado, ...(m.correoId && { desdeCorreo: true }) });
+const corto = (m) => ({ fecha: aTexto(m.fecha), tipo: m.tipo, descripcion: m.descripcion, categoria: m.categoria, monto: m.monto, ...(m.moneda && { cobradoEn: `${m.moneda} ${m.montoOriginal}` }), pagado: m.pagado, ...(m.medio && { medio: m.medio }), ...(m.entidad && { entidad: m.entidad }), ...(m.correoId && { desdeCorreo: true }) });
 const redondear = (n) => Math.round(n * 100) / 100;
 
 // Totales mes a mes (24 meses atrás y 12 adelante, donde hay pagos programados): ingresos, gastos,

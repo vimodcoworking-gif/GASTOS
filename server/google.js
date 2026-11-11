@@ -456,7 +456,7 @@ async function interpretar(correo, monedaLibro, titular) {
   const descripcion = typeof gasto.descripcion === 'string' && gasto.descripcion.trim() ? gasto.descripcion.trim() : correo.asunto || (tipo === 'gasto' ? 'Gasto por correo' : 'Ingreso por correo');
   // La fecha de la IA solo se acepta si cuadra con la del correo.
   const fecha = typeof gasto.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(gasto.fecha) && gasto.fecha <= correo.fecha && dias(gasto.fecha, correo.fecha) <= 3 ? gasto.fecha : correo.fecha;
-  const datos = { tipo, monto, descripcion: descripcion.slice(0, 120), categoria: typeof gasto.categoria === 'string' ? gasto.categoria : 'Otros', fecha, pagado: true };
+  const datos = { tipo, monto, descripcion: descripcion.slice(0, 120), categoria: typeof gasto.categoria === 'string' ? gasto.categoria : 'Otros', fecha, pagado: true, medio: gasto.medio, entidad: gasto.entidad };
 
   // Cobrado en otra moneda (p. ej. dólares en un libro en soles): se guarda tal cual se cobró
   // y, para los totales, su equivalente en la moneda del libro.
@@ -566,7 +566,8 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
       resultado.duplicados += 1;
       decision = `No se anotó: ya había un ${datos.tipo} de ${datos.monto} en «${libro.nombre}» (${igual.descripcion}, ${igual.fecha.toISOString().slice(0, 10)})`;
     } else {
-      const confirmacion = await registrarMovimiento(usuario, libro, datos, { correoId: id });
+      // Pistas para el medio de pago, de la más fiable a la menos: remitente, asunto y cuerpo del aviso.
+      const confirmacion = await registrarMovimiento(usuario, libro, datos, { correoId: id, pistas: [correo.remitente, correo.asunto, correo.texto.slice(0, 2000)] });
       decision = confirmacion.split('\n').slice(0, 2).join(' · ').replace(/\*/g, '');
       if (confirmacion.startsWith('✅')) {
         registrado = true;

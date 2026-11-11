@@ -128,6 +128,28 @@
         <input name="categoria" list="categorias" maxlength="40" placeholder="General">
       </label>
       <datalist id="categorias"></datalist>
+      <div class="fila">
+        <label>Medio de pago
+          <select name="medio">
+            <option value="">Sin indicar</option>
+            <option value="yape">Yape</option>
+            <option value="plin">Plin</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="transferencia">Transferencia o depósito</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="otro">Otro</option>
+          </select>
+        </label>
+        <label>Banco o entidad
+          <input name="entidad" list="entidades" maxlength="40" placeholder="BCP, Interbank…">
+        </label>
+      </div>
+      <datalist id="entidades">
+        <option value="BCP"><option value="Interbank"><option value="BBVA"><option value="Scotiabank">
+        <option value="Banco de la Nación"><option value="Mibanco"><option value="Pichincha"><option value="BanBif">
+        <option value="Falabella"><option value="Ripley"><option value="Caja Arequipa"><option value="Caja Huancayo">
+        <option value="Mercado Pago"><option value="PayPal">
+      </datalist>
       <label class="check"><input type="checkbox" name="pagado"> <span id="mov-pagado-texto">Ya está pagado</span></label>
       <div class="fila">
         <label>Repetir

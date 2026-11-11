@@ -111,6 +111,9 @@ const movimientoSchema = new Schema(
     creadoPor: { type: ObjectId, ref: 'Usuario' },
     // Id del correo de Gmail del que salió, si se registró solo a partir de un correo.
     correoId: String,
+    // Con qué se pagó o cobró, y la entidad (banco, billetera), si se sabe.
+    medio: { type: String, enum: ['yape', 'plin', 'tarjeta', 'transferencia', 'efectivo', 'otro'] },
+    entidad: { type: String, trim: true, maxlength: 40 },
   },
   { timestamps: true },
 );

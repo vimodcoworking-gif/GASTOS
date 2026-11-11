@@ -133,7 +133,7 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
   }
   if (!movimiento) return res.json({ ok: false, mensaje: 'No es un aviso de pago: no se registró nada.' });
 
-  const mensaje = await registrarVarios(usuario, [{ ...movimiento, fecha: movimiento.fecha ?? hoyLocal() }], { origen: `desde ${app || 'tu teléfono'}`, repetidos: 'reciente' });
+  const mensaje = await registrarVarios(usuario, [{ ...movimiento, fecha: movimiento.fecha ?? hoyLocal(), pistas: `${app} ${completo}` }], { origen: `desde ${app || 'tu teléfono'}`, repetidos: 'reciente' });
   if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
   res.json({ ok: mensaje.startsWith('✅'), mensaje: mensaje.replace(/\*/g, '') });
 });

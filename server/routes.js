@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { leerMedio } from './medios.js';
 import mongoose from 'mongoose';
 import { Usuario, Libro, Movimiento } from './models.js';
 import { ErrorHttp, texto } from './errores.js';
@@ -241,6 +242,8 @@ const movPublico = (m) => ({
   enSerie: Boolean(m.serie),
   // Registrado solo a partir de un correo de Gmail.
   desdeCorreo: Boolean(m.correoId),
+  medio: m.medio ?? null,
+  entidad: m.entidad ?? null,
 });
 
 function leerMovimiento(cuerpo, parcial = false) {
@@ -268,6 +271,12 @@ function leerMovimiento(cuerpo, parcial = false) {
   if (cuerpo.pagado !== undefined) {
     datos.pagado = cuerpo.pagado === true;
     datos.fechaPago = datos.pagado ? new Date() : null;
+  }
+  // Medio de pago y entidad: vacíos quitan el dato.
+  if (cuerpo.medio !== undefined || cuerpo.entidad !== undefined) {
+    const { medio, entidad } = leerMedio(cuerpo.medio, cuerpo.entidad);
+    if (cuerpo.medio !== undefined) datos.medio = medio ?? undefined;
+    if (cuerpo.entidad !== undefined) datos.entidad = entidad ?? undefined;
   }
   return datos;
 }
@@ -356,7 +365,7 @@ libro.patch('/movimientos/:id', puedeEditar, async (req, res) => {
   if (repeticion) {
     const base = {
       libro: mov.libro, tipo: mov.tipo, descripcion: mov.descripcion, categoria: mov.categoria,
-      monto: mov.monto, fecha: mov.fecha, serie: mov.serie, creadoPor: req.usuario.id,
+      monto: mov.monto, fecha: mov.fecha, serie: mov.serie, creadoPor: req.usuario.id, medio: mov.medio, entidad: mov.entidad,
     };
     creados = (await Movimiento.insertMany(copiasFuturas(base, repeticion))).length;
   }

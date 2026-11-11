@@ -400,6 +400,8 @@ function abrirMovimiento(mov = null, fecha = null) {
     form.fecha.value = mov.fecha;
     form.categoria.value = mov.categoria;
     form.pagado.checked = mov.pagado;
+    form.medio.value = mov.medio ?? '';
+    form.entidad.value = mov.entidad ?? '';
   } else {
     // Por defecto: el día pedido, hoy si estamos en el mes actual, o el primer día del mes visible.
     form.fecha.value = fecha ?? (hoy().startsWith(estado.mes) ? hoy() : `${estado.mes}-01`);
@@ -463,6 +465,8 @@ $('#form-mov').addEventListener('submit', async (ev) => {
     fecha: form.fecha.value,
     categoria: form.categoria.value,
     pagado: form.pagado.checked,
+    medio: form.medio.value,
+    entidad: form.entidad.value,
   };
   if (form.repetir.value !== 'no') {
     body.repetir = form.repetir.value;
@@ -519,6 +523,72 @@ function chipEstado(mov) {
   return h('span', { class: 'chip' }, mov.tipo === 'gasto' ? 'Pendiente' : 'Por recibir');
 }
 
+// Medios de pago: nombre, icono y clase de color de la etiqueta.
+const MEDIOS = {
+  yape: { nombre: 'Yape', icono: '📱' },
+  plin: { nombre: 'Plin', icono: '📲' },
+  tarjeta: { nombre: 'Tarjeta', icono: '💳' },
+  transferencia: { nombre: 'Transferencia', icono: '🏦' },
+  efectivo: { nombre: 'Efectivo', icono: '💵' },
+  otro: { nombre: 'Otro', icono: '•' },
+};
+// Colores de las entidades más comunes (si no está, la etiqueta usa el color del medio).
+const CLASE_ENTIDAD = { BCP: 'bcp', Interbank: 'interbank', BBVA: 'bbva', Scotiabank: 'scotiabank', 'Banco de la Nación': 'bn', Falabella: 'falabella', Ripley: 'ripley' };
+
+function chipMedio(m) {
+  if (!m.medio && !m.entidad) return null;
+  const medio = MEDIOS[m.medio];
+  // Con tarjeta o transferencia lo útil es el banco: «💳 BCP»; con Yape o Plin, la billetera.
+  const texto = medio
+    ? (m.entidad && ['tarjeta', 'transferencia', 'otro'].includes(m.medio) ? m.entidad : medio.nombre)
+    : m.entidad;
+  return h('span', {
+    class: `chip medio medio-${m.medio ?? 'otro'} ${CLASE_ENTIDAD[m.entidad] ? `entidad-${CLASE_ENTIDAD[m.entidad]}` : ''}`,
+    title: [medio?.nombre, m.entidad].filter(Boolean).join(' · '),
+  }, `${medio?.icono ?? '🏦'} ${texto}`);
+}
+
+// Filtro por medio de pago y entidad, compartido por el calendario y el listado del mes.
+const pasaFiltroMedio = (m) => {
+  const { medio, entidad } = estado.filtroMedio ?? {};
+  if (medio === 'sin' ? m.medio : medio && m.medio !== medio) return false;
+  return !entidad || m.entidad === entidad;
+};
+
+function filtroMedios(movimientos) {
+  const actual = estado.filtroMedio ?? {};
+  const cambiar = (cambios) => {
+    estado.filtroMedio = { ...actual, ...cambios };
+    render();
+  };
+  const cuantos = (medio) => movimientos.filter((m) => (medio === 'sin' ? !m.medio : m.medio === medio)).length;
+  const opciones = [['', 'Todos', movimientos.length], ...Object.entries(MEDIOS).map(([clave, v]) => [clave, `${v.icono} ${v.nombre}`, cuantos(clave)]), ['sin', 'Sin indicar', cuantos('sin')]]
+    .filter(([clave, , n]) => clave === '' || n > 0 || clave === actual.medio);
+  const entidades = [...new Set(movimientos.filter((m) => m.entidad && (!actual.medio || m.medio === actual.medio)).map((m) => m.entidad))].sort();
+  const filtrados = movimientos.filter(pasaFiltroMedio);
+  const suma = (tipo) => filtrados.filter((m) => m.tipo === tipo).reduce((t, m) => t + m.monto, 0);
+  const activo = Boolean(actual.medio || actual.entidad);
+  return h('div', { class: 'filtro-medios' },
+    h('div', { class: 'chips-filtro', role: 'group', 'aria-label': 'Filtrar por medio de pago' },
+      opciones.map(([clave, texto, n]) => h('button', {
+        type: 'button',
+        class: `filtro ${(actual.medio ?? '') === clave ? 'activo' : ''}`,
+        'aria-pressed': String((actual.medio ?? '') === clave),
+        onclick: () => cambiar({ medio: clave, entidad: '' }),
+      }, `${texto} `, h('small', null, n))),
+      entidades.length > 0 && h('select', {
+        class: 'filtro-entidad',
+        'aria-label': 'Filtrar por banco o entidad',
+        onchange: (ev) => cambiar({ entidad: ev.target.value }),
+      },
+        h('option', { value: '' }, 'Todos los bancos'),
+        entidades.map((e) => h('option', { value: e, selected: actual.entidad === e }, e))),
+    ),
+    activo && h('p', { class: 'tenue filtro-total' },
+      `${filtrados.length} movimientos · Gastos ${dinero(suma('gasto'))} · Ingresos ${dinero(suma('ingreso'))}`),
+  );
+}
+
 // Un movimiento como fila de lista; se usa en el calendario, en pendientes y en el listado del mes.
 // Tocar el movimiento lo abre para editarlo o eliminarlo; al lado queda solo el botón de pagar.
 function filaMovimiento(m, editar) {
@@ -528,6 +598,7 @@ function filaMovimiento(m, editar) {
         m.enSerie && h('span', { class: 'tenue', title: 'Se repite cada mes' }, ' ↻'),
         m.desdeCorreo && h('span', { class: 'tenue', title: 'Registrado desde tu correo de Gmail' }, ' 📧')),
       h('small', null, `${fechaCorta(m.fecha)} · ${m.categoria} `),
+      chipMedio(m),
       chipEstado(m),
     ),
     h('span', { class: `monto ${m.tipo}`, ...(m.moneda && { title: `Equivale a ${dinero(m.monto)} con el tipo de cambio del día` }) },
@@ -689,7 +760,8 @@ function pintarMes({ actual, proximo, pendientes }) {
                   h('h3', null, fechaTexto(estado.dia, { weekday: 'long', day: 'numeric', month: 'long' })),
                   h('span', { class: 'espacio' }),
                   h('button', { type: 'button', class: 'mini', onclick: verDia(null) }, `Ver todo ${mesCorto}`)),
-                listaMovimientos(delDia, editar, 'No hay movimientos este día.'),
+                filtroMedios(delDia),
+                listaMovimientos(delDia.filter(pasaFiltroMedio), editar, 'No hay movimientos este día con ese filtro.'),
                 editar && h('div', { class: 'pie-panel' },
                   h('button', { type: 'button', class: 'primario ancho', onclick: () => abrirMovimiento(null, estado.dia) }, '+ Añadir en este día')),
               ]
@@ -700,7 +772,8 @@ function pintarMes({ actual, proximo, pendientes }) {
                   h('span', { class: 'tenue' }, sinPagar.length
                     ? `${sinPagar.length} ${sinPagar.length === 1 ? 'pendiente' : 'pendientes'} · ${dinero(t.gastosPendientes)} por pagar`
                     : actual.length ? 'todo al día' : '')),
-                listaMovimientos([...sinPagar, ...actual.filter((m) => m.pagado)], editar, 'No hay movimientos este mes.'),
+                filtroMedios(actual),
+                listaMovimientos([...sinPagar, ...actual.filter((m) => m.pagado)].filter(pasaFiltroMedio), editar, 'No hay movimientos este mes con ese filtro.'),
                 h('p', { class: 'tenue pie-panel' }, 'Toca un día del calendario para ver solo los de esa fecha.'),
               ],
         ),
@@ -715,7 +788,8 @@ function pintarMes({ actual, proximo, pendientes }) {
     movimientos: () =>
       h('section', { class: 'panel' },
         h('header', null, h('h3', null, 'Movimientos del mes')),
-        listaMovimientos(actual, editar, 'No hay movimientos este mes.'),
+        filtroMedios(actual),
+        listaMovimientos(actual.filter(pasaFiltroMedio), editar, 'No hay movimientos este mes con ese filtro.'),
       ),
   };
 
