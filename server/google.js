@@ -119,8 +119,10 @@ rutasGoogle.get('/callback', async (req, res) => {
 
     // Entrar: la cuenta vinculada a ese Google, o la que tenga ese mismo correo verificado, o una nueva.
     let usuario = await Usuario.findOne({ googleId: perfil.sub });
-    // Hace falta licencia de VIMOD para el correo de la cuenta (o el de Google, si la cuenta es nueva).
-    const licencia = await comprobarLicencia(usuario?.email ?? email);
+    // Hace falta licencia de VIMOD para la cuenta (la suya, o la del administrador si él la creó),
+    // o para el correo de Google si la cuenta es nueva.
+    const existente = usuario ?? (perfil.email_verified ? await Usuario.findOne({ email }) : null);
+    const licencia = await comprobarLicencia(existente ?? email);
     if (!licencia.ok) return volver('errorGoogle', licencia.motivo);
     let nueva = false;
     if (!usuario && perfil.email_verified) {
@@ -521,7 +523,7 @@ async function revisarTodos() {
   try {
     const usuarios = await Usuario.find({ 'gmail.activo': true, 'gmail.token': { $exists: true } }).limit(500);
     // Sin licencia de VIMOD vigente no se sigue leyendo su correo.
-    for (const usuario of usuarios) if ((await comprobarLicencia(usuario.email)).ok) await revisarUsuario(usuario);
+    for (const usuario of usuarios) if ((await comprobarLicencia(usuario)).ok) await revisarUsuario(usuario);
   } catch (err) {
     console.error('Revisión de Gmail:', err.message);
   } finally {

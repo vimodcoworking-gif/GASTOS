@@ -9,6 +9,8 @@ const usuarioSchema = new Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 120 },
     // Falta en las cuentas creadas con Google hasta que la persona se ponga una contraseña.
     passwordHash: String,
+    // Cuenta dada de alta por el administrador: usa su licencia de VIMOD en vez de una propia.
+    altaAdmin: { type: Boolean, default: false },
     // Identificador de la cuenta de Google vinculada («sub»), para poder entrar con ella.
     googleId: String,
     // Lectura de Gmail para registrar solos los gastos que llegan por correo (bancos, tiendas, apps).

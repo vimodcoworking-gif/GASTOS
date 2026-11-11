@@ -82,10 +82,10 @@ export async function requiereSesion(req, res, next) {
   // La comprobación se recuerda un minuto: así no cuesta una consulta a la base en cada petición.
   // También se comprueba la licencia de VIMOD: si se suspende o vence, se pierde el acceso en un minuto.
   if (id && (cuentasVistas.get(id) ?? 0) < Date.now()) {
-    const cuenta = await Usuario.findById(id).select('email');
+    const cuenta = await Usuario.findById(id).select('email altaAdmin');
     if (!cuenta) id = null;
     else {
-      const licencia = await comprobarLicencia(cuenta.email);
+      const licencia = await comprobarLicencia(cuenta);
       if (!licencia.ok) {
         res.clearCookie(COOKIE);
         return res.status(401).json({ error: licencia.motivo });
@@ -103,7 +103,7 @@ const cuentasVistas = new Map();
 export const olvidarCuenta = (id) => cuentasVistas.delete(String(id));
 
 // Alta de una cuenta con su libro «Personal»; la usan el registro y el administrador.
-export async function crearUsuario(cuerpo, { whatsappObligatorio = false } = {}) {
+export async function crearUsuario(cuerpo, { whatsappObligatorio = false, altaAdmin = false } = {}) {
   const whatsapp = leerWhatsapp(cuerpo.whatsapp);
   if (whatsappObligatorio && !whatsapp) throw new ErrorHttp(400, 'Falta el número de WhatsApp');
   const nombre = texto(cuerpo.nombre, 'el nombre', 60);
@@ -118,6 +118,7 @@ export async function crearUsuario(cuerpo, { whatsappObligatorio = false } = {})
     email,
     passwordHash: await bcrypt.hash(password, 11),
     ...(whatsapp && { whatsapp }),
+    ...(altaAdmin && { altaAdmin }),
   });
   await Libro.create({ nombre: 'Personal', propietario: usuario._id });
   return usuario;
@@ -148,7 +149,7 @@ rutasAuth.post('/login', limite, async (req, res) => {
     // El mismo mensaje exista o no la cuenta; la pista de Google sirve a quien se registró con ella.
     throw new ErrorHttp(401, `Correo o contraseña incorrectos${config.google.clienteId ? '. Si creaste la cuenta con Google, usa «Continuar con Google».' : ''}`);
   }
-  await exigirLicencia(usuario.email);
+  await exigirLicencia(usuario);
   iniciarSesion(res, usuario);
   res.json({ usuario: await publico(usuario) });
 });
@@ -235,7 +236,7 @@ rutasAuth.post('/restablecer', limite, async (req, res) => {
   }
 
   await cambiarPassword(usuario, password);
-  await exigirLicencia(usuario.email);
+  await exigirLicencia(usuario);
   iniciarSesion(res, usuario);
   res.json({ usuario: await publico(usuario) });
 });

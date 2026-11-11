@@ -297,7 +297,7 @@ async function atender(sock, mensaje) {
   const usuario = await Usuario.findOne({ whatsapp: numero });
   if (!usuario) return;
   // Sin licencia de VIMOD vigente, el bot no atiende a esa cuenta.
-  const licencia = await comprobarLicencia(usuario.email);
+  const licencia = await comprobarLicencia(usuario);
   if (!licencia.ok) return;
 
   // Freno sencillo contra ráfagas: un mensaje por segundo y usuario.

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { config } from './config.js';
 import { ErrorHttp } from './errores.js';
+import { Usuario } from './models.js';
 
 // Acceso por licencia de VIMOD.
 // La app se vende desde el Panel administrador de VIMOD: allí se crea el software, y cada cliente
@@ -66,9 +67,30 @@ async function consultar(email) {
   return { ok: false, motivo: 'Tu licencia de este software ha vencido. Renuévala desde la web de VIMOD para seguir usándolo.' };
 }
 
+// Correos de los administradores de esta app (ADMIN_EMAILS o, si falta, la primera cuenta).
+async function correosAdmin() {
+  if (config.adminEmails.length) return config.adminEmails;
+  const primero = await Usuario.findOne().sort({ createdAt: 1 }).select('email');
+  return primero ? [primero.email] : [];
+}
+
+// Recibe un correo o una cuenta. Las cuentas que crea el administrador («Añadir usuario»)
+// no tienen cuenta propia en el Panel de VIMOD: entran con la licencia del administrador.
 // { ok: true } o { ok: false, motivo }. Las cuentas de LICENCIA_LIBRE entran siempre.
-export async function comprobarLicencia(email) {
-  email = String(email || '').toLowerCase();
+export async function comprobarLicencia(cuentaOEmail) {
+  if (cuentaOEmail && typeof cuentaOEmail === 'object') {
+    if (!cuentaOEmail.altaAdmin) return comprobarLicencia(cuentaOEmail.email);
+    if (!licenciasActivas()) return { ok: true };
+    const admins = await correosAdmin();
+    let ultimo = { ok: false, motivo: 'La licencia de VIMOD del administrador no está vigente. Avisa al administrador.' };
+    for (const correo of admins) {
+      const r = await comprobarLicencia(correo);
+      if (r.ok) return { ok: true };
+      ultimo = { ok: false, motivo: `La licencia de VIMOD del administrador no está vigente (${r.motivo}). Avisa al administrador.` };
+    }
+    return ultimo;
+  }
+  let email = String(cuentaOEmail || '').toLowerCase();
   if (!licenciasActivas() || config.vimod.libres.includes(email)) return { ok: true };
 
   const previo = recuerdo.get(email);
@@ -87,7 +109,7 @@ export async function comprobarLicencia(email) {
 }
 
 // Para las rutas de acceso: lanza un 403 con el motivo si no hay licencia.
-export async function exigirLicencia(email) {
-  const r = await comprobarLicencia(email);
+export async function exigirLicencia(cuentaOEmail) {
+  const r = await comprobarLicencia(cuentaOEmail);
   if (!r.ok) throw new ErrorHttp(403, r.motivo);
 }
