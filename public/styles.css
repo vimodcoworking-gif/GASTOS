@@ -502,3 +502,12 @@ dialog h2 { margin-bottom: 1rem; }
 .chips-filtro .filtro.activo small { color: inherit; opacity: .75; }
 .filtro-entidad { width: auto; min-height: 34px; padding: .2rem .6rem; font-size: .8rem; border-radius: 999px; }
 .filtro-total { margin: .45rem 0 0; font-size: .82rem; }
+
+/* Iconos de línea */
+.icono { width: 1em; height: 1em; flex: none; vertical-align: -0.14em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chip.medio { display: inline-flex; align-items: center; gap: .3rem; }
+.chip.medio .icono { width: .95em; height: .95em; }
+.chips-filtro .filtro { display: inline-flex; align-items: center; gap: .35rem; }
+.marca { display: inline-flex; margin-left: .35rem; color: var(--tenue); vertical-align: middle; }
+.marca .icono { width: .9em; height: .9em; }
+.sincronizacion .icono { margin-right: .15rem; }

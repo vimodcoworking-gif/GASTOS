@@ -37,10 +37,13 @@ const PATRONES_MEDIO = [
  */
 export function detectarMedio(...fuentes) {
   const textos = fuentes.filter((t) => typeof t === 'string' && t.trim());
-  let medio = null;
+  // Yape y Plin dichos en cualquier texto corto (descripción, asunto) mandan: un Plin pagado desde la
+  // cuenta del BCP llega en un correo de «Tarjeta de Débito», pero es un Plin.
+  const billetera = textos.filter((t) => t.length <= 200).map((t) => PATRONES_MEDIO.slice(0, 2).find(([, p]) => p.test(t))?.[0]).find(Boolean);
+  let medio = billetera ?? null;
   for (const texto of textos) {
-    medio = PATRONES_MEDIO.find(([, patron]) => patron.test(texto))?.[0] ?? null;
     if (medio) break;
+    medio = PATRONES_MEDIO.find(([, patron]) => patron.test(texto))?.[0] ?? null;
   }
   let entidad = null;
   for (const texto of textos) {

@@ -523,14 +523,38 @@ function chipEstado(mov) {
   return h('span', { class: 'chip' }, mov.tipo === 'gasto' ? 'Pendiente' : 'Por recibir');
 }
 
-// Medios de pago: nombre, icono y clase de color de la etiqueta.
+// Iconos de línea (SVG, 24×24) que toman el color del texto.
+const TRAZOS_ICONO = {
+  movil: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
+  enviar: '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>',
+  tarjeta: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/>',
+  banco: '<path d="M3 21h18"/><path d="M5 21V11M9.5 21V11M14.5 21V11M19 21V11"/><path d="M2 11 12 4l10 7z"/>',
+  billete: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+  mas: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+  correo: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+  repetir: '<path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
+  sincronizar: '<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/>',
+};
+
+function icono(nombre, titulo = '') {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', `icono icono-${nombre}`);
+  svg.setAttribute('aria-hidden', titulo ? 'false' : 'true');
+  if (titulo) svg.setAttribute('role', 'img');
+  // Los trazos son fijos (de este archivo), nunca texto de los usuarios.
+  svg.innerHTML = `${titulo ? `<title>${titulo}</title>` : ''}${TRAZOS_ICONO[nombre] ?? ''}`;
+  return svg;
+}
+
+// Medios de pago: nombre e icono de la etiqueta.
 const MEDIOS = {
-  yape: { nombre: 'Yape', icono: '📱' },
-  plin: { nombre: 'Plin', icono: '📲' },
-  tarjeta: { nombre: 'Tarjeta', icono: '💳' },
-  transferencia: { nombre: 'Transferencia', icono: '🏦' },
-  efectivo: { nombre: 'Efectivo', icono: '💵' },
-  otro: { nombre: 'Otro', icono: '•' },
+  yape: { nombre: 'Yape', icono: 'movil' },
+  plin: { nombre: 'Plin', icono: 'enviar' },
+  tarjeta: { nombre: 'Tarjeta', icono: 'tarjeta' },
+  transferencia: { nombre: 'Transferencia', icono: 'banco' },
+  efectivo: { nombre: 'Efectivo', icono: 'billete' },
+  otro: { nombre: 'Otro', icono: 'mas' },
 };
 // Colores de las entidades más comunes (si no está, la etiqueta usa el color del medio).
 const CLASE_ENTIDAD = { BCP: 'bcp', Interbank: 'interbank', BBVA: 'bbva', Scotiabank: 'scotiabank', 'Banco de la Nación': 'bn', Falabella: 'falabella', Ripley: 'ripley' };
@@ -538,14 +562,15 @@ const CLASE_ENTIDAD = { BCP: 'bcp', Interbank: 'interbank', BBVA: 'bbva', Scotia
 function chipMedio(m) {
   if (!m.medio && !m.entidad) return null;
   const medio = MEDIOS[m.medio];
-  // Con tarjeta o transferencia lo útil es el banco: «💳 BCP»; con Yape o Plin, la billetera.
+  // Con tarjeta o transferencia lo útil es el banco («BCP» con el icono de tarjeta); con Yape o Plin, la billetera.
   const texto = medio
     ? (m.entidad && ['tarjeta', 'transferencia', 'otro'].includes(m.medio) ? m.entidad : medio.nombre)
     : m.entidad;
   return h('span', {
-    class: `chip medio medio-${m.medio ?? 'otro'} ${CLASE_ENTIDAD[m.entidad] ? `entidad-${CLASE_ENTIDAD[m.entidad]}` : ''}`,
+    // El color del banco solo con tarjeta, transferencia u otro; Yape y Plin llevan el suyo.
+    class: `chip medio medio-${m.medio ?? 'otro'} ${CLASE_ENTIDAD[m.entidad] && !['yape', 'plin'].includes(m.medio) ? `entidad-${CLASE_ENTIDAD[m.entidad]}` : ''}`,
     title: [medio?.nombre, m.entidad].filter(Boolean).join(' · '),
-  }, `${medio?.icono ?? '🏦'} ${texto}`);
+  }, icono(medio?.icono ?? 'banco'), texto);
 }
 
 // Filtro por medio de pago y entidad, compartido por el calendario y el listado del mes.
@@ -562,7 +587,7 @@ function filtroMedios(movimientos) {
     render();
   };
   const cuantos = (medio) => movimientos.filter((m) => (medio === 'sin' ? !m.medio : m.medio === medio)).length;
-  const opciones = [['', 'Todos', movimientos.length], ...Object.entries(MEDIOS).map(([clave, v]) => [clave, `${v.icono} ${v.nombre}`, cuantos(clave)]), ['sin', 'Sin indicar', cuantos('sin')]]
+  const opciones = [['', 'Todos', movimientos.length], ...Object.entries(MEDIOS).map(([clave, v]) => [clave, v.nombre, cuantos(clave), v.icono]), ['sin', 'Sin indicar', cuantos('sin')]]
     .filter(([clave, , n]) => clave === '' || n > 0 || clave === actual.medio);
   const entidades = [...new Set(movimientos.filter((m) => m.entidad && (!actual.medio || m.medio === actual.medio)).map((m) => m.entidad))].sort();
   const filtrados = movimientos.filter(pasaFiltroMedio);
@@ -570,12 +595,12 @@ function filtroMedios(movimientos) {
   const activo = Boolean(actual.medio || actual.entidad);
   return h('div', { class: 'filtro-medios' },
     h('div', { class: 'chips-filtro', role: 'group', 'aria-label': 'Filtrar por medio de pago' },
-      opciones.map(([clave, texto, n]) => h('button', {
+      opciones.map(([clave, texto, n, nombreIcono]) => h('button', {
         type: 'button',
         class: `filtro ${(actual.medio ?? '') === clave ? 'activo' : ''}`,
         'aria-pressed': String((actual.medio ?? '') === clave),
         onclick: () => cambiar({ medio: clave, entidad: '' }),
-      }, `${texto} `, h('small', null, n))),
+      }, nombreIcono && icono(nombreIcono), `${texto} `, h('small', null, n))),
       entidades.length > 0 && h('select', {
         class: 'filtro-entidad',
         'aria-label': 'Filtrar por banco o entidad',
@@ -595,8 +620,8 @@ function filaMovimiento(m, editar) {
   const contenido = [
     h('span', { class: 'cuerpo' },
       h('strong', null, m.descripcion,
-        m.enSerie && h('span', { class: 'tenue', title: 'Se repite cada mes' }, ' ↻'),
-        m.desdeCorreo && h('span', { class: 'tenue', title: 'Registrado desde tu correo de Gmail' }, ' 📧')),
+        m.enSerie && h('span', { class: 'marca', title: 'Se repite' }, icono('repetir', 'Se repite')),
+        m.desdeCorreo && h('span', { class: 'marca', title: 'Registrado desde tu correo de Gmail' }, icono('correo', 'Desde tu correo'))),
       h('small', null, `${fechaCorta(m.fecha)} · ${m.categoria} `),
       chipMedio(m),
       chipEstado(m),
@@ -1404,8 +1429,8 @@ function pintarCuenta() {
     h('header', null, h('h3', null, 'Gastos desde tu Gmail'), varios && h('span', { class: 'tenue' }, `${correos.length} correos vinculados`)),
     correos.length
       ? [
-          correos.some((c) => c.activo) && h('p', { class: 'sincronizacion' }, `🔄 Sincronización automática activa: cada ${minutosGmail} minutos se leen los avisos nuevos y se registran solos, también los de hoy.`),
-          h('p', null, 'El bot revisa tus correos cada pocos minutos y registra solo en tu libro y en el calendario los gastos e ingresos que te avisan tus bancos, Yape, Plin, tiendas y apps (compras, pagos, transferencias, yapeos recibidos, sueldo). Los verás marcados con 📧.'),
+          correos.some((c) => c.activo) && h('p', { class: 'sincronizacion' }, icono('sincronizar'), ` Sincronización automática activa: cada ${minutosGmail} minutos se leen los avisos nuevos y se registran solos, también los de hoy.`),
+          h('p', null, 'El bot revisa tus correos cada pocos minutos y registra solo en tu libro y en el calendario los gastos e ingresos que te avisan tus bancos, Yape, Plin, tiendas y apps (compras, pagos, transferencias, yapeos recibidos, sueldo). Los verás marcados con ', icono('correo', 'el icono de correo'), '.'),
           u.whatsapp
             ? h('p', { class: 'tenue' }, 'Cada movimiento que se registre te llegará también por WhatsApp; si alguno no es correcto, responde «deshacer».')
             : h('p', { class: 'tenue' }, 'Añade tu WhatsApp arriba para recibir un aviso cada vez que se registre un gasto.'),

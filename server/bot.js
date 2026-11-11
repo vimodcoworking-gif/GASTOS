@@ -415,6 +415,15 @@ export async function editarMovimiento(usuario, id, cambios = {}) {
  * Corrección única: pone el medio de pago a los movimientos que no lo tienen, deducido de su descripción
  * y, si vinieron del correo y aún se guarda su registro, del remitente y el asunto.
  */
+export async function corregirMediosBilletera() {
+  let hechos = 0;
+  for (const [medio, patron] of [['yape', /yape/i], ['plin', /\bplin/i]]) {
+    const r = await Movimiento.updateMany({ descripcion: patron, medio: { $ne: medio } }, { $set: { medio } });
+    hechos += r.modifiedCount;
+  }
+  return hechos;
+}
+
 export async function completarMedios() {
   const { CorreoRevisado } = await import('./models.js');
   let hechos = 0;
