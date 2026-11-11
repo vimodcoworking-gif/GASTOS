@@ -43,7 +43,7 @@ function h(etiqueta, props, ...hijos) {
     else if (clave in el) el[clave] = valor;
     else el.setAttribute(clave, valor);
   }
-  for (const hijo of hijos.flat()) if (hijo != null && hijo !== false) el.append(hijo);
+  for (const hijo of hijos.flat(Infinity)) if (hijo != null && hijo !== false) el.append(hijo);
   return el;
 }
 
