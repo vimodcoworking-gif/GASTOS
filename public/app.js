@@ -1170,8 +1170,12 @@ function pintarCuenta() {
     });
   };
 
-  const g = u.gmail;
+  // Todos los Gmail vinculados (el principal primero). Se puede añadir hasta MAX_CORREOS.
+  const MAX_CORREOS = 5;
+  const correos = u.correos ?? (u.gmail ? [{ cuenta: 'principal', ...u.gmail }] : []);
+  const varios = correos.length > 1;
   const cuando = (fecha) => (fecha ? new Date(fecha).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' }) : 'todavía no');
+  const vincular = () => location.assign('/api/auth/google?modo=gmail');
   const actualizar = (usuario) => {
     estado.usuario = usuario;
     render();
@@ -1180,14 +1184,17 @@ function pintarCuenta() {
     avisar('Revisando tu correo…');
     const { nuevos, usuario } = await api('/auth/google/gmail/revisar', { method: 'POST' });
     actualizar(usuario);
-    avisar(usuario.gmail?.error ? usuario.gmail.error : nuevos ? `${nuevos} gasto${nuevos === 1 ? '' : 's'} nuevo${nuevos === 1 ? '' : 's'} registrado${nuevos === 1 ? '' : 's'}` : 'No hay gastos nuevos en tu correo');
+    const conError = (usuario.correos ?? []).find((c) => c.error);
+    avisar(nuevos
+      ? `${nuevos} movimiento${nuevos === 1 ? '' : 's'} nuevo${nuevos === 1 ? '' : 's'} registrado${nuevos === 1 ? '' : 's'}`
+      : conError ? `${varios ? `${conError.email}: ` : ''}${conError.error}` : 'No hay gastos nuevos en tu correo');
   });
-  const pausar = (activo) => intentar(async () => actualizar((await api('/auth/google/gmail', { method: 'PATCH', body: { activo } })).usuario));
-  const desvincular = () => {
-    if (!confirm('¿Dejar de leer tu Gmail? Los gastos ya registrados se quedan en tu libro.')) return;
+  const pausar = (c) => intentar(async () => actualizar((await api('/auth/google/gmail', { method: 'PATCH', body: { cuenta: c.cuenta, activo: !c.activo } })).usuario));
+  const desvincular = (c) => {
+    if (!confirm(`¿Dejar de leer ${c.email}? Los gastos ya registrados se quedan en tu libro.`)) return;
     intentar(async () => {
-      actualizar((await api('/auth/google/gmail', { method: 'DELETE' })).usuario);
-      avisar('Gmail desvinculado');
+      actualizar((await api(`/auth/google/gmail?cuenta=${encodeURIComponent(c.cuenta)}`, { method: 'DELETE' })).usuario);
+      avisar(`${c.email} desvinculado`);
     });
   };
 
@@ -1206,18 +1213,18 @@ function pintarCuenta() {
   });
   const recargarCuenta = () => intentar(async () => actualizar((await api('/auth/yo')).usuario));
   const fechaDe = (f) => new Date(f).toLocaleDateString('es', { timeZone: 'UTC' });
-  const e = g?.escaneo;
-  const textoEscaneo = e && (e.estado === 'en curso'
+  const textoEscaneo = (e) => (e.estado === 'en curso'
     ? `⏳ Revisando tus correos ${e.desde.startsWith('2004-01-01') ? 'de todo tu Gmail' : `del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}`}: ${e.revisados} revisados, ${e.registrados} movimientos registrados hasta ahora.`
     : e.estado === 'error'
       ? `La última revisión de correos anteriores falló: ${e.error}`
       : `Última revisión de correos anteriores (del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}): ${e.revisados} correos revisados, ${e.registrados} movimientos registrados${e.duplicados ? `, ${e.duplicados} ya estaban anotados` : ''}.${e.quedan ? ' Quedan más correos en ese periodo: vuelve a escanear para seguir.' : ''}`);
+  const escaneando = correos.some((c) => c.escaneo?.estado === 'en curso');
 
-  const seccionEscaneo = g && h('div', { class: 'escaneo' },
+  const seccionEscaneo = correos.length > 0 && h('div', { class: 'escaneo' },
     h('h4', null, 'Correos anteriores'),
-    h('p', { class: 'tenue' }, 'Revisa los avisos de compras, pagos e ingresos que ya tienes en tu Gmail, de los meses que elijas o de todo tu correo, y regístralos en tu libro y calendario. Avanza solo por tandas hasta terminar. Los que ya anotaste (mismo monto y fecha) no se duplican. También puedes pedírselo al Asistente IA.'),
-    textoEscaneo && h('p', { class: e.estado === 'error' ? 'error' : null }, textoEscaneo),
-    e?.estado === 'en curso'
+    h('p', { class: 'tenue' }, `Revisa los avisos de compras, pagos e ingresos que ya tienes en ${varios ? 'todos tus Gmail' : 'tu Gmail'}, de los meses que elijas o de todo tu correo, y regístralos en tu libro y calendario. Avanza solo por tandas hasta terminar. Los que ya anotaste (mismo monto y fecha) no se duplican. También puedes pedírselo al Asistente IA.`),
+    correos.filter((c) => c.escaneo).map((c) => h('p', { class: c.escaneo.estado === 'error' ? 'error' : null }, varios ? h('strong', null, `${c.email}: `) : null, textoEscaneo(c.escaneo))),
+    escaneando
       ? h('div', { class: 'acciones' },
           h('button', { type: 'button', onclick: recargarCuenta }, 'Actualizar progreso'),
           h('button', { type: 'button', class: 'peligro', onclick: detenerEscaneo }, 'Detener'),
@@ -1232,7 +1239,7 @@ function pintarCuenta() {
               h('option', { value: '24' }, 'Últimos 2 años'),
               h('option', { value: 'todo' }, 'Todo mi correo'),
             )),
-          h('button', { class: 'primario' }, 'Escanear correos'),
+          h('button', { class: 'primario' }, varios ? 'Escanear todos mis correos' : 'Escanear correos'),
         ),
   );
 
@@ -1240,10 +1247,10 @@ function pintarCuenta() {
   const seccionRevisados = () => {
     const lista = h('div', { class: 'revisados' });
     const cargar = () => intentar(async () => {
-      const { correos } = await api('/auth/google/gmail/revisados');
-      lista.replaceChildren(correos.length
-        ? h('ul', null, correos.map((c) => h('li', { class: c.registrado ? 'ok' : null },
-            h('div', null, h('strong', null, c.asunto || '(sin asunto)'), h('span', { class: 'tenue' }, ` · ${c.remitente.replace(/<.*>/, '').replace(/"/g, '').trim()} · ${cuando(c.cuando)}`)),
+      const { correos: revisados } = await api('/auth/google/gmail/revisados');
+      lista.replaceChildren(revisados.length
+        ? h('ul', null, revisados.map((c) => h('li', { class: c.registrado ? 'ok' : null },
+            h('div', null, h('strong', null, c.asunto || '(sin asunto)'), h('span', { class: 'tenue' }, ` · ${c.remitente.replace(/<.*>/, '').replace(/"/g, '').trim()}${varios && c.buzon ? ` → ${c.buzon}` : ''} · ${cuando(c.cuando)}`)),
             h('div', { class: 'tenue' }, c.resultado || '—'),
             !c.registrado && h('button', { type: 'button', onclick: () => reintentar(c.id) }, 'Volver a revisar'),
           )))
@@ -1263,30 +1270,47 @@ function pintarCuenta() {
     );
   };
 
+  // Una tarjeta por cada Gmail vinculado, con su estado y sus botones.
+  const tarjetaCorreo = (c) => {
+    // Sin permiso de Google: hay que volver a vincular ese mismo correo.
+    const sinPermiso = /retir[oó] el permiso|vuelve a vincular/i.test(c.error);
+    return h('div', { class: 'cuenta-correo' },
+      h('div', { class: 'cuenta-correo-cabecera' },
+        h('strong', null, c.email),
+        h('span', { class: `etiqueta ${c.activo ? 'ok' : ''}` }, c.activo ? 'Activo' : sinPermiso ? 'Sin permiso' : 'En pausa'),
+      ),
+      c.error && h('p', { class: 'error' }, c.error),
+      h('p', { class: 'tenue' }, `Última revisión: ${cuando(c.ultimaRevision)} · Registrados: ${c.registrados} · Desde el ${new Date(c.desde).toLocaleDateString('es')}`),
+      h('div', { class: 'acciones' },
+        sinPermiso
+          ? h('button', { type: 'button', class: 'primario', onclick: vincular }, 'Volver a vincular')
+          : h('button', { type: 'button', onclick: () => pausar(c) }, c.activo ? 'Pausar' : 'Reanudar'),
+        h('button', { type: 'button', class: 'peligro', onclick: () => desvincular(c) }, 'Desvincular'),
+      ),
+    );
+  };
+
   const seccionGmail = googleDisponible && h('section', { class: 'panel' },
-    h('header', null, h('h3', null, 'Gastos desde tu Gmail'), g && h('span', { class: 'tenue' }, g.email)),
-    g
+    h('header', null, h('h3', null, 'Gastos desde tu Gmail'), varios && h('span', { class: 'tenue' }, `${correos.length} correos vinculados`)),
+    correos.length
       ? [
-          h('p', null, g.activo
-            ? 'El bot revisa tu correo cada pocos minutos y registra solo en tu libro y en el calendario los gastos e ingresos que te avisan tus bancos, Yape, Plin, tiendas y apps (compras, pagos, transferencias, yapeos recibidos, sueldo). Los verás marcados con 📧.'
-            : 'La lectura de tu correo está en pausa: no se registra nada nuevo.'),
-          g.error && h('p', { class: 'error' }, g.error),
-          h('p', { class: 'tenue' }, `Última revisión: ${cuando(g.ultimaRevision)} · Registrados desde el correo: ${g.registrados}. Solo se leen correos recibidos desde el ${new Date(g.desde).toLocaleDateString('es')}.`),
+          h('p', null, 'El bot revisa tus correos cada pocos minutos y registra solo en tu libro y en el calendario los gastos e ingresos que te avisan tus bancos, Yape, Plin, tiendas y apps (compras, pagos, transferencias, yapeos recibidos, sueldo). Los verás marcados con 📧.'),
           u.whatsapp
             ? h('p', { class: 'tenue' }, 'Cada movimiento que se registre te llegará también por WhatsApp; si alguno no es correcto, responde «deshacer».')
             : h('p', { class: 'tenue' }, 'Añade tu WhatsApp arriba para recibir un aviso cada vez que se registre un gasto.'),
+          correos.map(tarjetaCorreo),
           h('div', { class: 'acciones' },
-            g.activo && h('button', { type: 'button', class: 'primario', onclick: revisar }, 'Revisar ahora'),
-            h('button', { type: 'button', onclick: () => pausar(!g.activo) }, g.activo ? 'Pausar' : 'Reanudar'),
-            h('button', { type: 'button', class: 'peligro', onclick: desvincular }, 'Desvincular'),
+            correos.some((c) => c.activo) && h('button', { type: 'button', class: 'primario', onclick: revisar }, 'Revisar ahora'),
+            correos.length < MAX_CORREOS && h('button', { type: 'button', onclick: vincular }, '+ Añadir otro correo'),
           ),
+          correos.length < MAX_CORREOS && h('p', { class: 'tenue' }, `Puedes vincular hasta ${MAX_CORREOS} cuentas de Gmail (personal, trabajo…). Al añadir otra, elige en Google la cuenta que quieres sumar.`),
           seccionEscaneo,
           seccionRevisados(),
         ]
       : [
           h('p', null, 'Vincula tu cuenta de Google para que el bot lea los avisos de compra y pago que te llegan por correo y los registre solo como gastos en tu libro.'),
-          h('p', { class: 'tenue' }, 'Google te pedirá permiso para leer tus correos. Solo se abren los avisos de compras y pagos, nunca se envía ni se borra nada, y puedes desvincularlo cuando quieras.'),
-          h('button', { type: 'button', class: 'primario', onclick: () => location.assign('/api/auth/google?modo=gmail') }, 'Vincular con Google'),
+          h('p', { class: 'tenue' }, 'Google te pedirá permiso para leer tus correos. Solo se abren los avisos de compras y pagos, nunca se envía ni se borra nada, y puedes desvincularlo cuando quieras. Después podrás añadir más correos.'),
+          h('button', { type: 'button', class: 'primario', onclick: vincular }, 'Vincular con Google'),
         ],
   );
 

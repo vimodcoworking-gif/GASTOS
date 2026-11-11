@@ -72,8 +72,9 @@ rutasGoogle.get('/', (req, res) => {
     response_type: 'code',
     scope: ['openid', 'email', 'profile', ...(modo === 'gmail' ? [GMAIL_LECTURA] : [])].join(' '),
     state: nonce,
+    // «select_account» deja elegir otra cuenta de Google para vincular un correo más.
     ...(modo === 'gmail'
-      ? { access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true' }
+      ? { access_type: 'offline', prompt: 'consent select_account', include_granted_scopes: 'true' }
       : { prompt: 'select_account' }),
   });
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${parametros}`);
@@ -111,10 +112,22 @@ rutasGoogle.get('/callback', async (req, res) => {
       if (!String(tokens.scope ?? '').split(' ').includes(GMAIL_LECTURA)) return volver('errorGoogle', 'No marcaste el permiso para leer tus correos. Vuelve a vincular y marca la casilla de Gmail.');
       if (!tokens.refresh_token) return volver('errorGoogle', 'Google no dio acceso permanente. Quita la app en myaccount.google.com/permissions y vuelve a vincular.');
 
-      usuario.googleId = perfil.sub;
-      usuario.gmail = { email, nombre: perfil.name?.slice(0, 120), token: cifrar(tokens.refresh_token), activo: true, desde: new Date(), registrados: 0 };
+      const datos = { email, nombre: perfil.name?.slice(0, 120), token: cifrar(tokens.refresh_token), activo: true };
+      const ya = cuentasDe(usuario).find((c) => c.datos.email === email);
+      if (ya) {
+        // El mismo correo otra vez (p. ej. tras retirarse el permiso): se renueva el acceso y se conserva lo demás.
+        Object.assign(ya.datos, datos);
+        ya.datos.error = undefined;
+        ya.datos.desde ??= new Date();
+      } else if (!usuario.gmail?.token) {
+        if (!usuario.googleId) usuario.googleId = perfil.sub;
+        usuario.gmail = { ...datos, desde: new Date(), registrados: 0 };
+      } else {
+        if (cuentasDe(usuario).length >= MAX_CUENTAS) return volver('errorGoogle', `Puedes vincular como mucho ${MAX_CUENTAS} correos.`);
+        usuario.gmailExtra.push({ ...datos, desde: new Date(), registrados: 0 });
+      }
       await usuario.save();
-      accesos.delete(usuario.id);
+      for (const c of cuentasDe(usuario)) accesos.delete(claveDe(usuario, c));
       return volver('google', 'gmail');
     }
 
@@ -147,11 +160,18 @@ rutasGoogle.get('/callback', async (req, res) => {
   }
 });
 
+// La cuenta que indica la petición («cuenta»: «principal» o el id de un correo añadido); sin ella, la principal.
+function cuentaPedida(usuario, req) {
+  const cuenta = cuentaDe(usuario, req.body?.cuenta ?? req.query.cuenta);
+  if (!cuenta) throw new ErrorHttp(400, cuentasDe(usuario).length ? 'Ese correo ya no está vinculado' : 'Primero vincula tu Gmail');
+  return cuenta;
+}
+
 // Revisa el correo ahora mismo, sin esperar a la próxima vuelta.
 rutasGoogle.post('/gmail/revisar', requiereSesion, async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
-  if (!usuario.gmail?.token) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
-  if (enCurso.has(usuario.id)) throw new ErrorHttp(409, 'Ya se está revisando tu correo. Espera unos segundos.');
+  if (!cuentasDe(usuario).length) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
+  if (algunaEnCurso(usuario)) throw new ErrorHttp(409, 'Ya se está revisando tu correo. Espera unos segundos.');
   const nuevos = await revisarUsuario(usuario);
   res.json({ nuevos, usuario: await publico(await Usuario.findById(usuario._id)) });
 });
@@ -164,6 +184,7 @@ rutasGoogle.get('/gmail/revisados', requiereSesion, async (req, res) => {
       id: c._id.split(':')[1],
       asunto: c.asunto,
       remitente: c.remitente,
+      buzon: c.buzon ?? '',
       resultado: c.resultado,
       registrado: c.registrado ?? Boolean(c.resultado?.startsWith('✅')),
       cuando: c.cuando,
@@ -174,38 +195,41 @@ rutasGoogle.get('/gmail/revisados', requiereSesion, async (req, res) => {
 // Vuelve a leer un correo ya revisado (p. ej. uno descartado por error) y lo registra si procede.
 rutasGoogle.post('/gmail/revisados/:id/reintentar', requiereSesion, async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
-  if (!usuario.gmail?.token) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
-  if (enCurso.has(usuario.id)) throw new ErrorHttp(409, 'Ya se está revisando tu correo. Espera unos segundos.');
   const id = String(req.params.id);
   if (!/^[0-9a-f]{6,32}$/i.test(id)) throw new ErrorHttp(400, 'Correo no válido');
+  const previo = await CorreoRevisado.findById(`${usuario.id}:${id}`).lean();
+  // Los registros antiguos no dicen de qué Gmail vinieron: eran del principal.
+  const cuenta = cuentaDe(usuario, previo?.cuenta) ?? cuentasDe(usuario).find((c) => c.datos.email === previo?.buzon);
+  if (!cuenta) throw new ErrorHttp(400, 'El Gmail de ese aviso ya no está vinculado');
+  if (enCurso.has(claveDe(usuario, cuenta))) throw new ErrorHttp(409, 'Ya se está revisando ese correo. Espera unos segundos.');
   if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) throw new ErrorHttp(409, 'Ese correo ya está registrado en tu libro.');
   const resultado = { revisados: 0, registrados: 0, duplicados: 0 };
-  enCurso.add(usuario.id);
+  enCurso.add(claveDe(usuario, cuenta));
   try {
-    const { libro, autorizacion } = await prepararLectura(usuario);
-    await procesarUno(usuario, libro, autorizacion, id, resultado);
+    const { libro, autorizacion } = await prepararLectura(usuario, cuenta);
+    await procesarUno(usuario, cuenta, libro, autorizacion, id, resultado);
   } catch (err) {
     throw new ErrorHttp(502, motivoDeError(err).motivo);
   } finally {
-    enCurso.delete(usuario.id);
+    enCurso.delete(claveDe(usuario, cuenta));
   }
-  if (resultado.registrados) await Usuario.updateOne({ _id: usuario._id }, { $inc: { 'gmail.registrados': resultado.registrados } });
-  const nuevos = resultado.registrados;
+  if (resultado.registrados) await actualizarCuenta(usuario, cuenta, { $inc: { registrados: resultado.registrados } });
   const revisado = await CorreoRevisado.findById(`${usuario.id}:${id}`).lean();
-  res.json({ nuevos, resultado: revisado?.resultado ?? '', usuario: await publico(await Usuario.findById(usuario._id)) });
+  res.json({ nuevos: resultado.registrados, resultado: revisado?.resultado ?? '', usuario: await publico(await Usuario.findById(usuario._id)) });
 });
 
 // Revisa los correos de los últimos meses (1, 3, 6, 12 o 24) o de todo el correo ("todo"),
-// y registra los gastos e ingresos que encuentre.
+// y registra los gastos e ingresos que encuentre. Sin «cuenta», en todos los Gmail vinculados.
 rutasGoogle.post('/gmail/escanear', requiereSesion, async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
-  if (!usuario.gmail?.token) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
+  if (!cuentasDe(usuario).length) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
+  const cuenta = req.body.cuenta ? cuentaPedida(usuario, req).clave : null;
   let desde = 'todo';
   if (req.body.meses !== 'todo') {
     const meses = [1, 3, 6, 12, 24].includes(Number(req.body.meses)) ? Number(req.body.meses) : 1;
     desde = sumarDias(hoyLocal(), -Math.round(meses * 30.5));
   }
-  const mensaje = await iniciarEscaneo(usuario, desde);
+  const mensaje = await iniciarEscaneo(usuario, desde, null, { cuenta });
   res.json({ mensaje, usuario: await publico(await Usuario.findById(usuario._id)) });
 });
 
@@ -217,37 +241,80 @@ rutasGoogle.delete('/gmail/escanear', requiereSesion, async (req, res) => {
   res.json({ mensaje });
 });
 
-// Pausa o reanuda la lectura sin desvincular.
+// Pausa o reanuda la lectura de un Gmail sin desvincularlo.
 rutasGoogle.patch('/gmail', requiereSesion, async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
-  if (!usuario.gmail?.token) throw new ErrorHttp(400, 'Primero vincula tu Gmail');
+  const cuenta = cuentaPedida(usuario, req);
   if (typeof req.body.activo !== 'boolean') throw new ErrorHttp(400, 'Datos inválidos');
-  usuario.gmail.activo = req.body.activo;
-  if (req.body.activo) usuario.gmail.error = undefined;
+  cuenta.datos.activo = req.body.activo;
+  if (req.body.activo) cuenta.datos.error = undefined;
   await usuario.save();
   res.json({ usuario: await publico(usuario) });
 });
 
-// Deja de leer el correo y retira el permiso en Google. El acceso con Google a la app se mantiene.
+// Deja de leer un Gmail y retira el permiso en Google. El acceso con Google a la app se mantiene.
+// Si se quita el principal, el siguiente pasa a serlo.
 rutasGoogle.delete('/gmail', requiereSesion, async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
-  const token = usuario.gmail?.token && descifrar(usuario.gmail.token);
+  const cuenta = cuentaPedida(usuario, req);
+  if (enCurso.has(claveDe(usuario, cuenta))) throw new ErrorHttp(409, 'Ese correo se está revisando ahora. Detén el escaneo o espera a que termine.');
+  const token = descifrar(cuenta.datos.token);
   if (token) pedirGoogle('https://oauth2.googleapis.com/revoke', formulario({ token })).catch(() => {});
-  usuario.gmail = undefined;
+  for (const c of cuentasDe(usuario)) accesos.delete(claveDe(usuario, c));
+  if (cuenta.clave === PRINCIPAL) {
+    const [siguiente] = usuario.gmailExtra;
+    if (siguiente) {
+      const { _id, ...resto } = siguiente.toObject();
+      usuario.gmail = resto;
+      usuario.gmailExtra.pull(_id);
+    } else {
+      usuario.gmail = undefined;
+    }
+  } else {
+    usuario.gmailExtra.pull(cuenta.datos._id);
+  }
   await usuario.save();
-  accesos.delete(usuario.id);
   res.json({ usuario: await publico(usuario) });
 });
 
 // ---------- lectura de Gmail ----------
 
-// Accesos de una hora que da Google a partir del token guardado, recordados en memoria.
+// ---------- varias cuentas de Gmail por persona ----------
+
+// «gmail» es la cuenta principal; «gmailExtra», los correos que se añaden después.
+const PRINCIPAL = 'principal';
+const MAX_CUENTAS = 5;
+
+/** Los Gmail vinculados de una persona: [{ clave: 'principal' | id, datos }], el principal primero. */
+function cuentasDe(usuario) {
+  const lista = [];
+  if (usuario.gmail?.token) lista.push({ clave: PRINCIPAL, datos: usuario.gmail });
+  for (const c of usuario.gmailExtra ?? []) if (c.token) lista.push({ clave: String(c._id), datos: c });
+  return lista;
+}
+
+const cuentaDe = (usuario, clave) => cuentasDe(usuario).find((c) => c.clave === String(clave || PRINCIPAL));
+// Identifica una cuenta de una persona en los registros en memoria (revisiones en curso, accesos).
+const claveDe = (usuario, cuenta) => `${usuario.id}:${cuenta.clave}`;
+const algunaEnCurso = (usuario) => cuentasDe(usuario).some((c) => enCurso.has(claveDe(usuario, c)));
+// Para los avisos: «tu correo» si solo hay uno, o su dirección si hay varios.
+const nombreCuenta = (usuario, cuenta) => (cuentasDe(usuario).length > 1 ? cuenta.datos.email : 'tu correo');
+
+/** Cambia campos de una cuenta: actualizarCuenta(u, c, { $set: { error: 'x' } }) → «gmail.error» o «gmailExtra.$.error». */
+function actualizarCuenta(usuario, cuenta, cambios) {
+  const principal = cuenta.clave === PRINCIPAL;
+  const prefijo = principal ? 'gmail.' : 'gmailExtra.$.';
+  const orden = Object.fromEntries(Object.entries(cambios).map(([op, campos]) => [op, Object.fromEntries(Object.entries(campos).map(([k, v]) => [prefijo + k, v]))]));
+  return Usuario.updateOne(principal ? { _id: usuario._id } : { _id: usuario._id, 'gmailExtra._id': cuenta.datos._id }, orden);
+}
+
+// Accesos de una hora que da Google a partir del token guardado, recordados en memoria por cuenta.
 const accesos = new Map();
 
-async function accesoGmail(usuario) {
-  const guardado = accesos.get(usuario.id);
+async function accesoGmail(usuario, cuenta) {
+  const guardado = accesos.get(claveDe(usuario, cuenta));
   if (guardado && guardado.hasta > Date.now()) return guardado.token;
-  const refresco = descifrar(usuario.gmail.token);
+  const refresco = descifrar(cuenta.datos.token);
   if (!refresco) throw new ErrorGoogle(400, 'invalid_grant');
   const r = await pedirGoogle('https://oauth2.googleapis.com/token', formulario({
     client_id: config.google.clienteId,
@@ -255,7 +322,7 @@ async function accesoGmail(usuario) {
     refresh_token: refresco,
     grant_type: 'refresh_token',
   }));
-  accesos.set(usuario.id, { token: r.access_token, hasta: Date.now() + (r.expires_in - 120) * 1000 });
+  accesos.set(claveDe(usuario, cuenta), { token: r.access_token, hasta: Date.now() + (r.expires_in - 120) * 1000 });
   return r.access_token;
 }
 
@@ -400,7 +467,7 @@ function normalizarMoneda(valor) {
 const enCurso = new Set();
 
 // Quién es el titular, para que la IA reconozca las transferencias a sus propias cuentas.
-const titularDe = (usuario) => [usuario.nombre, usuario.gmail?.nombre, usuario.gmail?.email && `correo ${usuario.gmail.email}`].filter(Boolean).join(' · ');
+const titularDe = (usuario) => [usuario.nombre, ...cuentasDe(usuario).flatMap((c) => [c.datos.nombre, c.datos.email && `correo ${c.datos.email}`])].filter(Boolean).join(' · ');
 const DIA = 86400000;
 // Los escaneos de meses anteriores avanzan por tandas hasta terminar, con este tope por escaneo.
 const POR_TANDA = 100;
@@ -444,7 +511,7 @@ async function yaRegistrado(libro, datos) {
 }
 
 // Lee un correo y registra el gasto o ingreso que avise, anotando en «resultado» lo hecho.
-async function procesarUno(usuario, libro, autorizacion, id, resultado, alRegistrar) {
+async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar) {
   // Ya hay un movimiento sacado de este correo (p. ej. si se vuelve a revisar): no se lee otra vez.
   if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) {
     await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
@@ -473,7 +540,7 @@ async function procesarUno(usuario, libro, autorizacion, id, resultado, alRegist
     }
   }
   await CorreoRevisado.updateOne({ _id: `${usuario.id}:${id}` }, {
-    $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, registrado, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 400), cuando: new Date() },
+    $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, registrado, cuenta: cuenta.clave, buzon: cuenta.datos.email, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 400), cuando: new Date() },
   }, { upsert: true }).catch(() => {});
 }
 
@@ -481,13 +548,13 @@ async function procesarUno(usuario, libro, autorizacion, id, resultado, alRegist
  * Revisa una tanda de correos que cumplen «q» y registra los gastos e ingresos, los más antiguos primero.
  * Va anotando en «resultado» { revisados, registrados, duplicados, quedan }: así se sabe lo hecho aunque falle a mitad.
  */
-async function procesarCorreos(usuario, libro, autorizacion, q, resultado, { maxCorreos, alRegistrar, alAvanzar, debeParar }) {
+async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultado, { maxCorreos, alRegistrar, alAvanzar, debeParar }) {
   const pendientes = (await buscarPendientes(usuario, autorizacion, q, maxCorreos)).reverse();
   resultado.quedan = pendientes.length > maxCorreos;
 
   for (const id of pendientes.slice(0, maxCorreos)) {
     if (debeParar?.()) return;
-    await procesarUno(usuario, libro, autorizacion, id, resultado, alRegistrar);
+    await procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar);
     if (resultado.revisados % 10 === 0) await alAvanzar?.();
   }
 }
@@ -508,43 +575,52 @@ function motivoDeError(err) {
   return { motivo, permisoRetirado };
 }
 
-async function prepararLectura(usuario) {
+async function prepararLectura(usuario, cuenta) {
   // El libro elegido en WhatsApp; si en ese solo puede leer, el primero donde pueda escribir (los suyos van antes).
   const libros = await librosDe(usuario);
   const activo = libroActivo(usuario, libros);
   const libro = activo && puedeEscribir(usuario, activo) ? activo : libros.find((l) => puedeEscribir(usuario, l));
   if (!libro) throw new Error('No tienes ningún libro donde puedas registrar los movimientos.');
-  return { libro, autorizacion: { headers: { Authorization: `Bearer ${await accesoGmail(usuario)}` } } };
+  return { libro, autorizacion: { headers: { Authorization: `Bearer ${await accesoGmail(usuario, cuenta)}` } } };
 }
 
 const BUSQUEDA = `-in:sent -in:drafts -in:chats ${FILTRO}`;
 
-/** Lee los correos nuevos de una persona y registra gastos e ingresos. Devuelve cuántos registró. */
-export async function revisarUsuario(usuario) {
-  if (enCurso.has(usuario.id) || !usuario.gmail?.token || !googleDisponible()) return 0;
-  enCurso.add(usuario.id);
+/** Lee los correos nuevos de una cuenta de Gmail y registra gastos e ingresos. Devuelve cuántos registró. */
+async function revisarCuenta(usuario, cuenta) {
+  const clave = claveDe(usuario, cuenta);
+  if (enCurso.has(clave) || !googleDisponible()) return 0;
+  enCurso.add(clave);
   const resultado = { revisados: 0, registrados: 0, duplicados: 0, quedan: false };
   try {
-    const { libro, autorizacion } = await prepararLectura(usuario);
+    const { libro, autorizacion } = await prepararLectura(usuario, cuenta);
     // Desde la vinculación (como mucho una semana atrás), sin los correos que envió la propia persona.
-    const desde = Math.floor(Math.max(usuario.gmail.desde?.getTime() ?? 0, Date.now() - 7 * DIA) / 1000);
-    await procesarCorreos(usuario, libro, autorizacion, `after:${desde} ${BUSQUEDA}`, resultado, {
+    const desde = Math.floor(Math.max(cuenta.datos.desde?.getTime() ?? 0, Date.now() - 7 * DIA) / 1000);
+    const desdeDonde = cuentasDe(usuario).length > 1 ? ` (${cuenta.datos.email})` : '';
+    await procesarCorreos(usuario, cuenta, libro, autorizacion, `after:${desde} ${BUSQUEDA}`, resultado, {
       maxCorreos: MAX_CORREOS,
-      alRegistrar: (confirmacion, correo) => avisarPorWhatsapp(usuario, `📧 *Desde tu correo* (${correo.asunto.slice(0, 80)})\n${confirmacion}\nYa está en tu calendario de la app.`),
+      alRegistrar: (confirmacion, correo) => avisarPorWhatsapp(usuario, `📧 *Desde tu correo*${desdeDonde} (${correo.asunto.slice(0, 80)})\n${confirmacion}\nYa está en tu calendario de la app.`),
     });
-    await Usuario.updateOne({ _id: usuario._id }, { $set: { 'gmail.ultimaRevision': new Date() }, $unset: { 'gmail.error': 1 }, $inc: { 'gmail.registrados': resultado.registrados } });
+    await actualizarCuenta(usuario, cuenta, { $set: { ultimaRevision: new Date() }, $unset: { error: 1 }, $inc: { registrados: resultado.registrados } });
   } catch (err) {
     const { motivo, permisoRetirado } = motivoDeError(err);
-    console.error(`Gmail (${usuario.email}):`, err.message);
-    await Usuario.updateOne({ _id: usuario._id }, {
-      $set: { 'gmail.error': motivo, 'gmail.ultimaRevision': new Date(), ...(permisoRetirado && { 'gmail.activo': false }) },
-      $inc: { 'gmail.registrados': resultado.registrados },
+    console.error(`Gmail (${usuario.email} · ${cuenta.datos.email}):`, err.message);
+    await actualizarCuenta(usuario, cuenta, {
+      $set: { error: motivo, ultimaRevision: new Date(), ...(permisoRetirado && { activo: false }) },
+      $inc: { registrados: resultado.registrados },
     });
-    if (permisoRetirado) accesos.delete(usuario.id);
+    if (permisoRetirado) accesos.delete(clave);
   } finally {
-    enCurso.delete(usuario.id);
+    enCurso.delete(clave);
   }
   return resultado.registrados;
+}
+
+/** Lee los correos nuevos de todos los Gmail activos de una persona. Devuelve cuántos movimientos registró. */
+export async function revisarUsuario(usuario) {
+  let total = 0;
+  for (const cuenta of cuentasDe(usuario)) if (cuenta.datos.activo) total += await revisarCuenta(usuario, cuenta);
+  return total;
 }
 
 // Mientras escanea, la app se visita a sí misma cada pocos minutos: el plan gratuito de Render
@@ -563,13 +639,16 @@ function mantenerDespierto(activar) {
 
 /**
  * Empieza a revisar en segundo plano los correos de un periodo pasado (o de todo el correo).
- * Avanza por tandas hasta terminar. «previo» continúa los contadores de un escaneo interrumpido.
+ * Sin «cuenta», en todos los Gmail activos de la persona; cada uno avanza por tandas hasta terminar.
+ * «previo» continúa los contadores de un escaneo interrumpido.
  * Devuelve el texto para la persona; el resultado llega por WhatsApp y se ve en «Mi cuenta».
  */
-export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, previo = null) {
-  if (!usuario.gmail?.token) return 'Primero vincula tu Gmail en «Mi cuenta» de la app.';
+export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, { cuenta: claveCuenta = null, previo = null } = {}) {
+  const todas = cuentasDe(usuario);
+  if (!todas.length) return 'Primero vincula tu Gmail en «Mi cuenta» de la app.';
   if (!googleDisponible()) return 'La lectura de Gmail no está configurada en el servidor.';
-  if (enCurso.has(usuario.id)) return '⏳ Ya estoy revisando tu correo. Te aviso cuando termine.';
+  const elegidas = claveCuenta ? todas.filter((c) => c.clave === String(claveCuenta)) : todas.filter((c) => c.datos.activo);
+  if (!elegidas.length) return 'Tus correos vinculados están en pausa o sin permiso. Reanúdalos o vuelve a vincularlos en «Mi cuenta».';
 
   const hoy = hoyLocal();
   const valida = (t) => typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t) && !Number.isNaN(new Date(`${t}T00:00:00Z`).getTime());
@@ -580,8 +659,22 @@ export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, previo = n
   const todo = desde === INICIO_GMAIL;
   const periodo = todo ? 'de todo tu correo' : `del ${fechaCorta(desde)} al ${fechaCorta(hasta)}`;
 
-  enCurso.add(usuario.id);
-  detener.delete(usuario.id);
+  const libres = elegidas.filter((c) => !enCurso.has(claveDe(usuario, c)));
+  if (!libres.length) return '⏳ Ya estoy revisando tu correo. Te aviso cuando termine.';
+  for (const cuenta of libres) await escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo);
+
+  if (previo) return '';
+  const donde = todas.length > 1
+    ? ` en ${libres.length === 1 ? libres[0].datos.email : `tus ${libres.length} correos (${libres.map((c) => c.datos.email).join(', ')})`}`
+    : '';
+  return `📧 Empecé a revisar ${periodo}${donde}, en tandas de ${POR_TANDA} avisos de compras, pagos e ingresos. ${todo ? 'Si tienes muchos correos puede tardar bastante (incluso horas); ' : 'Puede tardar varios minutos; '}${usuario.whatsapp && whatsappConectado() ? 'te aviso por WhatsApp cuando termine' : 'verás el avance en «Mi cuenta»'}. Puedes seguir usando la app mientras tanto.`;
+}
+
+// Arranca en segundo plano el escaneo de una cuenta; vuelve en cuanto queda guardado su estado inicial.
+async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
+  const clave = claveDe(usuario, cuenta);
+  enCurso.add(clave);
+  detener.delete(clave);
   mantenerDespierto(true);
   const estado = {
     estado: 'en curso',
@@ -594,8 +687,15 @@ export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, previo = n
     inicio: previo?.inicio ?? new Date(),
   };
   const yaRegistrados = estado.registrados;
-  const guardar = () => Usuario.updateOne({ _id: usuario._id }, { $set: { 'gmail.escaneo': estado } });
-  await guardar();
+  const guardar = () => actualizarCuenta(usuario, cuenta, { $set: { escaneo: estado } });
+  const donde = cuentasDe(usuario).length > 1 ? ` (${cuenta.datos.email})` : '';
+  try {
+    await guardar();
+  } catch (err) {
+    enCurso.delete(clave);
+    mantenerDespierto(false);
+    throw err;
+  }
 
   (async () => {
     try {
@@ -603,40 +703,42 @@ export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, previo = n
       const q = `after:${desde.replace(/-/g, '/')} before:${sumarDias(hasta, 1).replace(/-/g, '/')} ${BUSQUEDA}`;
       do {
         // Cada tanda pide un acceso al día: los de Google caducan a la hora.
-        const { libro, autorizacion } = await prepararLectura(usuario);
-        await procesarCorreos(usuario, libro, autorizacion, q, estado, { maxCorreos: POR_TANDA, alAvanzar: guardar, debeParar: () => detener.has(usuario.id) });
+        const { libro, autorizacion } = await prepararLectura(usuario, cuenta);
+        await procesarCorreos(usuario, cuenta, libro, autorizacion, q, estado, { maxCorreos: POR_TANDA, alAvanzar: guardar, debeParar: () => detener.has(clave) });
         await guardar();
-      } while (estado.quedan && !detener.has(usuario.id) && estado.revisados < MAX_ESCANEO);
+      } while (estado.quedan && !detener.has(clave) && estado.revisados < MAX_ESCANEO);
 
-      const detenido = detener.has(usuario.id);
+      const detenido = detener.has(clave);
       Object.assign(estado, { estado: 'terminado', fin: new Date(), ...(detenido && { quedan: true }) });
       avisarPorWhatsapp(usuario, [
-        `📧 *Revisión ${periodo} ${detenido ? 'detenida' : 'terminada'}*`,
+        `📧 *Revisión ${periodo}${donde} ${detenido ? 'detenida' : 'terminada'}*`,
         `Revisé ${estado.revisados} correos y registré *${estado.registrados} movimientos*${estado.duplicados ? `; ${estado.duplicados} ya estaban anotados` : ''}. Ya están en tu calendario de la app.`,
         ...(estado.quedan ? ['Quedan correos por revisar: pídemelo otra vez y sigo donde quedé.'] : []),
         'Pregúntame por cualquier mes, por ejemplo: «ia ¿cuánto gasté en septiembre?».',
       ].join('\n'));
     } catch (err) {
-      console.error(`Escaneo de Gmail (${usuario.email}):`, err.message);
-      Object.assign(estado, { estado: 'error', fin: new Date(), error: motivoDeError(err).motivo });
+      console.error(`Escaneo de Gmail (${usuario.email} · ${cuenta.datos.email}):`, err.message);
+      const { motivo, permisoRetirado } = motivoDeError(err);
+      Object.assign(estado, { estado: 'error', fin: new Date(), error: motivo });
+      if (permisoRetirado) {
+        accesos.delete(clave);
+        await actualizarCuenta(usuario, cuenta, { $set: { activo: false, error: motivo } }).catch(() => {});
+      }
     } finally {
       await guardar().catch(() => {});
-      await Usuario.updateOne({ _id: usuario._id }, { $inc: { 'gmail.registrados': estado.registrados - yaRegistrados } }).catch(() => {});
-      detener.delete(usuario.id);
+      await actualizarCuenta(usuario, cuenta, { $inc: { registrados: estado.registrados - yaRegistrados } }).catch(() => {});
+      detener.delete(clave);
       mantenerDespierto(false);
-      enCurso.delete(usuario.id);
+      enCurso.delete(clave);
     }
   })();
-
-  if (previo) return '';
-  return `📧 Empecé a revisar ${periodo}, en tandas de ${POR_TANDA} avisos de compras, pagos e ingresos. ${todo ? 'Si tienes muchos correos puede tardar bastante (incluso horas); ' : 'Puede tardar varios minutos; '}${usuario.whatsapp && whatsappConectado() ? 'te aviso por WhatsApp cuando termine' : 'verás el avance en «Mi cuenta»'}. Puedes seguir usando la app mientras tanto.`;
 }
 
-/** Pide detener el escaneo en curso; se para tras el correo que esté leyendo. */
+/** Pide detener los escaneos en curso de una persona; cada uno se para tras el correo que esté leyendo. */
 export function detenerEscaneo(usuario) {
-  if (!enCurso.has(usuario.id)) return false;
-  detener.add(usuario.id);
-  return true;
+  const enMarcha = cuentasDe(usuario).map((c) => claveDe(usuario, c)).filter((clave) => enCurso.has(clave));
+  for (const clave of enMarcha) detener.add(clave);
+  return enMarcha.length > 0;
 }
 
 
@@ -647,7 +749,7 @@ async function revisarTodos() {
   if (revisando) return;
   revisando = true;
   try {
-    const usuarios = await Usuario.find({ 'gmail.activo': true, 'gmail.token': { $exists: true } }).limit(500);
+    const usuarios = await Usuario.find({ $or: [{ 'gmail.activo': true, 'gmail.token': { $exists: true } }, { 'gmailExtra.activo': true }] }).limit(500);
     // Sin licencia de VIMOD vigente no se sigue leyendo su correo.
     for (const usuario of usuarios) if ((await comprobarLicencia(usuario)).ok) await revisarUsuario(usuario);
   } catch (err) {
@@ -659,12 +761,18 @@ async function revisarTodos() {
 
 async function reanudarEscaneos() {
   try {
-    const usuarios = await Usuario.find({ 'gmail.escaneo.estado': 'en curso', 'gmail.token': { $exists: true } }).limit(50);
+    const usuarios = await Usuario.find({ $or: [{ 'gmail.escaneo.estado': 'en curso' }, { 'gmailExtra.escaneo.estado': 'en curso' }] }).limit(50);
+    const texto = (f) => f.toISOString().slice(0, 10);
     for (const usuario of usuarios) {
-      const e = usuario.gmail.escaneo;
-      const texto = (f) => f.toISOString().slice(0, 10);
-      console.log(`Gmail: se reanuda el escaneo de ${usuario.email}.`);
-      await iniciarEscaneo(usuario, texto(e.desde), texto(e.hasta), { revisados: e.revisados, registrados: e.registrados, duplicados: e.duplicados, inicio: e.inicio });
+      for (const cuenta of cuentasDe(usuario)) {
+        const e = cuenta.datos.escaneo;
+        if (e?.estado !== 'en curso') continue;
+        console.log(`Gmail: se reanuda el escaneo de ${usuario.email} · ${cuenta.datos.email}.`);
+        await iniciarEscaneo(usuario, texto(e.desde), texto(e.hasta), {
+          cuenta: cuenta.clave,
+          previo: { revisados: e.revisados, registrados: e.registrados, duplicados: e.duplicados, inicio: e.inicio },
+        });
+      }
     }
   } catch (err) {
     console.error('Reanudar escaneos de Gmail:', err.message);

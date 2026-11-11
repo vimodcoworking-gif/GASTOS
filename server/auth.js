@@ -37,9 +37,23 @@ export const publico = async (u) => ({
   esAdmin: await esAdmin(u),
   tienePassword: Boolean(u.passwordHash),
   google: Boolean(u.googleId),
-  gmail: u.gmail?.token
-    ? { email: u.gmail.email, activo: u.gmail.activo, desde: u.gmail.desde, ultimaRevision: u.gmail.ultimaRevision ?? null, registrados: u.gmail.registrados ?? 0, error: u.gmail.error ?? '', escaneo: u.gmail.escaneo?.estado ? u.gmail.escaneo : null }
-    : null,
+  gmail: u.gmail?.token ? vistaGmail(u.gmail, 'principal') : null,
+  // Todos los Gmail vinculados, el principal primero.
+  correos: [
+    ...(u.gmail?.token ? [vistaGmail(u.gmail, 'principal')] : []),
+    ...(u.gmailExtra ?? []).filter((c) => c.token).map((c) => vistaGmail(c, String(c._id))),
+  ],
+});
+
+const vistaGmail = (g, cuenta) => ({
+  cuenta,
+  email: g.email,
+  activo: g.activo,
+  desde: g.desde,
+  ultimaRevision: g.ultimaRevision ?? null,
+  registrados: g.registrados ?? 0,
+  error: g.error ?? '',
+  escaneo: g.escaneo?.estado ? g.escaneo : null,
 });
 
 // Deja el número solo con dígitos y código de país; devuelve null si viene vacío.

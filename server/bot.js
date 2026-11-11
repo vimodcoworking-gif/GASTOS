@@ -474,8 +474,10 @@ export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', pue
   const libro = await libroParaIa(usuario, libroId);
   if (!libro) return null;
   const d = await datosDe(libro);
+  // Todos los Gmail vinculados: el principal y los añadidos.
+  const buzones = [usuario.gmail, ...(usuario.gmailExtra ?? [])].filter((g) => g?.token);
   const [delCorreo, historico, recientes] = await Promise.all([
-    usuario.gmail?.token
+    buzones.length
       ? Movimiento.find({ libro: libro._id, correoId: { $exists: true } }).sort('-fecha').limit(150).lean()
       : [],
     resumenHistorico(libro, d.hoy),
@@ -487,7 +489,6 @@ export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', pue
     return { fecha, totales: totales(lista), movimientos: lista.map(corto) };
   };
   const ayer = sumarDias(d.hoy, -1);
-  const escaneo = usuario.gmail?.escaneo?.estado ? usuario.gmail.escaneo : null;
   return {
     canal,
     ...(canal === 'web' && { puedeRecibirWhatsapp }),
@@ -496,15 +497,18 @@ export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', pue
     puedeRegistrar: puedeEscribir(usuario, libro),
     hoy: d.hoy,
     saludoPorLaHora: saludoSegunHora(),
-    correo: usuario.gmail?.token
+    correo: buzones.length
       ? {
           vinculado: true,
-          cuenta: usuario.gmail.email,
-          activo: usuario.gmail.activo,
-          desde: aTexto(usuario.gmail.desde ?? new Date()),
-          ...(escaneo && {
-            ultimoEscaneo: { estado: escaneo.estado, desde: aTexto(escaneo.desde), hasta: aTexto(escaneo.hasta), revisados: escaneo.revisados, registrados: escaneo.registrados, quedanMas: escaneo.quedan },
-          }),
+          cuentas: buzones.map((g) => ({
+            cuenta: g.email,
+            activo: g.activo,
+            desde: aTexto(g.desde ?? new Date()),
+            ...(g.error && { problema: g.error }),
+            ...(g.escaneo?.estado && {
+              ultimoEscaneo: { estado: g.escaneo.estado, desde: aTexto(g.escaneo.desde), hasta: aTexto(g.escaneo.hasta), revisados: g.escaneo.revisados, registrados: g.escaneo.registrados, quedanMas: g.escaneo.quedan },
+            }),
+          })),
           gastosRegistrados: delCorreo.map(corto),
         }
       : { vinculado: false },

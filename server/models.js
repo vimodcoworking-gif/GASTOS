@@ -3,6 +3,35 @@ import mongoose from 'mongoose';
 const { Schema, model } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
 
+// Una cuenta de Gmail vinculada para leer sus avisos de compras y pagos.
+const cuentaGmail = () => ({
+  email: String,
+  // Nombre de la cuenta de Google, para reconocer transferencias a sus propias cuentas.
+  nombre: String,
+  // Token de actualización de Google, cifrado; con él se piden accesos nuevos sin volver a preguntar.
+  token: String,
+  activo: { type: Boolean, default: false },
+  // Solo se leen correos recibidos desde este momento.
+  desde: Date,
+  ultimaRevision: Date,
+  registrados: { type: Number, default: 0 },
+  error: String,
+  // Último escaneo de correos anteriores (pedido desde la app o el chat).
+  escaneo: {
+    estado: { type: String, enum: ['en curso', 'terminado', 'error'] },
+    desde: Date,
+    hasta: Date,
+    revisados: Number,
+    registrados: Number,
+    duplicados: Number,
+    // Había más correos de los que se revisaron en esa vuelta.
+    quedan: Boolean,
+    inicio: Date,
+    fin: Date,
+    error: String,
+  },
+});
+
 const usuarioSchema = new Schema(
   {
     nombre: { type: String, required: true, trim: true, maxlength: 60 },
@@ -14,33 +43,9 @@ const usuarioSchema = new Schema(
     // Identificador de la cuenta de Google vinculada («sub»), para poder entrar con ella.
     googleId: String,
     // Lectura de Gmail para registrar solos los gastos que llegan por correo (bancos, tiendas, apps).
-    gmail: {
-      email: String,
-      // Nombre de la cuenta de Google, para reconocer transferencias a sus propias cuentas.
-      nombre: String,
-      // Token de actualización de Google, cifrado; con él se piden accesos nuevos sin volver a preguntar.
-      token: String,
-      activo: { type: Boolean, default: false },
-      // Solo se leen correos recibidos desde este momento.
-      desde: Date,
-      ultimaRevision: Date,
-      registrados: { type: Number, default: 0 },
-      error: String,
-      // Último escaneo de correos anteriores (pedido desde la app o el chat).
-      escaneo: {
-        estado: { type: String, enum: ['en curso', 'terminado', 'error'] },
-        desde: Date,
-        hasta: Date,
-        revisados: Number,
-        registrados: Number,
-        duplicados: Number,
-        // Había más correos de los que se revisaron en esa vuelta.
-        quedan: Boolean,
-        inicio: Date,
-        fin: Date,
-        error: String,
-      },
-    },
+    // «gmail» es la primera cuenta vinculada; «gmailExtra», las demás que se añadan.
+    gmail: cuentaGmail(),
+    gmailExtra: [new Schema(cuentaGmail())],
     // Solo dígitos con código de país (51987654321). El bot lo usa para saber quién escribe y a quién enviar.
     whatsapp: { type: String, match: /^\d{10,15}$/ },
     // Libro sobre el que responde el bot; si falta, el primero del usuario.
@@ -55,6 +60,7 @@ const usuarioSchema = new Schema(
 usuarioSchema.index({ whatsapp: 1 }, { unique: true, sparse: true });
 usuarioSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 usuarioSchema.index({ 'gmail.activo': 1 });
+usuarioSchema.index({ 'gmailExtra.activo': 1 });
 
 // Un "libro" agrupa movimientos. Cada usuario tiene los suyos y puede compartirlos.
 const libroSchema = new Schema(
@@ -123,6 +129,9 @@ const correoRevisadoSchema = new Schema({
   remitente: String,
   resultado: String,
   registrado: Boolean,
+  // De qué Gmail vino: «principal» o el id de la cuenta añadida, y su dirección.
+  cuenta: String,
+  buzon: String,
   extracto: String,
   cuando: { type: Date, default: Date.now, expires: 8 * 24 * 3600 },
 });

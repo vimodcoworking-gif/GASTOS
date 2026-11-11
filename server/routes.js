@@ -510,7 +510,7 @@ const recibeWhatsapp = (usuario) => whatsappConectado() && Boolean(usuario.whats
 rutasApi.get('/ia/estado', async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
   const ia = await iaDisponible();
-  res.json({ disponible: ia.disponible, whatsapp: recibeWhatsapp(usuario), gmail: Boolean(usuario.gmail?.token) });
+  res.json({ disponible: ia.disponible, whatsapp: recibeWhatsapp(usuario), gmail: Boolean(usuario.gmail?.token || usuario.gmailExtra?.some((c) => c.token)) });
 });
 
 // Una pregunta al asistente. Comparte la memoria de la conversación con el bot de WhatsApp.
