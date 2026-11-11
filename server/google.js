@@ -571,7 +571,8 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
       if (confirmacion.startsWith('✅')) {
         registrado = true;
         resultado.registrados += 1;
-        alRegistrar?.(confirmacion, correo);
+        const mov = alRegistrar && await Movimiento.findOne({ correoId: id, creadoPor: usuario._id }).select('_id').lean();
+        alRegistrar?.(confirmacion, correo, mov?._id);
       }
     }
   }
@@ -606,9 +607,10 @@ async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultad
   }
 }
 
-function avisarPorWhatsapp(usuario, texto) {
+// «movimientos»: ids que confirma el aviso, para poder corregirlos respondiendo al mensaje.
+function avisarPorWhatsapp(usuario, texto, movimientos = []) {
   if (!usuario.whatsapp || !whatsappConectado()) return;
-  enviarANumero(usuario.whatsapp, { texto }).catch((err) => console.error('Aviso de Gmail por WhatsApp:', err.message));
+  enviarANumero(usuario.whatsapp, { texto }, { movimientos }).catch((err) => console.error('Aviso de Gmail por WhatsApp:', err.message));
 }
 
 // Explicación de un fallo al leer el correo, y si Google retiró el permiso.
@@ -646,7 +648,7 @@ async function revisarCuenta(usuario, cuenta) {
     const desdeDonde = cuentasDe(usuario).length > 1 ? ` (${cuenta.datos.email})` : '';
     await procesarCorreos(usuario, cuenta, libro, autorizacion, `after:${desde} ${BUSQUEDA}`, resultado, {
       maxCorreos: MAX_CORREOS,
-      alRegistrar: (confirmacion, correo) => avisarPorWhatsapp(usuario, `📧 *Desde tu correo*${desdeDonde} (${correo.asunto.slice(0, 80)})\n${confirmacion}\nYa está en tu calendario de la app.`),
+      alRegistrar: (confirmacion, correo, movId) => avisarPorWhatsapp(usuario, `📧 *Desde tu correo*${desdeDonde} (${correo.asunto.slice(0, 80)})\n${confirmacion}`, movId ? [movId] : []),
     });
     await actualizarCuenta(usuario, cuenta, { $set: { ultimaRevision: new Date() }, $unset: { error: 1 }, $inc: { registrados: resultado.registrados } });
   } catch (err) {

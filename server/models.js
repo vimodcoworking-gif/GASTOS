@@ -146,6 +146,16 @@ const correoRevisadoSchema = new Schema({
   cuando: { type: Date, default: Date.now, expires: 8 * 24 * 3600 },
 });
 export const CorreoRevisado = model('CorreoRevisado', correoRevisadoSchema);
+
+// Mensajes de WhatsApp del bot y los movimientos que confirman: al responder a uno se corrigen esos.
+// Se borran solos a los 180 días.
+const mensajeBotSchema = new Schema({
+  _id: String,
+  usuario: ObjectId,
+  movimientos: [ObjectId],
+  cuando: { type: Date, default: Date.now, expires: 180 * 24 * 3600 },
+});
+export const MensajeBot = model('MensajeBot', mensajeBotSchema);
 export const Ajuste = model('Ajuste', ajusteSchema);
 export const SesionWa = model('SesionWa', sesionWaSchema);
 export const Usuario = model('Usuario', usuarioSchema);

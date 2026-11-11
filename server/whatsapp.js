@@ -15,8 +15,8 @@ import makeWASocket, {
   proto,
 } from 'baileys';
 import QRCode from 'qrcode';
-import { SesionWa, Usuario } from './models.js';
-import { responder, estadoDeCuenta, conversar, ejecutarAcciones, librosDe, libroActivo, textoMenu, registrarVarios, hoyLocal } from './bot.js';
+import { SesionWa, Usuario, Movimiento, MensajeBot } from './models.js';
+import { responder, estadoDeCuenta, conversar, ejecutarAcciones, librosDe, libroActivo, textoMenu, registrarVarios, hoyLocal, leerCorreccion, editarMovimiento, anularMovimiento } from './bot.js';
 import { iaDisponible, leerComprobante, transcribir, transcripcionDisponible, explicarError } from './ia.js';
 import { comprobarLicencia } from './licencias.js';
 
@@ -218,31 +218,49 @@ export function pararWhatsapp() {
 
 // ---------- envío ----------
 
-async function enviar(jid, contenido) {
+// Últimos mensajes que el bot mandó a cada chat mientras atendía a la persona.
+const enviadosA = new Map();
+
+async function enviar(jid, contenido, { deLaConversacion = true } = {}) {
   const enviado = await socket.sendMessage(jid, contenido);
-  if (enviado?.key?.id) {
-    enviados.add(enviado.key.id);
+  const id = enviado?.key?.id;
+  if (id) {
+    enviados.add(id);
     // No hace falta recordarlos mucho tiempo: el eco llega en segundos.
-    setTimeout(() => enviados.delete(enviado.key.id), 5 * 60 * 1000);
+    setTimeout(() => enviados.delete(id), 5 * 60 * 1000);
+    if (deLaConversacion) enviadosA.set(jid, [...(enviadosA.get(jid) ?? []), { id, cuando: Date.now() }].slice(-20));
   }
+  return id;
 }
 
-async function enviarRespuesta(jid, respuesta) {
+/** Recuerda qué movimientos confirma un mensaje del bot: al responderle, se corrigen esos. */
+async function vincularMensajes(ids, usuario, movimientos) {
+  if (!ids.length || !movimientos.length) return;
+  await MensajeBot.bulkWrite(ids.map((id) => ({
+    updateOne: { filter: { _id: id }, update: { $set: { usuario: usuario._id, movimientos, cuando: new Date() } }, upsert: true },
+  }))).catch((err) => console.error('WhatsApp (vincular mensaje):', err.message));
+}
+
+async function enviarRespuesta(jid, respuesta, opciones) {
   if (respuesta.pdf) {
-    await enviar(jid, { document: respuesta.pdf.buffer, mimetype: 'application/pdf', fileName: respuesta.pdf.nombre, caption: respuesta.texto });
-  } else {
-    await enviar(jid, { text: respuesta.texto });
+    return enviar(jid, { document: respuesta.pdf.buffer, mimetype: 'application/pdf', fileName: respuesta.pdf.nombre, caption: respuesta.texto }, opciones);
   }
+  return enviar(jid, { text: respuesta.texto }, opciones);
 }
 
 export const whatsappConectado = () => wa.estado === 'conectado';
 
-// Envía un texto (y opcionalmente un PDF) a un número con código de país.
-export async function enviarANumero(numero, respuesta) {
+// Envía un texto (y opcionalmente un PDF) a un número con código de país. Con «movimientos» (ids),
+// el mensaje queda vinculado a ellos para poder corregirlos respondiéndole.
+export async function enviarANumero(numero, respuesta, { movimientos = [] } = {}) {
   if (!whatsappConectado()) throw new Error('WhatsApp no está conectado');
   const [destino] = await socket.onWhatsApp(numero);
   if (!destino?.exists) throw new Error('Ese número no tiene WhatsApp');
-  await enviarRespuesta(destino.jid, respuesta);
+  const id = await enviarRespuesta(destino.jid, respuesta, { deLaConversacion: false });
+  if (id && movimientos.length) {
+    const usuario = await Usuario.findOne({ whatsapp: numero }).select('_id');
+    if (usuario) await vincularMensajes([id], usuario, movimientos);
+  }
 }
 
 // Envía el estado de cuenta a un usuario por iniciativa del administrador.
@@ -323,6 +341,9 @@ async function atender(sock, mensaje) {
 
   const contenido = contenidoDe(mensaje);
   const archivo = archivoDe(contenido);
+  // Mensaje al que responde (deslizar o «Responder» en WhatsApp).
+  const citado = [contenido.extendedTextMessage, contenido.audioMessage, contenido.imageMessage, contenido.documentMessage]
+    .map((m) => m?.contextInfo?.stanzaId).find(Boolean);
   const texto = (contenido.conversation ?? contenido.extendedTextMessage?.text ?? '').trim();
   if (!archivo && (!texto || texto.length > 4000)) return;
   // Al reconectar pueden llegar mensajes atrasados: no se contestan los de hace más de dos minutos.
@@ -355,14 +376,51 @@ async function atender(sock, mensaje) {
   return enCola(numero, async () => {
     // «Escribiendo…» aparece al momento, sin esperar a tener lista la respuesta.
     sock.sendPresenceUpdate('composing', jid).catch(() => {});
-    if (archivo) return atenderArchivo(sock, jid, usuario, mensaje, archivo);
-    return atenderTexto(jid, usuario, texto);
+    const inicio = Date.now();
+    const citados = citado ? (await MensajeBot.findOne({ _id: citado, usuario: usuario._id }).lean())?.movimientos ?? [] : [];
+    try {
+      if (archivo) await atenderArchivo(sock, jid, usuario, mensaje, archivo, { citados });
+      else await atenderTexto(jid, usuario, texto, { citados, respondeAlBot: Boolean(citado) });
+    } finally {
+      // Las respuestas de esta vuelta quedan vinculadas a lo que se registró o corrigió en ella.
+      const respuestas = (enviadosA.get(jid) ?? []).filter((e) => e.cuando >= inicio).map((e) => e.id);
+      const nuevos = await Movimiento.find({ creadoPor: usuario._id, createdAt: { $gte: new Date(inicio) } }).select('_id').lean().catch(() => []);
+      await vincularMensajes(respuestas, usuario, [...nuevos.map((m) => m._id), ...citados]);
+    }
   });
 }
 
+/** Corrige o anula los movimientos del mensaje citado. Devuelve true si lo resolvió sin la IA. */
+async function corregirCitados(jid, usuario, texto, citados) {
+  const correccion = leerCorreccion(texto, hoyLocal());
+  // Con varios movimientos en el mensaje, un cambio sin decir cuál («son 30») lo resuelve la IA.
+  if (!correccion || (!correccion.borrar && citados.length > 1)) return false;
+  const textos = [];
+  for (const id of citados.slice(0, 30)) textos.push(correccion.borrar ? await anularMovimiento(usuario, id) : await editarMovimiento(usuario, id, correccion.cambios));
+  await enviar(jid, { text: textos.join('\n\n') });
+  return true;
+}
+
 /** Responde a un texto (escrito o sacado de un audio). Con «forzarIa» se habla con la IA aunque no empiece por «ia». */
-async function atenderTexto(jid, usuario, texto, { forzarIa = false } = {}) {
+async function atenderTexto(jid, usuario, texto, { forzarIa = false, citados = [], respondeAlBot = false } = {}) {
   const ia = await iaDisponible();
+  // Respuesta a una confirmación: «anúlalo», «era gasto», «son 30»… sobre esos movimientos.
+  if (citados.length) {
+    if (await corregirCitados(jid, usuario, texto, citados)) return;
+    if (ia.disponible) {
+      const respuesta = await conversar(usuario, texto, { citados });
+      if (respuesta) {
+        const { textos, pdfs } = await ejecutarAcciones(usuario, respuesta.acciones);
+        const mensaje = [respuesta.texto, ...textos].filter(Boolean).join('\n\n');
+        if (mensaje) await enviar(jid, { text: mensaje });
+        for (const informe of pdfs) await enviarRespuesta(jid, informe);
+        return;
+      }
+    }
+    return enviar(jid, { text: 'Para corregirlo dime, por ejemplo: «era ingreso», «son 30», «fue ayer», «pendiente» o «anúlalo».' });
+  }
+  // Responde a un mensaje del bot que no confirma ningún movimiento: se le habla a la IA sin pedir «ia».
+  if (respondeAlBot) forzarIa = true;
   const comando = await responder(usuario, texto, { conIa: ia.disponible });
   if (comando) return enviarRespuesta(jid, comando);
 
@@ -404,7 +462,7 @@ async function textoDePdf(buffer) {
 }
 
 /** Foto, PDF o audio: se lee con la IA (o se transcribe) y se registran los movimientos que haya. */
-async function atenderArchivo(sock, jid, usuario, mensaje, archivo) {
+async function atenderArchivo(sock, jid, usuario, mensaje, archivo, { citados = [] } = {}) {
   const responderTexto = (text) => enviar(jid, { text });
   if (archivo.tipo === 'otro') return responderTexto('Ese tipo de archivo no lo puedo leer. Mándame una *foto* (boleta, voucher, captura de Yape), un *PDF* o un *audio*.');
   if (archivo.tamano > MAX_ARCHIVO) return responderTexto('El archivo es demasiado grande (máximo 15 MB).');
@@ -432,7 +490,7 @@ async function atenderArchivo(sock, jid, usuario, mensaje, archivo) {
       const dicho = await transcribir(buffer, archivo.mime);
       if (!dicho) return responderTexto('No entendí el audio. ¿Puedes repetirlo o escribírmelo?');
       await responderTexto(`🎙️ Entendí: «${dicho}»`);
-      return atenderTexto(jid, usuario, dicho, { forzarIa: true });
+      return atenderTexto(jid, usuario, dicho, { forzarIa: true, citados });
     }
 
     const entrada = archivo.tipo === 'imagen'

@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { createHash, randomBytes } from 'node:crypto';
 import { config } from './config.js';
-import { Usuario, CorreoVisto } from './models.js';
+import { Usuario, CorreoVisto, Movimiento } from './models.js';
 import { estadoBd } from './db.js';
 import { requiereSesion } from './auth.js';
 import { comprobarLicencia } from './licencias.js';
@@ -61,9 +61,11 @@ function textoDelAviso(req) {
   };
 }
 
-function avisarPorWhatsapp(usuario, texto) {
+// El aviso queda vinculado a lo que se registró desde «inicio», para corregirlo respondiendo al mensaje.
+async function avisarPorWhatsapp(usuario, texto, inicio) {
   if (!usuario.whatsapp || !whatsappConectado()) return;
-  enviarANumero(usuario.whatsapp, { texto }).catch((err) => console.error('Aviso del teléfono por WhatsApp:', err.message));
+  const movimientos = (await Movimiento.find({ creadoPor: usuario._id, createdAt: { $gte: inicio } }).select('_id').lean().catch(() => [])).map((m) => m._id);
+  enviarANumero(usuario.whatsapp, { texto }, { movimientos }).catch((err) => console.error('Aviso del teléfono por WhatsApp:', err.message));
 }
 
 const pagina = (titulo, texto) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${titulo}</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px 16px;background:#f1f1f1;color:#0b0b0b}@media(prefers-color-scheme:dark){body{background:#000;color:#fff}}</style></head><body><h1>${titulo}</h1>${texto}</body></html>`;
@@ -79,6 +81,7 @@ rutasAvisos.get('/:token', limite, async (req, res) => {
 });
 
 rutasAvisos.post('/:token', limite, async (req, res) => {
+  const inicio = new Date();
   const token = String(req.params.token);
   if (!/^[0-9a-f]{36}$/.test(token)) return res.status(404).json({ error: 'Enlace no válido' });
   const usuario = await Usuario.findOne({ tokenAvisos: token });
@@ -100,7 +103,7 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
       const lectura = await leerComprobante(entrada, { hoy: hoyLocal(), moneda: libro.moneda, titular: usuario.nombre });
       if (!lectura?.movimientos.length) return res.json({ ok: false, mensaje: lectura?.nota || 'No encontré ningún pago en la captura.' });
       const mensaje = await registrarVarios(usuario, lectura.movimientos, { origen: 'desde tu captura' });
-      avisarPorWhatsapp(usuario, `📲 ${mensaje}`);
+      avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
       return res.json({ ok: true, mensaje: mensaje.replace(/\*/g, '') });
     } catch (err) {
       console.error('Aviso (captura):', err.message);
@@ -131,6 +134,6 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
   if (!movimiento) return res.json({ ok: false, mensaje: 'No es un aviso de pago: no se registró nada.' });
 
   const mensaje = await registrarVarios(usuario, [{ ...movimiento, fecha: movimiento.fecha ?? hoyLocal() }], { origen: `desde ${app || 'tu teléfono'}`, repetidos: 'reciente' });
-  if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`);
+  if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
   res.json({ ok: mensaje.startsWith('✅'), mensaje: mensaje.replace(/\*/g, '') });
 });

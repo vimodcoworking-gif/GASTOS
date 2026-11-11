@@ -188,6 +188,9 @@ export function textoMenu(usuario, libro, conIa) {
     '6️⃣ *Registrar* un gasto o un ingreso',
     '7️⃣ Cambiar de *libro*',
     '',
+    '📷 También puedes mandarme una *foto* de la boleta o del Yape, un *PDF* o un *audio*.',
+    '✏️ Para *corregir o anular* algo, responde (desliza) al mensaje donde te lo confirmé.',
+    '',
     `Respóndeme con el número o con la palabra. Libro actual: *${libro.nombre}*.`,
     ...(conIa ? ['', 'También puedes escribirme con tus propias palabras empezando por *ia*, por ejemplo: «ia gasté 30 soles en taxi ayer» o «ia mándame el PDF de septiembre».'] : []),
   ].join('\n');
@@ -269,7 +272,7 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
       ? `${mov.descripcion}: *${mov.moneda} ${mov.montoOriginal.toFixed(2)}* (≈ ${dinero(monto)})`
       : `${mov.descripcion}: *${dinero(monto)}*`,
     `${fechaLarga(fecha)} · ${mov.categoria} · ${estado}`,
-    'Si no es correcto, escribe *deshacer*.',
+    'Para corregirlo, responde a este mensaje: «era ingreso», «son 30», «fue ayer» o «anúlalo».',
   ].join('\n');
 }
 
@@ -285,6 +288,101 @@ export async function deshacerUltimo(usuario) {
   ultimoRegistrado.delete(usuario.id);
   return mov ? `↩️ Borrado: ${mov.descripcion} (${mov.monto}).` : 'Ese movimiento ya no existe.';
 }
+
+// ---------- corregir y anular movimientos ya registrados ----------
+
+/** Un movimiento que la persona puede cambiar (está en un libro donde puede escribir), o null. */
+async function movimientoEditable(usuario, id) {
+  const mov = await Movimiento.findById(id).catch(() => null);
+  if (!mov) return null;
+  const libro = await Libro.findById(mov.libro);
+  return libro && puedeEscribir(usuario, libro) ? { mov, libro } : null;
+}
+
+const describir = (mov, libro) => {
+  const dinero = formateador(libro.moneda);
+  return `${mov.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'} · ${mov.descripcion}: *${mov.moneda ? `${mov.moneda} ${mov.montoOriginal.toFixed(2)} (≈ ${dinero(mov.monto)})` : dinero(mov.monto)}* · ${fechaLarga(mov.fecha)} · ${mov.categoria} · ${mov.pagado ? (mov.tipo === 'gasto' ? 'pagado' : 'recibido') : 'pendiente'}`;
+};
+
+/**
+ * Cambia un movimiento ya registrado. «cambios» puede traer tipo, monto, descripcion, categoria,
+ * fecha (AAAA-MM-DD) y pagado. Devuelve el texto de confirmación.
+ */
+export async function editarMovimiento(usuario, id, cambios = {}) {
+  const editable = await movimientoEditable(usuario, id);
+  if (!editable) return '⚠️ No encontré ese movimiento o no tienes permiso para cambiarlo.';
+  const { mov, libro } = editable;
+  const hecho = [];
+  if (cambios.tipo === 'gasto' || cambios.tipo === 'ingreso') {
+    if (mov.tipo !== cambios.tipo) hecho.push(`ahora es ${cambios.tipo}`);
+    mov.tipo = cambios.tipo;
+  }
+  if (cambios.monto !== undefined && cambios.monto !== null) {
+    const monto = Math.round(Number(cambios.monto) * 100) / 100;
+    if (!Number.isFinite(monto) || monto <= 0 || monto > 1e9) return '⚠️ Ese monto no es válido.';
+    if (mov.moneda && mov.moneda !== libro.moneda) {
+      // Cobrado en otra moneda: el monto dicho es en esa moneda y se vuelve a convertir.
+      const equivalente = await convertir(monto, mov.moneda, libro.moneda).catch(() => null);
+      if (equivalente === null) return `⚠️ No pude convertir ${mov.moneda} a ${libro.moneda} ahora mismo. Inténtalo más tarde.`;
+      mov.montoOriginal = monto;
+      mov.monto = Math.max(equivalente, 0.01);
+    } else {
+      mov.monto = monto;
+    }
+    hecho.push('monto');
+  }
+  if (typeof cambios.descripcion === 'string' && cambios.descripcion.trim()) {
+    mov.descripcion = cambios.descripcion.trim().slice(0, 120);
+    hecho.push('descripción');
+  }
+  if (typeof cambios.categoria === 'string' && cambios.categoria.trim()) {
+    mov.categoria = cambios.categoria.trim().slice(0, 40);
+    hecho.push('categoría');
+  }
+  if (typeof cambios.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(cambios.fecha) && !Number.isNaN(aFecha(cambios.fecha).getTime())) {
+    mov.fecha = aFecha(cambios.fecha);
+    hecho.push('fecha');
+  }
+  if (typeof cambios.pagado === 'boolean') {
+    mov.pagado = cambios.pagado;
+    mov.fechaPago = cambios.pagado ? (mov.fechaPago ?? new Date()) : null;
+    hecho.push(cambios.pagado ? 'marcado como pagado' : 'marcado como pendiente');
+  }
+  if (!hecho.length) return 'No vi qué querías cambiar. Dime, por ejemplo: «era ingreso», «son 30», «fue ayer», «categoría comida» o «anúlalo».';
+  await mov.save();
+  return `✏️ *Corregido* en ${libro.nombre}\n${describir(mov, libro)}`;
+}
+
+/** Borra un movimiento ya registrado (en un libro donde la persona puede escribir). */
+export async function anularMovimiento(usuario, id) {
+  const editable = await movimientoEditable(usuario, id);
+  if (!editable) return '⚠️ No encontré ese movimiento (quizá ya estaba anulado) o no tienes permiso para borrarlo.';
+  const { mov, libro } = editable;
+  await mov.deleteOne();
+  return `🗑️ *Anulado* en ${libro.nombre}\n${describir(mov, libro)}`;
+}
+
+/**
+ * Correcciones cortas, sin IA, al responder a un mensaje del bot: «anúlalo», «era gasto», «son 30»,
+ * «fue ayer», «pendiente». Devuelve { borrar: true }, { cambios } o null si no es una de ellas.
+ */
+export function leerCorreccion(texto, hoy) {
+  // Sin signos, pero conservando el punto o la coma decimal («45.50»).
+  const t = sinAcentos(texto).replace(/[!¡¿?]/g, ' ').replace(/[.,](?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
+  if (/^(anula(lo|la|los|las)?|anular|borra(lo|la|los|las)?|borrar|elimina(lo|la|los|las)?|eliminar|cancela(lo|la)?|cancelar|quita(lo|la)?|deshacer|no va|no lo registres)( (por favor|porfa))?$/.test(t)) return { borrar: true };
+  const tipo = /^(?:(?:es|era|son|fue|eran|fueron|cambia(?:lo|la)? a|ponlo como|registralo como|como|no es \w+ es)\s+)?(?:un |una )?(gasto|ingreso)s?$/.exec(t);
+  if (tipo) return { cambios: { tipo: tipo[1] } };
+  const monto = /^(?:(?:el )?monto (?:es|era|son|de)|son|eran|era|es|fueron|fue|cambia(?:lo)? a)?\s*(?:s\/?\s?)?(\d+(?:[.,]\d{1,2})?)(?: soles| sol| lucas)?$/.exec(t);
+  if (monto) return { cambios: { monto: Number(monto[1].replace(',', '.')) } };
+  const dia = /^(?:(?:fue|era|es|cambia(?:lo)? a|ponlo)\s+)?(?:de |el |del )?(hoy|ayer|anteayer|manana)$/.exec(t);
+  if (dia) return { cambios: { fecha: { hoy, ayer: sumarDias(hoy, -1), anteayer: sumarDias(hoy, -2), manana: sumarDias(hoy, 1) }[dia[1]] } };
+  if (/^(esta |esta )?(pendiente|no (lo )?he pagado|falta pagar|por pagar)$/.test(t)) return { cambios: { pagado: false } };
+  if (/^(ya )?(esta |lo )?(pagado|pague|cobrado|recibido)$/.test(t)) return { cambios: { pagado: true } };
+  return null;
+}
+
+// Referencias cortas («r1», «c1») que la IA usa para nombrar movimientos sin ver sus ids reales.
+const referenciasIa = new Map();
 
 // ---------- comandos ----------
 
@@ -460,7 +558,7 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
   if (repetidos.length) lineas.push('', `↪️ Ya estaban anotados, no los repetí:`, ...repetidos.map((r) => `• ${r}`));
   if (fallos.length) lineas.push('', '⚠️ No pude registrar:', ...fallos.map((f) => `• ${f}`));
   if (!lineas.length) return 'No encontré ningún monto válido para registrar.';
-  if (hechos.length) lineas.push('', hechos.length > 1 ? 'Si algo no es correcto, escribe *deshacer* y los borro todos.' : 'Si no es correcto, escribe *deshacer*.');
+  if (hechos.length) lineas.push('', hechos.length > 1 ? 'Si algo no es correcto, responde a este mensaje (p. ej. «el de 30 era ingreso» o «anula el segundo») o escribe *deshacer* para borrarlos todos.' : 'Para corregirlo, responde a este mensaje: «era gasto», «son 30», «fue ayer» o «anúlalo».');
   return lineas.join('\n').trim();
 }
 
@@ -591,9 +689,22 @@ async function resumenHistorico(libro, hoy) {
 
 // Contexto compacto para la IA: totales y movimientos del libro activo, más los gastos llegados por correo.
 // «canal» es "whatsapp" o "web"; desde la web la IA puede pedir que su respuesta se envíe por WhatsApp.
-export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', puedeRecibirWhatsapp = false } = {}) {
+export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', puedeRecibirWhatsapp = false, citados = [] } = {}) {
   const libro = await libroParaIa(usuario, libroId);
   if (!libro) return null;
+  // Para corregir o anular: los últimos registrados en este libro y los del mensaje al que responde.
+  const [ultimos, deLaCita] = await Promise.all([
+    Movimiento.find({ libro: libro._id }).sort('-createdAt').limit(15).lean(),
+    citados.length ? Movimiento.find({ _id: { $in: citados } }).lean() : [],
+  ]);
+  const refs = {};
+  const conRef = (prefijo) => (m, i) => {
+    refs[`${prefijo}${i + 1}`] = String(m._id);
+    return { ref: `${prefijo}${i + 1}`, ...corto(m), registrado: m.createdAt?.toISOString().slice(0, 16).replace('T', ' ') };
+  };
+  const ultimosRegistrados = ultimos.map(conRef('r'));
+  const movimientosCitados = deLaCita.map(conRef('c'));
+  referenciasIa.set(usuario.id, refs);
   const d = await datosDe(libro);
   // Todos los Gmail vinculados: el principal y los añadidos.
   const buzones = [usuario.gmail, ...(usuario.gmailExtra ?? [])].filter((g) => g?.token);
@@ -641,6 +752,8 @@ export async function contextoParaIa(usuario, { libroId, canal = 'whatsapp', pue
     pendientesVencidosYProximos30Dias: d.pendientes.map(corto),
     totalesDelAnio: { anio: d.anio, ...d.totalAnio },
     resumenMensual: historico,
+    ultimosRegistrados,
+    ...(movimientosCitados.length && { movimientosCitados }),
   };
 }
 
@@ -651,8 +764,8 @@ const fechaValida = (f) => typeof f === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(f
  * Si la IA necesita el detalle de un periodo que no tiene (acción «consultar»), se le dan esos
  * movimientos y se le vuelve a preguntar una vez. Devuelve { texto, acciones } o null.
  */
-export async function conversar(usuario, pregunta, { libroId, canal = 'whatsapp', puedeRecibirWhatsapp = false } = {}) {
-  const contexto = await contextoParaIa(usuario, { libroId, canal, puedeRecibirWhatsapp });
+export async function conversar(usuario, pregunta, { libroId, canal = 'whatsapp', puedeRecibirWhatsapp = false, citados = [] } = {}) {
+  const contexto = await contextoParaIa(usuario, { libroId, canal, puedeRecibirWhatsapp, citados });
   if (!contexto) return null;
   const respuesta = await preguntar(usuario, contexto, pregunta);
   const consulta = respuesta?.acciones.find((a) => a?.tipo === 'consultar');
@@ -693,9 +806,13 @@ export async function ejecutarAcciones(usuario, acciones, { libroId } = {}) {
   const registros = acciones.filter((a) => a?.tipo === 'registrar' && a.movimiento && typeof a.movimiento === 'object').map((a) => a.movimiento);
   if (registros.length > 1) textos.push(await registrarVarios(usuario, registros.slice(0, 20), { libro }));
   // Como mucho unas pocas acciones por mensaje: un modelo confundido no debe llenar el libro.
-  for (const accion of acciones.filter((a) => a?.tipo !== 'registrar' || registros.length <= 1).slice(0, 5)) {
+  for (const accion of acciones.filter((a) => a?.tipo !== 'registrar' || registros.length <= 1).slice(0, 10)) {
     if (accion?.tipo === 'registrar' && accion.movimiento && typeof accion.movimiento === 'object') {
       textos.push(await registrarMovimiento(usuario, libro, accion.movimiento));
+    } else if ((accion?.tipo === 'editar' || accion?.tipo === 'borrar') && typeof accion.ref === 'string') {
+      const id = referenciasIa.get(usuario.id)?.[accion.ref];
+      if (!id) textos.push('⚠️ No supe qué movimiento corregir. Responde (desliza) al mensaje donde te lo confirmé y dime qué cambiar.');
+      else textos.push(accion.tipo === 'borrar' ? await anularMovimiento(usuario, id) : await editarMovimiento(usuario, id, accion.cambios ?? {}));
     } else if (accion?.tipo === 'deshacer') {
       textos.push(await deshacerUltimo(usuario));
     } else if (accion?.tipo === 'pdf' && pdfs.length < 2) {
