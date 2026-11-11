@@ -728,7 +728,7 @@ async function libroParaIa(usuario, libroId) {
   return libros.find((l) => libroId && String(l._id) === String(libroId)) ?? libroActivo(usuario, libros);
 }
 
-const corto = (m) => ({ fecha: aTexto(m.fecha), tipo: m.tipo, descripcion: m.descripcion, categoria: m.categoria, monto: m.monto, ...(m.moneda && { cobradoEn: `${m.moneda} ${m.montoOriginal}` }), pagado: m.pagado, ...(m.medio && { medio: m.medio }), ...(m.entidad && { entidad: m.entidad }), ...(m.correoId && { desdeCorreo: true }) });
+const corto = (m) => ({ fecha: aTexto(m.fecha), tipo: m.tipo, descripcion: m.descripcion, categoria: m.categoria, monto: m.monto, ...(m.moneda && { cobradoEn: `${m.moneda} ${m.montoOriginal}` }), pagado: m.pagado, ...(() => { const d = m.medio || m.entidad ? m : detectarMedio(m.descripcion); return { ...(d.medio && { medio: d.medio }), ...(d.entidad && { entidad: d.entidad }) }; })(), ...(m.correoId && { desdeCorreo: true }) });
 const redondear = (n) => Math.round(n * 100) / 100;
 
 // Totales mes a mes (24 meses atrás y 12 adelante, donde hay pagos programados): ingresos, gastos,

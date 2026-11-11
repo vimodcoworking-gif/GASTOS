@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { leerMedio } from './medios.js';
+import { leerMedio, detectarMedio } from './medios.js';
 import mongoose from 'mongoose';
 import { Usuario, Libro, Movimiento } from './models.js';
 import { ErrorHttp, texto } from './errores.js';
@@ -228,6 +228,9 @@ libro.delete('/miembros/:usuarioId', async (req, res) => {
 // ---------- movimientos ----------
 
 // Vale tanto para documentos de Mongoose como para los objetos planos de las consultas «lean».
+// Sin medio guardado (movimientos antiguos o sin pistas al registrarse) se deduce de la descripción para mostrarlo.
+const medioDe = (m) => (m.medio || m.entidad ? { medio: m.medio ?? null, entidad: m.entidad ?? null } : detectarMedio(m.descripcion));
+
 const movPublico = (m) => ({
   id: String(m._id),
   tipo: m.tipo,
@@ -242,8 +245,7 @@ const movPublico = (m) => ({
   enSerie: Boolean(m.serie),
   // Registrado solo a partir de un correo de Gmail.
   desdeCorreo: Boolean(m.correoId),
-  medio: m.medio ?? null,
-  entidad: m.entidad ?? null,
+  ...medioDe(m),
 });
 
 function leerMovimiento(cuerpo, parcial = false) {

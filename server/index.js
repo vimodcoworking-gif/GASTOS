@@ -66,7 +66,7 @@ conectar()
   .then(() => {
     if (!estadoBd.lista) return;
     // Correcciones de datos que se hacen una sola vez (quedan anotadas en Ajuste).
-    corregirUnaVez('correccion:registros-unidos', separarRegistrosUnidos).then(() => corregirUnaVez('correccion:medios-de-pago', completarMedios));
+    corregirUnaVez('correccion:registros-unidos', separarRegistrosUnidos).then(() => corregirUnaVez('correccion:medios-de-pago-2', completarMedios));
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
     return reanudarWhatsapp();
@@ -76,9 +76,10 @@ conectar()
 async function corregirUnaVez(id, correccion) {
   try {
     if (await Ajuste.exists({ _id: id })) return;
+    console.log(`Corrección «${id}»: empezando.`);
     const cuantos = await correccion();
     await Ajuste.updateOne({ _id: id }, { $set: { valor: new Date() } }, { upsert: true });
-    if (cuantos) console.log(`Corrección «${id}»: ${cuantos} registros arreglados.`);
+    console.log(`Corrección «${id}»: ${cuantos} registros arreglados.`);
   } catch (err) {
     console.error(`Corrección «${id}»:`, err.message);
   }
