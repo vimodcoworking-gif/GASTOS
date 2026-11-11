@@ -26,6 +26,8 @@ const cuentaGmail = () => ({
     duplicados: Number,
     // Correos del periodo que ya se habían revisado antes (por la revisión automática o otro escaneo).
     yaVistos: Number,
+    // Se volvieron a leer los avisos ya vistos sin movimiento (escaneos cortos pedidos a mano).
+    releido: Boolean,
     // Había más correos de los que se revisaron en esa vuelta.
     quedan: Boolean,
     inicio: Date,

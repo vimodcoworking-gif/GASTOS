@@ -1222,10 +1222,10 @@ function pintarCuenta() {
   const recargarCuenta = () => intentar(async () => actualizar((await api('/auth/yo')).usuario));
   const fechaDe = (f) => new Date(f).toLocaleDateString('es', { timeZone: 'UTC' });
   const textoEscaneo = (e) => (e.estado === 'en curso'
-    ? `⏳ Revisando tus correos ${e.desde.startsWith('2004-01-01') ? 'de todo tu Gmail' : `del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}`}: ${e.revisados} revisados, ${e.registrados} movimientos registrados hasta ahora${e.yaVistos ? ` (${e.yaVistos} ya se habían revisado antes)` : ''}. Se actualiza solo.`
+    ? `⏳ Revisando tus correos ${e.desde.startsWith('2004-01-01') ? 'de todo tu Gmail' : `del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}`}: ${e.revisados} revisados, ${e.registrados} movimientos registrados hasta ahora${e.yaVistos ? ` (${e.yaVistos} ${e.releido ? 'ya estaban registrados' : 'ya se habían revisado antes'})` : ''}. Se actualiza solo.`
     : e.estado === 'error'
       ? `La última revisión de correos anteriores falló: ${e.error}`
-      : `✅ Última revisión de correos anteriores (del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}): ${e.revisados} correos nuevos revisados, ${e.registrados} movimientos registrados${e.duplicados ? `, ${e.duplicados} ya estaban anotados` : ''}.${e.yaVistos ? ` Otros ${e.yaVistos} avisos de ese periodo ya los había revisado la sincronización automática: mira qué se hizo con cada uno en «Correos revisados».` : ''}${e.quedan ? ' Quedan más correos en ese periodo: vuelve a escanear para seguir.' : ''}`);
+      : `✅ Última revisión de correos anteriores (del ${fechaDe(e.desde)} al ${fechaDe(e.hasta)}): ${e.revisados} correos ${e.releido ? '' : 'nuevos '}revisados, ${e.registrados} movimientos registrados${e.duplicados ? `, ${e.duplicados} ya estaban anotados` : ''}.${e.yaVistos ? (e.releido ? ` Otros ${e.yaVistos} avisos de ese periodo ya estaban registrados en tu libro.` : ` Otros ${e.yaVistos} avisos de ese periodo ya los había revisado la sincronización automática: mira qué se hizo con cada uno en «Correos revisados».`) : ''}${e.quedan ? ' Quedan más correos en ese periodo: vuelve a escanear para seguir.' : ''}`);
   const escaneando = correos.some((c) => c.escaneo?.estado === 'en curso');
   // Mientras escanea, el progreso se recarga solo cada pocos segundos (sin pulsar nada).
   clearTimeout(temporizadorEscaneo);

@@ -201,7 +201,7 @@ rutasGoogle.post('/gmail/revisados/:id/reintentar', requiereSesion, async (req, 
   // Los registros antiguos no dicen de qué Gmail vinieron: eran del principal.
   const cuenta = cuentaDe(usuario, previo?.cuenta) ?? cuentasDe(usuario).find((c) => c.datos.email === previo?.buzon);
   if (!cuenta) throw new ErrorHttp(400, 'El Gmail de ese aviso ya no está vinculado');
-  if (enCurso.has(claveDe(usuario, cuenta))) throw new ErrorHttp(409, 'Ya se está revisando ese correo. Espera unos segundos.');
+  if (enCurso.has(claveDe(usuario, cuenta)) || escaneos.has(claveDe(usuario, cuenta))) throw new ErrorHttp(409, 'Ya se está revisando ese correo. Espera unos segundos.');
   if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) throw new ErrorHttp(409, 'Ese correo ya está registrado en tu libro.');
   const resultado = { revisados: 0, registrados: 0, duplicados: 0 };
   enCurso.add(claveDe(usuario, cuenta));
@@ -266,7 +266,7 @@ rutasGoogle.patch('/gmail', requiereSesion, async (req, res) => {
 rutasGoogle.delete('/gmail', requiereSesion, async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
   const cuenta = cuentaPedida(usuario, req);
-  if (enCurso.has(claveDe(usuario, cuenta))) throw new ErrorHttp(409, 'Ese correo se está revisando ahora. Detén el escaneo o espera a que termine.');
+  if (enCurso.has(claveDe(usuario, cuenta)) || escaneos.has(claveDe(usuario, cuenta))) throw new ErrorHttp(409, 'Ese correo se está revisando ahora. Detén el escaneo o espera a que termine.');
   const token = descifrar(cuenta.datos.token);
   if (token) pedirGoogle('https://oauth2.googleapis.com/revoke', formulario({ token })).catch(() => {});
   for (const c of cuentasDe(usuario)) accesos.delete(claveDe(usuario, c));
@@ -473,7 +473,18 @@ function normalizarMoneda(valor) {
   return /^[A-Z]{3}$/.test(v) ? v : null;
 }
 
+// Cuentas que se están revisando (revisión automática o «Volver a revisar») y cuentas con un escaneo en marcha.
 const enCurso = new Set();
+const escaneos = new Set();
+const esperar = (ms) => new Promise((listo) => setTimeout(listo, ms));
+
+// Instante (en segundos) de la medianoche de un día «AAAA-MM-DD» en la zona horaria de la app.
+function inicioDelDia(texto) {
+  const utc = new Date(`${texto}T00:00:00Z`);
+  const enZona = new Date(utc.toLocaleString('en-US', { timeZone: config.zona }));
+  const enUtc = new Date(utc.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return Math.floor((utc.getTime() - (enZona - enUtc)) / 1000);
+}
 
 // Quién es el titular, para que la IA reconozca las transferencias a sus propias cuentas.
 const titularDe = (usuario) => [usuario.nombre, ...cuentasDe(usuario).flatMap((c) => [c.datos.nombre, c.datos.email && `correo ${c.datos.email}`])].filter(Boolean).join(' · ');
@@ -491,7 +502,9 @@ const fechaCorta = (texto) => new Date(`${texto}T00:00:00Z`).toLocaleDateString(
 
 // Correos que cumplen la búsqueda y aún no se han revisado, recorriendo las páginas de Gmail
 // hasta reunir «cuantos» (o uno más, para saber si quedan).
-async function buscarPendientes(usuario, autorizacion, q, cuantos) {
+// Con «releer» (escaneos pedidos a mano) se vuelven a leer también los ya vistos que no dieron ningún
+// movimiento; se saltan los ya registrados y los que este mismo escaneo ya leyó («hechos»).
+async function buscarPendientes(usuario, autorizacion, q, cuantos, { releer = false, hechos = null } = {}) {
   const pendientes = [];
   let yaVistos = 0;
   let pagina;
@@ -499,10 +512,16 @@ async function buscarPendientes(usuario, autorizacion, q, cuantos) {
   do {
     const parametros = new URLSearchParams({ q, maxResults: '100', ...(pagina && { pageToken: pagina }) });
     const r = await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${parametros}`, autorizacion);
-    const ids = (r.messages ?? []).map((m) => m.id);
-    const vistos = new Set((await CorreoVisto.find({ _id: { $in: ids.map((id) => `${usuario.id}:${id}`) } }).select('_id').lean()).map((v) => v._id));
-    pendientes.push(...ids.filter((id) => !vistos.has(`${usuario.id}:${id}`)));
-    yaVistos += vistos.size;
+    const ids = (r.messages ?? []).map((m) => m.id).filter((id) => !hechos?.has(id));
+    let saltar;
+    if (releer) {
+      saltar = new Set((await Movimiento.find({ correoId: { $in: ids }, creadoPor: usuario._id }).select('correoId').lean()).map((m) => m.correoId));
+      pendientes.push(...ids.filter((id) => !saltar.has(id)));
+    } else {
+      saltar = new Set((await CorreoVisto.find({ _id: { $in: ids.map((id) => `${usuario.id}:${id}`) } }).select('_id').lean()).map((v) => v._id));
+      pendientes.push(...ids.filter((id) => !saltar.has(`${usuario.id}:${id}`)));
+    }
+    yaVistos += saltar.size;
     pagina = r.nextPageToken;
     paginas += 1;
   } while (pagina && pendientes.length <= cuantos && paginas < 300);
@@ -559,8 +578,8 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
  * Revisa una tanda de correos que cumplen «q» y registra los gastos e ingresos, los más antiguos primero.
  * Va anotando en «resultado» { revisados, registrados, duplicados, quedan }: así se sabe lo hecho aunque falle a mitad.
  */
-async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultado, { maxCorreos, alRegistrar, alAvanzar, debeParar }) {
-  const busqueda = await buscarPendientes(usuario, autorizacion, q, maxCorreos);
+async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultado, { maxCorreos, alRegistrar, alAvanzar, debeParar, releer = false, hechos = null }) {
+  const busqueda = await buscarPendientes(usuario, autorizacion, q, maxCorreos, { releer, hechos });
   const pendientes = busqueda.pendientes.reverse();
   // Solo en la primera tanda: en las siguientes ya se cuentan también los que acaba de leer.
   resultado.yaVistos ??= busqueda.yaVistos;
@@ -569,6 +588,7 @@ async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultad
   for (const id of pendientes.slice(0, maxCorreos)) {
     if (debeParar?.()) return;
     await procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar);
+    hechos?.add(id);
     if (resultado.revisados % 10 === 0) await alAvanzar?.();
   }
 }
@@ -603,7 +623,7 @@ const BUSQUEDA = `-in:sent -in:drafts -in:chats ${FILTRO}`;
 /** Lee los correos nuevos de una cuenta de Gmail y registra gastos e ingresos. Devuelve cuántos registró. */
 async function revisarCuenta(usuario, cuenta) {
   const clave = claveDe(usuario, cuenta);
-  if (enCurso.has(clave) || !googleDisponible()) return 0;
+  if (enCurso.has(clave) || escaneos.has(clave) || !googleDisponible()) return 0;
   enCurso.add(clave);
   const resultado = { revisados: 0, registrados: 0, duplicados: 0, quedan: false };
   try {
@@ -671,11 +691,14 @@ export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, { cuenta: 
   if (desde < INICIO_GMAIL) desde = INICIO_GMAIL;
   if (desde > hasta) return 'Las fechas para revisar el correo no son válidas.';
   const todo = desde === INICIO_GMAIL;
+  // En periodos cortos (hasta un mes) se vuelven a leer también los avisos ya vistos que no dieron
+  // ningún movimiento: quien escanea «hoy» espera que se miren todos sus correos de hoy.
+  const releer = !todo && (new Date(`${hasta}T00:00:00Z`) - new Date(`${desde}T00:00:00Z`)) / DIA <= 31;
   const periodo = todo ? 'de todo tu correo' : `del ${fechaCorta(desde)} al ${fechaCorta(hasta)}`;
 
-  const libres = elegidas.filter((c) => !enCurso.has(claveDe(usuario, c)));
+  const libres = elegidas.filter((c) => !escaneos.has(claveDe(usuario, c)));
   if (!libres.length) return '⏳ Ya estoy revisando tu correo. Te aviso cuando termine.';
-  for (const cuenta of libres) await escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo);
+  for (const cuenta of libres) await escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo, releer);
 
   if (previo) return '';
   const donde = todas.length > 1
@@ -685,9 +708,9 @@ export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, { cuenta: 
 }
 
 // Arranca en segundo plano el escaneo de una cuenta; vuelve en cuanto queda guardado su estado inicial.
-async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
+async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo, releer) {
   const clave = claveDe(usuario, cuenta);
-  enCurso.add(clave);
+  escaneos.add(clave);
   detener.delete(clave);
   mantenerDespierto(true);
   const estado = {
@@ -699,6 +722,7 @@ async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
     duplicados: previo?.duplicados ?? 0,
     ...(previo?.yaVistos != null && { yaVistos: previo.yaVistos }),
     quedan: false,
+    releido: releer,
     inicio: previo?.inicio ?? new Date(),
   };
   const yaRegistrados = estado.registrados;
@@ -707,19 +731,23 @@ async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
   try {
     await guardar();
   } catch (err) {
-    enCurso.delete(clave);
+    escaneos.delete(clave);
     mantenerDespierto(false);
     throw err;
   }
 
   (async () => {
     try {
-      // Gmail interpreta estas fechas en la zona de la cuenta; «before» no incluye ese día.
-      const q = `after:${desde.replace(/-/g, '/')} before:${sumarDias(hasta, 1).replace(/-/g, '/')} ${BUSQUEDA}`;
+      // Con fechas en texto Gmail usa la medianoche de California (las 3:00 en Lima) y se perdían los
+      // correos de madrugada: se le pasa el instante exacto de la medianoche en la zona de la app.
+      const q = `after:${inicioDelDia(desde)} before:${inicioDelDia(sumarDias(hasta, 1))} ${BUSQUEDA}`;
+      const hechos = new Set();
       do {
+        // Si la revisión automática está leyendo esta cuenta, se espera a que termine (como mucho 5 minutos).
+        for (let i = 0; enCurso.has(clave) && i < 150; i += 1) await esperar(2000);
         // Cada tanda pide un acceso al día: los de Google caducan a la hora.
         const { libro, autorizacion } = await prepararLectura(usuario, cuenta);
-        await procesarCorreos(usuario, cuenta, libro, autorizacion, q, estado, { maxCorreos: POR_TANDA, alAvanzar: guardar, debeParar: () => detener.has(clave) });
+        await procesarCorreos(usuario, cuenta, libro, autorizacion, q, estado, { maxCorreos: POR_TANDA, alAvanzar: guardar, debeParar: () => detener.has(clave), releer, hechos });
         await guardar();
       } while (estado.quedan && !detener.has(clave) && estado.revisados < MAX_ESCANEO);
 
@@ -727,7 +755,7 @@ async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
       Object.assign(estado, { estado: 'terminado', fin: new Date(), ...(detenido && { quedan: true }) });
       avisarPorWhatsapp(usuario, [
         `📧 *Revisión ${periodo}${donde} ${detenido ? 'detenida' : 'terminada'}*`,
-        `Revisé ${estado.revisados} correos y registré *${estado.registrados} movimientos*${estado.duplicados ? `; ${estado.duplicados} ya estaban anotados` : ''}.${estado.yaVistos ? ` Otros ${estado.yaVistos} ya se habían revisado antes.` : ''} Ya están en tu calendario de la app.`,
+        `Revisé ${estado.revisados} correos y registré *${estado.registrados} movimientos*${estado.duplicados ? `; ${estado.duplicados} ya estaban anotados` : ''}.${estado.yaVistos ? ` Otros ${estado.yaVistos} ${estado.releido ? 'ya estaban registrados' : 'ya se habían revisado antes'}.` : ''} Ya están en tu calendario de la app.`,
         ...(estado.quedan ? ['Quedan correos por revisar: pídemelo otra vez y sigo donde quedé.'] : []),
         'Pregúntame por cualquier mes, por ejemplo: «ia ¿cuánto gasté en septiembre?».',
       ].join('\n'));
@@ -744,14 +772,14 @@ async function escanearCuenta(usuario, cuenta, desde, hasta, periodo, previo) {
       await actualizarCuenta(usuario, cuenta, { $inc: { registrados: estado.registrados - yaRegistrados } }).catch(() => {});
       detener.delete(clave);
       mantenerDespierto(false);
-      enCurso.delete(clave);
+      escaneos.delete(clave);
     }
   })();
 }
 
 /** Pide detener los escaneos en curso de una persona; cada uno se para tras el correo que esté leyendo. */
 export function detenerEscaneo(usuario) {
-  const enMarcha = cuentasDe(usuario).map((c) => claveDe(usuario, c)).filter((clave) => enCurso.has(clave));
+  const enMarcha = cuentasDe(usuario).map((c) => claveDe(usuario, c)).filter((clave) => escaneos.has(clave));
   for (const clave of enMarcha) detener.add(clave);
   return enMarcha.length > 0;
 }
