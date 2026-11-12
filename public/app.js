@@ -1226,6 +1226,12 @@ function pintarMes({ actual, proximo, pendientes }) {
             h('div', { class: `heroe-nota ${t.balance < 0 ? 'negativo' : 'positivo'}` },
               icono(t.balance < 0 ? 'salida' : 'entrada'),
               t.balance < 0 ? ' Balance del mes: gastas más de lo que entra' : ' Balance del mes: vas en positivo')),
+          // Resumen de la gráfica de al lado (solo en PC, donde hay sitio debajo del balance).
+          h('div', { class: 'heroe-resumen' },
+            h('div', null, h('small', null, 'Gastos últimos 7 días'), h('strong', null, dinero(semana.reduce((s, d) => s + d.total, 0)))),
+            h('div', null, h('small', null, 'Promedio por día'), h('strong', null, dinero(semana.reduce((s, d) => s + d.total, 0) / 7))),
+            h('div', null, h('small', null, 'Día con más gasto'), h('strong', { class: 'capital' },
+              Math.max(...semana.map((d) => d.total)) > 0 ? fechaTexto(semana.reduce((a, d) => (d.total > a.total ? d : a)).fecha, { weekday: 'long', day: 'numeric' }) : '—'))),
         ),
         h('div', { class: 'heroe-barras', role: 'img', 'aria-label': `Gastos de los últimos 7 días: ${semana.map((d) => `${fechaCorta(d.fecha)} ${dinero(d.total)}`).join(', ')}` },
           semana.map((d) => h('div', { class: `heroe-dia ${d.fecha === hoy() ? 'hoy' : ''}`, title: `${fechaTexto(d.fecha, { weekday: 'long', day: 'numeric', month: 'short' })}: ${dinero(d.total)}` },

@@ -1099,7 +1099,8 @@ button.primario { text-transform: none; letter-spacing: 0; }
   .cabecera-mes > .heroe { margin-bottom: 0; display: flex; flex-direction: column; }
   /* El cuerpo ocupa toda la altura libre y la gráfica de 7 días crece con ella: sin huecos vacíos. */
   .cabecera-mes .heroe-cuerpo { flex: 1; align-items: stretch; margin: .9rem 0 1rem; min-height: 150px; }
-  .cabecera-mes .heroe-saldo { align-self: center; flex: none; }
+  /* El balance va arriba, justo debajo del mes; la gráfica ocupa el resto de la altura a su lado. */
+  .cabecera-mes .heroe-saldo { align-self: flex-start; flex: none; padding-top: .35rem; }
   .cabecera-mes .heroe-nota { white-space: nowrap; }
   .cabecera-mes .heroe-barras { flex: 0 1 460px; min-width: 0; grid-template-columns: repeat(7, minmax(8px, 1fr)); gap: clamp(8px, 1.2vw, 16px); height: auto; min-height: 140px; }
   .cabecera-mes .heroe-dia { height: 100%; }
@@ -1156,3 +1157,14 @@ button.primario { text-transform: none; letter-spacing: 0; }
 }
 /* Toques sin la espera del doble toque y sin el resaltado gris de Safari. */
 button, a, label, select, summary { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* Resumen de los últimos 7 días bajo el balance (PC y laptop). */
+.heroe-resumen { display: none; }
+@media (min-width: 1100px) {
+  .cabecera-mes .heroe-saldo { flex-wrap: wrap; align-content: flex-start; row-gap: 1.1rem; max-width: 360px; }
+  .cabecera-mes .heroe-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; flex-basis: 100%; }
+  .heroe-resumen > div { display: grid; gap: .1rem; padding: .6rem .8rem; border-radius: 16px; background: var(--t-elev); min-width: 0; }
+  .heroe-resumen > div:last-child { grid-column: 1 / -1; }
+  .heroe-resumen small { font-size: .72rem; color: var(--t-tenue); font-weight: 600; }
+  .heroe-resumen strong { font-family: var(--gruesa); font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
