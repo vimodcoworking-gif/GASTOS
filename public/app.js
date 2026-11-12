@@ -674,7 +674,7 @@ function totales(movimientos) {
 const tarjeta = (etiqueta, valor, nota, clase = '', { icono: nombreIcono, tono, progreso } = {}) =>
   h('div', { class: `tarjeta ${clase} ${tono ? `tono-${tono}` : ''}` },
     h('div', { class: 'tarjeta-cabeza' },
-      nombreIcono && h('span', { class: 'burbuja' }, icono(nombreIcono)),
+      nombreIcono && h('span', { class: 'icono-caja' }, icono(nombreIcono)),
       h('div', { class: 'etiqueta' }, etiqueta)),
     h('div', { class: 'valor' }, valor),
     nota && h('div', { class: 'nota' }, nota),
@@ -1066,7 +1066,7 @@ function pintarMes({ actual, proximo, pendientes }) {
     ),
 
     h('button', { type: 'button', class: 'tira', onclick: () => irAMes(siguiente), title: 'Ver el mes siguiente' },
-      h('span', { class: 'burbuja' }, icono('calendario')),
+      h('span', { class: 'icono-caja' }, icono('calendario')),
       h('span', { class: 'tira-titulo' }, h('small', null, 'Próximo mes'), h('strong', { class: 'capital' }, nombreMes(siguiente, { month: 'long' }))),
       h('span', { class: 'tira-datos' },
         h('span', { class: 'tira-dato' }, h('small', null, 'Ingresos'), h('b', null, dinero(tp.ingresos))),

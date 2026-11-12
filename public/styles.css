@@ -607,12 +607,12 @@ dialog h2 { margin-bottom: 1rem; }
 .tarjeta .etiqueta { font-size: .7rem; letter-spacing: .07em; line-height: 1.2; }
 .tarjeta .valor { margin: 0; font-size: clamp(1.2rem, 2.2vw, 1.6rem); letter-spacing: -.01em; }
 .tarjeta .nota { font-size: .78rem; line-height: 1.35; }
-.burbuja { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 11px; background: var(--realce); color: var(--tinta); }
-.burbuja .icono { width: 18px; height: 18px; stroke-width: 2.2; }
-.tono-ingreso .burbuja { background: color-mix(in srgb, var(--tono-ingreso) 13%, #fff); color: var(--tono-ingreso); }
-.tono-gasto .burbuja { background: color-mix(in srgb, var(--tono-gasto) 13%, #fff); color: var(--tono-gasto); }
-.tono-pendiente .burbuja { background: color-mix(in srgb, var(--tono-pendiente) 11%, #fff); color: var(--tono-pendiente); }
-.tarjeta.destacada .burbuja { background: rgba(255, 255, 255, .14); color: #fff; }
+.icono-caja { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 11px; background: var(--realce); color: var(--tinta); }
+.icono-caja .icono { width: 18px; height: 18px; stroke-width: 2.2; }
+.tono-ingreso .icono-caja { background: color-mix(in srgb, var(--tono-ingreso) 13%, #fff); color: var(--tono-ingreso); }
+.tono-gasto .icono-caja { background: color-mix(in srgb, var(--tono-gasto) 13%, #fff); color: var(--tono-gasto); }
+.tono-pendiente .icono-caja { background: color-mix(in srgb, var(--tono-pendiente) 11%, #fff); color: var(--tono-pendiente); }
+.tarjeta.destacada .icono-caja { background: rgba(255, 255, 255, .14); color: #fff; }
 .progreso { height: 6px; margin-top: .55rem; border-radius: 999px; background: var(--realce); overflow: hidden; }
 .progreso span { display: block; height: 100%; border-radius: 999px; background: var(--tinta); }
 .tono-ingreso .progreso span { background: var(--tono-ingreso); }
@@ -655,8 +655,8 @@ button.tira:hover { background: var(--superficie); box-shadow: 0 2px 4px rgba(16
 @media (max-width: 640px) {
   .tarjetas { gap: .55rem; }
   .tarjeta { padding: .8rem .85rem .85rem; }
-  .burbuja { width: 30px; height: 30px; border-radius: 10px; }
-  .burbuja .icono { width: 16px; height: 16px; }
+  .icono-caja { width: 30px; height: 30px; border-radius: 10px; }
+  .icono-caja .icono { width: 16px; height: 16px; }
   .tarjeta .valor { font-size: clamp(1.05rem, 5vw, 1.3rem); }
   .tarjeta .etiqueta { font-size: .64rem; }
   .tarjeta .nota { font-size: .72rem; }
