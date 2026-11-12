@@ -297,6 +297,140 @@ for (const boton of document.querySelectorAll('[data-cerrar]')) {
   boton.addEventListener('click', () => boton.closest('dialog').close());
 }
 
+// ---------- capturas de Yape, Plin o del banco ----------
+// En el iPhone, Yape no deja leer sus avisos y su correo no siempre llega: se sube la captura de «Movimientos»,
+// la IA la lee y aquí se eligen los que se registran (los que ya están en el libro vienen sin marcar).
+
+function elegirCaptura() {
+  const entrada = h('input', { type: 'file', accept: 'image/*,application/pdf' });
+  entrada.hidden = true;
+  entrada.addEventListener('change', () => {
+    const archivo = entrada.files[0];
+    entrada.remove();
+    if (archivo) leerCaptura(archivo);
+  });
+  document.body.append(entrada);
+  entrada.click();
+}
+
+// Las capturas del teléfono pesan varios MB: se reducen a 1800 px de alto o ancho en JPEG antes de subirlas.
+async function reducirImagen(archivo) {
+  if (!archivo.type.startsWith('image/') || archivo.type === 'image/gif') return archivo;
+  try {
+    const imagen = await createImageBitmap(archivo);
+    const escala = Math.min(1, 1800 / Math.max(imagen.width, imagen.height));
+    if (escala === 1 && archivo.size < 1.5e6) return archivo;
+    const lienzo = document.createElement('canvas');
+    lienzo.width = Math.round(imagen.width * escala);
+    lienzo.height = Math.round(imagen.height * escala);
+    lienzo.getContext('2d').drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+    return await new Promise((ok) => lienzo.toBlob((b) => ok(b ?? archivo), 'image/jpeg', 0.88));
+  } catch {
+    return archivo; // p. ej. HEIC en un navegador que no lo abre: lo intenta el servidor.
+  }
+}
+
+function dialogoCaptura() {
+  let dlg = $('#dlg-captura');
+  if (!dlg) {
+    dlg = h('dialog', { id: 'dlg-captura', class: 'dlg-captura' });
+    dlg.addEventListener('close', () => dlg.replaceChildren());
+    document.body.append(dlg);
+  }
+  return dlg;
+}
+
+async function leerCaptura(archivo) {
+  const libroId = estado.libroId;
+  const dlg = dialogoCaptura();
+  dlg.replaceChildren(
+    h('h2', null, 'Leyendo la captura…'),
+    h('p', { class: 'tenue' }, 'La IA está buscando los pagos y cobros. Tarda unos segundos.'),
+    h('div', { class: 'cargando-captura', role: 'status' }, h('span'), h('span'), h('span')),
+  );
+  if (!dlg.open) dlg.showModal();
+  try {
+    const cuerpo = await reducirImagen(archivo);
+    const res = await fetch(`/api/libros/${libroId}/capturas`, { method: 'POST', headers: { 'Content-Type': cuerpo.type || archivo.type || 'image/jpeg' }, body: cuerpo });
+    const datos = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(datos?.error ?? 'No se pudo leer la captura.');
+    if (!dlg.open) return;
+    pintarCaptura(dlg, libroId, datos);
+  } catch (err) {
+    dlg.replaceChildren(
+      h('h2', null, 'No se pudo leer'),
+      h('p', { class: 'error' }, err.message),
+      h('div', { class: 'acciones' },
+        h('button', { type: 'button', onclick: () => dlg.close() }, 'Cerrar'),
+        h('button', { type: 'button', class: 'primario', onclick: () => { dlg.close(); elegirCaptura(); } }, 'Probar con otra')),
+    );
+  }
+}
+
+function pintarCaptura(dlg, libroId, { movimientos, nota }) {
+  if (!movimientos.length) {
+    dlg.replaceChildren(
+      h('h2', null, 'No encontré movimientos'),
+      h('p', { class: 'tenue' }, nota || 'No vi ningún pago ni cobro en la imagen. Prueba con una captura más nítida de la lista de movimientos.'),
+      h('div', { class: 'acciones' },
+        h('button', { type: 'button', onclick: () => dlg.close() }, 'Cerrar'),
+        h('button', { type: 'button', class: 'primario', onclick: () => { dlg.close(); elegirCaptura(); } }, 'Subir otra')),
+    );
+    return;
+  }
+  const moneda = libroActual()?.moneda;
+  const casillas = [];
+  const boton = h('button', { type: 'button', class: 'primario' });
+  const contar = () => {
+    const n = casillas.filter((c) => c.checked).length;
+    boton.textContent = n ? `Registrar ${n}` : 'Elige alguno';
+    boton.disabled = !n;
+  };
+  const filas = movimientos.map((m) => {
+    const casilla = h('input', { type: 'checkbox', checked: !m.yaAnotado, onchange: contar });
+    casillas.push(casilla);
+    return h('label', { class: `fila-captura ${m.yaAnotado ? 'ya-anotado' : ''}` },
+      casilla,
+      h('span', { class: 'fila-captura-texto' },
+        h('strong', null, m.descripcion),
+        h('small', { class: 'tenue' },
+          [fechaTexto(m.fecha, { weekday: 'short', day: 'numeric', month: 'short' }), m.hora, m.categoria].filter(Boolean).join(' · ')),
+        h('span', { class: 'fila-captura-chips' },
+          chipMedio(m),
+          m.yaAnotado && h('span', { class: 'chip aviso-chip' }, 'Ya está en el libro'))),
+      h('span', { class: `fila-captura-monto ${m.tipo}` },
+        `${m.tipo === 'gasto' ? '−' : '+'} ${m.moneda && m.moneda !== moneda ? `${m.moneda} ${m.monto.toFixed(2)}` : dinero(m.monto)}`));
+  });
+  const repetidos = movimientos.filter((m) => m.yaAnotado).length;
+  boton.addEventListener('click', async () => {
+    const elegidos = movimientos.filter((_, i) => casillas[i].checked).map(({ yaAnotado, hora, ...m }) => m);
+    boton.disabled = true;
+    boton.textContent = 'Registrando…';
+    try {
+      const { mensaje } = await api(`/libros/${libroId}/capturas/registrar`, { method: 'POST', body: { movimientos: elegidos } });
+      dlg.close();
+      avisar(mensaje.split('\n')[0].replace(/^✅\s*/, ''));
+      render();
+    } catch (err) {
+      avisar(err.message);
+      contar();
+    }
+  });
+  dlg.replaceChildren(
+    h('h2', null, `Encontré ${movimientos.length === 1 ? '1 movimiento' : `${movimientos.length} movimientos`}`),
+    h('p', { class: 'tenue' }, repetidos
+      ? `Marca los que quieras registrar. ${repetidos === 1 ? 'Uno ya estaba' : `${repetidos} ya estaban`} en el libro (mismo monto y día) y ${repetidos === 1 ? 'va' : 'van'} sin marcar.`
+      : 'Marca los que quieras registrar.'),
+    nota && h('p', { class: 'tenue nota-captura' }, nota),
+    h('div', { class: 'lista-captura' }, filas),
+    h('div', { class: 'acciones' },
+      h('button', { type: 'button', class: 'al-inicio', onclick: () => { dlg.close(); elegirCaptura(); } }, 'Otra captura'),
+      h('button', { type: 'button', onclick: () => dlg.close() }, 'Cancelar'),
+      boton),
+  );
+  contar();
+}
+
 // ---------- libros ----------
 
 async function cargarLibros() {
@@ -556,6 +690,7 @@ const TRAZOS_ICONO = {
   flecha: '<path d="m9 6 6 6-6 6"/>',
   'flecha-izq': '<path d="m15 6-6 6 6 6"/>',
   descargar: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
+  imagen: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.8"/><path d="m21 15-4.5-4.5L6 21"/>',
 };
 
 function icono(nombre, titulo = '') {
@@ -1095,6 +1230,8 @@ function pintarMes({ actual, proximo, pendientes }) {
       editar && h('div', { class: 'heroe-acciones' },
         h('button', { type: 'button', class: 'pildora lima', onclick: () => abrirMovimiento(null, estado.dia, 'gasto') }, icono('salida'), h('span', { class: 'texto-largo' }, 'Añadir gasto'), h('span', { class: 'texto-corto' }, 'Gasto')),
         h('button', { type: 'button', class: 'pildora blanca', onclick: () => abrirMovimiento(null, estado.dia, 'ingreso') }, icono('entrada'), h('span', { class: 'texto-largo' }, 'Añadir ingreso'), h('span', { class: 'texto-corto' }, 'Ingreso')),
+        h('button', { type: 'button', class: 'pildora captura', onclick: elegirCaptura, title: 'Sube la captura de «Movimientos» de Yape, Plin o del banco, una constancia o una boleta' },
+          icono('imagen'), h('span', { class: 'texto-largo' }, 'Subir captura de Yape, Plin o del banco'), h('span', { class: 'texto-corto' }, 'Subir captura de Yape o banco')),
       ),
     ),
 

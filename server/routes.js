@@ -1,12 +1,12 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { leerMedio, detectarMedio } from './medios.js';
 import mongoose from 'mongoose';
 import { Usuario, Libro, Movimiento } from './models.js';
 import { ErrorHttp, texto } from './errores.js';
 import rateLimit from 'express-rate-limit';
 import { generarInforme } from './informe.js';
-import { informePeriodo, conversar, ejecutarAcciones } from './bot.js';
-import { iaDisponible } from './ia.js';
+import { informePeriodo, conversar, ejecutarAcciones, registrarVarios, hoyLocal } from './bot.js';
+import { iaDisponible, leerComprobante, explicarError } from './ia.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { correoDisponible, enviarCorreo, metodoCorreo, sinFormatoWhatsapp } from './correo.js';
 import { esAdmin } from './auth.js';
@@ -401,6 +401,95 @@ libro.get('/informe.pdf', async (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="gastos_${fechaTexto(desde)}_a_${fechaTexto(hasta)}.pdf"`);
   generarInforme(res, { libro: req.libro, desde, hasta, movimientos });
+});
+
+// ---------- capturas de Yape, Plin o del banco subidas desde la app ----------
+// En el iPhone, Yape no deja que otra app lea sus avisos y su correo no siempre llega: la persona sube la
+// captura de «Movimientos» (o una constancia, boleta o PDF), la IA la lee y la app enseña lo encontrado para
+// confirmar. Nada se registra hasta que la persona lo elige.
+
+const limiteCapturas = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  keyGenerator: (req) => req.usuario.id,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Has subido muchas capturas seguidas. Prueba de nuevo en unos minutos.' },
+});
+
+const MEDIOS_CAPTURA = ['yape', 'plin', 'tarjeta', 'transferencia', 'efectivo', 'otro'];
+
+libro.post('/capturas', puedeEditar, limiteCapturas, express.raw({ type: ['image/*', 'application/pdf'], limit: '12mb' }), async (req, res) => {
+  const binario = Buffer.isBuffer(req.body) && req.body.length ? req.body : null;
+  if (!binario) throw new ErrorHttp(400, 'Sube una imagen (captura o foto) o un PDF.');
+  if (!(await iaDisponible()).disponible) throw new ErrorHttp(400, 'Para leer capturas hace falta tener activada la IA (Admin → IA).');
+  const esPdf = req.is('application/pdf') || binario.subarray(0, 4).toString() === '%PDF';
+  const mime = esPdf ? 'application/pdf' : /^image\/(jpeg|png|webp|gif)/.exec(req.get('content-type') ?? '')?.[0] ?? (binario[0] === 0x89 ? 'image/png' : 'image/jpeg');
+  const entrada = esPdf ? { pdf: { base64: binario.toString('base64'), texto: '' } } : { imagen: { base64: binario.toString('base64'), mime } };
+  const usuario = await Usuario.findById(req.usuario.id).lean();
+  const hoy = hoyLocal();
+
+  let lectura;
+  try {
+    lectura = await leerComprobante(entrada, { hoy, moneda: req.libro.moneda, titular: usuario?.nombre ?? '' });
+  } catch (err) {
+    console.error('Captura:', err.message);
+    throw new ErrorHttp(502, `No se pudo leer la captura: ${explicarError(err)}`);
+  }
+  if (!lectura) throw new ErrorHttp(400, 'La IA no está disponible ahora mismo.');
+
+  // Se limpia lo que devuelve la IA y se marca lo que ya está en el libro (mismo tipo, monto y día),
+  // por ejemplo porque llegó por correo o se subió la misma captura antes.
+  const movimientos = [];
+  for (const m of lectura.movimientos.slice(0, 40)) {
+    const tipo = m?.tipo === 'ingreso' ? 'ingreso' : m?.tipo === 'gasto' ? 'gasto' : null;
+    const monto = redondear(Number(m?.monto));
+    if (!tipo || !Number.isFinite(monto) || monto <= 0 || monto > 1e9) continue;
+    const fecha = typeof m.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.fecha) && m.fecha <= hoy ? m.fecha : hoy;
+    const moneda = typeof m.moneda === 'string' && /^[A-Z]{3}$/.test(m.moneda.trim().toUpperCase()) ? m.moneda.trim().toUpperCase() : req.libro.moneda;
+    const limpio = (valor, max) => (typeof valor === 'string' ? valor.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+    const mov = {
+      tipo,
+      monto,
+      fecha,
+      descripcion: limpio(m.descripcion, 120) || (tipo === 'gasto' ? 'Pago' : 'Ingreso'),
+      categoria: limpio(m.categoria, 40) || 'General',
+      ...(MEDIOS_CAPTURA.includes(m.medio) && { medio: m.medio }),
+      ...(limpio(m.entidad, 40) && { entidad: limpio(m.entidad, 40) }),
+      ...(/^\d{1,2}:\d{2}$/.test(m.hora ?? '') && { hora: m.hora }),
+      ...(moneda !== req.libro.moneda && { moneda }),
+    };
+    const dia = new Date(`${fecha}T00:00:00Z`);
+    mov.yaAnotado = moneda === req.libro.moneda && Boolean(await Movimiento.exists({
+      libro: req.libro._id, tipo, monto, fecha: { $gte: dia, $lt: new Date(dia.getTime() + 86400000) },
+    }));
+    movimientos.push(mov);
+  }
+  // Dos movimientos iguales en la misma captura (dos yapes de S/ 5 el mismo día) no se marcan entre sí:
+  // cada uno se compara solo con lo que ya estaba en el libro.
+  res.json({ movimientos, nota: lectura.nota ?? '' });
+});
+
+// { movimientos: [...] } elegidos por la persona tras subir la captura.
+libro.post('/capturas/registrar', puedeEditar, async (req, res) => {
+  const lista = Array.isArray(req.body?.movimientos) ? req.body.movimientos.slice(0, 40) : [];
+  if (!lista.length) throw new ErrorHttp(400, 'Elige al menos un movimiento.');
+  const usuario = await Usuario.findById(req.usuario.id);
+  if (!usuario) throw new ErrorHttp(401, 'Sesión no válida');
+  const movimientos = lista.map((m) => ({
+    tipo: m?.tipo,
+    monto: Number(m?.monto),
+    fecha: m?.fecha,
+    descripcion: typeof m?.descripcion === 'string' ? m.descripcion.slice(0, 120) : '',
+    categoria: typeof m?.categoria === 'string' ? m.categoria.slice(0, 40) : 'General',
+    pagado: true,
+    ...(MEDIOS_CAPTURA.includes(m?.medio) && { medio: m.medio }),
+    ...(typeof m?.entidad === 'string' && m.entidad.trim() && { entidad: m.entidad.slice(0, 40) }),
+    ...(typeof m?.moneda === 'string' && /^[A-Z]{3}$/.test(m.moneda) && { moneda: m.moneda }),
+  }));
+  // La persona ya eligió cuáles registrar: no se descarta ninguno por parecido.
+  const mensaje = await registrarVarios(usuario, movimientos, { libro: req.libro, repetidos: 'ninguno', origen: 'desde tu captura' });
+  res.json({ mensaje: mensaje.replace(/\*/g, '') });
 });
 
 // ---------- enviar el estado de cuenta ----------

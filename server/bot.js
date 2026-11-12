@@ -603,6 +603,7 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
     const fecha = typeof original.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(original.fecha) ? original.fecha : hoy;
     const datos = { ...original, tipo, monto, fecha };
     const moneda = normalizarMoneda(original.moneda) ?? libro.moneda;
+    delete datos.hora;
     delete datos.moneda;
     delete datos.montoOriginal;
     if (moneda !== libro.moneda) {
@@ -620,7 +621,7 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
     // - «manual» (lo que la persona escribe o dicta): solo el doble envío accidental, mismo monto y descripción
     //   en los últimos 3 minutos. Si alguien dice «gasté 30 en taxi», se registra aunque ya haya otro de 30.
     const dia = aFecha(fecha).getTime();
-    const igual = await Movimiento.exists({
+    const igual = modoRepetidos !== 'ninguno' && await Movimiento.exists({
       libro: libro._id,
       tipo,
       ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: datos.monto }),
@@ -658,7 +659,7 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
   }
   if (fallos.length) lineas.push('', '⚠️ No pude registrar:', ...fallos.map((f) => `• ${f}`));
   if (!lineas.length) return 'No encontré ningún monto válido para registrar.';
-  if (hechos.length) lineas.push('', hechos.length > 1 ? 'Si algo no es correcto, responde a este mensaje (p. ej. «el de 30 era ingreso» o «anula el segundo») o escribe *deshacer* para borrarlos todos.' : 'Para corregirlo, responde a este mensaje: «era gasto», «son 30», «fue ayer» o «anúlalo».');
+  if (hechos.length && modoRepetidos !== 'ninguno') lineas.push('', hechos.length > 1 ? 'Si algo no es correcto, responde a este mensaje (p. ej. «el de 30 era ingreso» o «anula el segundo») o escribe *deshacer* para borrarlos todos.' : 'Para corregirlo, responde a este mensaje: «era gasto», «son 30», «fue ayer» o «anúlalo».');
   return lineas.join('\n').trim();
 }
 
