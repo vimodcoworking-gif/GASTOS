@@ -1203,6 +1203,8 @@ function pintarMes({ actual, proximo, pendientes }) {
   const mayorSemana = Math.max(1, ...semana.map((d) => d.total));
 
   return [
+    // En PC la tarjeta principal y las tres de totales van lado a lado; en tableta y teléfono, una debajo de otra.
+    h('div', { class: 'cabecera-mes' },
     h('section', { class: 'heroe' },
       h('div', { class: 'heroe-nav' },
         h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(moverMes(estado.mes, -1)), 'aria-label': 'Mes anterior' }, icono('flecha-izq')),
@@ -1242,6 +1244,7 @@ function pintarMes({ actual, proximo, pendientes }) {
         '', { icono: 'salida', tono: 'gasto', progreso: t.gastos > 0 ? (t.gastos - t.gastosPendientes) / t.gastos : 0 }),
       tarjeta('Falta por pagar', dinero(t.gastosPendientes), sinPagar.filter((m) => m.tipo === 'gasto').length ? `${sinPagar.filter((m) => m.tipo === 'gasto').length} pagos pendientes este mes` : 'Nada pendiente este mes',
         'clara', { icono: 'reloj', tono: 'pendiente' }),
+    ),
     ),
 
     h('button', { type: 'button', class: 'tira', onclick: () => irAMes(siguiente), title: 'Ver el mes siguiente' },
