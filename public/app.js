@@ -534,6 +534,15 @@ const TRAZOS_ICONO = {
   correo: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
   repetir: '<path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
   sincronizar: '<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/>',
+  entrada: '<path d="M17 7 7 17"/><path d="M17 17H7V7"/>',
+  salida: '<path d="M7 17 17 7"/><path d="M7 7h10v10"/>',
+  balanza: '<path d="M12 3v18"/><path d="M7 21h10"/><path d="M4 7h16"/><path d="m7 7-3 7a3 3 0 0 0 6 0z"/><path d="m17 7-3 7a3 3 0 0 0 6 0z"/>',
+  reloj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  calendario: '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  pulso: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  alza: '<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
+  billetera: '<path d="M20 7H5a2 2 0 0 1 0-4h13v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15V7"/><path d="M16 14h.01"/>',
+  flecha: '<path d="m9 6 6 6-6 6"/>',
 };
 
 function icono(nombre, titulo = '') {
@@ -660,11 +669,17 @@ function totales(movimientos) {
   return t;
 }
 
-const tarjeta = (etiqueta, valor, nota, clase = '') =>
-  h('div', { class: `tarjeta ${clase}` },
-    h('div', { class: 'etiqueta' }, etiqueta),
+// Tarjeta de resumen: icono y etiqueta arriba, el importe grande y una nota; con «progreso» (0 a 1),
+// una barra fina que muestra, por ejemplo, cuánto de lo gastado ya está pagado.
+const tarjeta = (etiqueta, valor, nota, clase = '', { icono: nombreIcono, tono, progreso } = {}) =>
+  h('div', { class: `tarjeta ${clase} ${tono ? `tono-${tono}` : ''}` },
+    h('div', { class: 'tarjeta-cabeza' },
+      nombreIcono && h('span', { class: 'burbuja' }, icono(nombreIcono)),
+      h('div', { class: 'etiqueta' }, etiqueta)),
     h('div', { class: 'valor' }, valor),
     nota && h('div', { class: 'nota' }, nota),
+    progreso !== undefined && h('div', { class: 'progreso', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(progreso * 100)) },
+      h('span', { style: `width:${Math.min(Math.max(progreso, 0), 1) * 100}%` })),
   );
 
 // Botones que cambian la sección visible de una vista sin volver a pedir los datos.
@@ -690,12 +705,8 @@ function segmentos(vista, opciones) {
 const NOMBRE_MEDIO_CORTO = { yape: 'Yape', plin: 'Plin', tarjeta: 'Tarjeta', transferencia: 'Transferencia', efectivo: 'Efectivo', otro: 'Otro' };
 const porcentaje = (parte, total) => (total > 0 ? Math.round((parte / total) * 100) : 0);
 
-// Tarjeta pequeña con un dato destacado.
-const dato = (etiqueta, valor, nota) =>
-  h('div', { class: 'tarjeta dato' },
-    h('div', { class: 'etiqueta' }, etiqueta),
-    h('div', { class: 'valor' }, valor),
-    nota && h('div', { class: 'nota' }, nota));
+// Tarjeta pequeña con un dato destacado (mismo diseño que las del resumen).
+const dato = (etiqueta, valor, nota, nombreIcono, tono) => tarjeta(etiqueta, valor, nota, 'dato', { icono: nombreIcono, tono });
 
 /**
  * Barras horizontales ordenadas (gastos por categoría, por medio de pago…): una sola serie, así que el color
@@ -848,10 +859,10 @@ function seccionAnalisis(actual) {
 
   return h('div', { class: 'analisis' },
     h('div', { class: 'tarjetas datos' },
-      dato('Gasto promedio por día', dinero(hechosHastaHoy.reduce((s, m) => s + m.monto, 0) / Math.max(dias, 1)), esActual ? `en los ${dias} días que van del mes` : `en ${dias} días`),
-      dato('Mayor gasto', mayor ? dinero(mayor.monto) : '—', mayor ? `${mayor.descripcion} · ${fechaCorta(mayor.fecha)}` : 'Sin gastos'),
-      dato('Día con más gasto', porDia ? fechaCorta(porDia.nombre) : '—', porDia ? `${dinero(porDia.total)} en ${porDia.cuantos} movimiento${porDia.cuantos === 1 ? '' : 's'}` : 'Sin gastos'),
-      dato('Ahorro del mes', dinero(t.balance), t.ingresos > 0 ? `${porcentaje(Math.max(t.balance, 0), t.ingresos)} % de los ingresos` : 'Sin ingresos este mes'),
+      dato('Gasto promedio por día', dinero(hechosHastaHoy.reduce((s, m) => s + m.monto, 0) / Math.max(dias, 1)), esActual ? `en los ${dias} días que van del mes` : `en ${dias} días`, 'pulso', 'gasto'),
+      dato('Mayor gasto', mayor ? dinero(mayor.monto) : '—', mayor ? `${mayor.descripcion} · ${fechaCorta(mayor.fecha)}` : 'Sin gastos', 'alza', 'gasto'),
+      dato('Día con más gasto', porDia ? fechaCorta(porDia.nombre) : '—', porDia ? `${dinero(porDia.total)} en ${porDia.cuantos} movimiento${porDia.cuantos === 1 ? '' : 's'}` : 'Sin gastos', 'calendario', 'gasto'),
+      dato('Ahorro del mes', dinero(t.balance), t.ingresos > 0 ? (t.balance >= 0 ? `${porcentaje(t.balance, t.ingresos)} % de lo que entró` : 'Este mes sale más de lo que entra') : 'Sin ingresos este mes', 'billetera', t.balance >= 0 ? 'ingreso' : 'pendiente'),
     ),
     h('section', { class: 'panel' },
       h('header', null, h('h3', null, 'Cómo va el mes'), h('span', { class: 'tenue' }, 'ingresos y gastos acumulados día a día')),
@@ -1045,18 +1056,23 @@ function pintarMes({ actual, proximo, pendientes }) {
     ),
 
     h('div', { class: 'tarjetas' },
-      tarjeta('Ingresos', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido'),
-      tarjeta('Gastos', dinero(t.gastos), `${dinero(t.gastos - t.gastosPendientes)} ya pagado`),
-      tarjeta('Balance', dinero(t.balance), 'Ingresos menos gastos', 'destacada'),
-      tarjeta('Falta por pagar', dinero(t.gastosPendientes), 'Gastos sin pagar del mes'),
+      tarjeta('Ingresos', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresos - t.ingresosPendientes)} recibido · ${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido',
+        '', { icono: 'entrada', tono: 'ingreso', progreso: t.ingresos > 0 ? (t.ingresos - t.ingresosPendientes) / t.ingresos : 0 }),
+      tarjeta('Gastos', dinero(t.gastos), `${dinero(t.gastos - t.gastosPendientes)} ya pagado (${t.gastos > 0 ? Math.round(((t.gastos - t.gastosPendientes) / t.gastos) * 100) : 0} %)`,
+        '', { icono: 'salida', tono: 'gasto', progreso: t.gastos > 0 ? (t.gastos - t.gastosPendientes) / t.gastos : 0 }),
+      tarjeta('Balance', dinero(t.balance), t.balance >= 0 ? 'Ingresos menos gastos: vas en positivo' : 'Ingresos menos gastos: gastas más de lo que entra', 'destacada', { icono: 'balanza' }),
+      tarjeta('Falta por pagar', dinero(t.gastosPendientes), sinPagar.filter((m) => m.tipo === 'gasto').length ? `${sinPagar.filter((m) => m.tipo === 'gasto').length} pagos pendientes este mes` : 'Nada pendiente este mes',
+        '', { icono: 'reloj', tono: 'pendiente' }),
     ),
 
     h('button', { type: 'button', class: 'tira', onclick: () => irAMes(siguiente), title: 'Ver el mes siguiente' },
-      h('strong', null, `Próximo mes · ${nombreMes(siguiente, { month: 'long' })}`),
-      h('span', null, `Ingresos ${dinero(tp.ingresos)}`),
-      h('span', null, `Gastos ${dinero(tp.gastos)}`),
-      h('span', null, h('b', null, `Balance ${dinero(tp.balance)}`)),
-      h('span', { class: 'flecha', 'aria-hidden': 'true' }, '›'),
+      h('span', { class: 'burbuja' }, icono('calendario')),
+      h('span', { class: 'tira-titulo' }, h('small', null, 'Próximo mes'), h('strong', { class: 'capital' }, nombreMes(siguiente, { month: 'long' }))),
+      h('span', { class: 'tira-datos' },
+        h('span', { class: 'tira-dato' }, h('small', null, 'Ingresos'), h('b', null, dinero(tp.ingresos))),
+        h('span', { class: 'tira-dato' }, h('small', null, 'Gastos'), h('b', null, dinero(tp.gastos))),
+        h('span', { class: 'tira-dato' }, h('small', null, 'Balance'), h('b', { class: tp.balance < 0 ? 'negativo' : '' }, dinero(tp.balance)))),
+      h('span', { class: 'flecha', 'aria-hidden': 'true' }, icono('flecha')),
     ),
 
     segmentos('mes', [
@@ -1183,10 +1199,10 @@ function pintarAnio(r) {
     ),
 
     h('div', { class: 'tarjetas' },
-      tarjeta('Ingresos del año', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido'),
-      tarjeta('Gastos del año', dinero(t.gastos), `${dinero(t.gastosPagados)} ya pagado`),
-      tarjeta('Balance del año', dinero(t.balance), 'Ingresos menos gastos', 'destacada'),
-      tarjeta('Falta por pagar', dinero(t.gastosPendientes), 'Gastos sin pagar del año'),
+      tarjeta('Ingresos del año', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido', '', { icono: 'entrada', tono: 'ingreso' }),
+      tarjeta('Gastos del año', dinero(t.gastos), `${dinero(t.gastosPagados)} ya pagado`, '', { icono: 'salida', tono: 'gasto', progreso: t.gastos > 0 ? t.gastosPagados / t.gastos : 0 }),
+      tarjeta('Balance del año', dinero(t.balance), 'Ingresos menos gastos', 'destacada', { icono: 'balanza' }),
+      tarjeta('Falta por pagar', dinero(t.gastosPendientes), 'Gastos sin pagar del año', '', { icono: 'reloj', tono: 'pendiente' }),
     ),
 
     segmentos('anio', [['grafica', 'Gráfica'], ['meses', 'Por mes'], ['categorias', 'Categorías']]),

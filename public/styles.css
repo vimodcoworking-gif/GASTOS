@@ -498,7 +498,7 @@ dialog h2 { margin-bottom: 1rem; }
 .chips-filtro { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .chips-filtro .filtro { min-height: 34px; padding: .25rem .7rem; border-radius: 999px; font-size: .8rem; font-weight: 600; }
 .chips-filtro .filtro small { color: var(--tenue); font-weight: 700; }
-.chips-filtro .filtro.activo { background: var(--tinta); color: var(--fondo); border-color: var(--tinta); }
+.chips-filtro .filtro.activo { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); }
 .chips-filtro .filtro.activo small { color: inherit; opacity: .75; }
 .filtro-entidad { width: auto; min-height: 34px; padding: .2rem .6rem; font-size: .8rem; border-radius: 999px; }
 .filtro-total { margin: .45rem 0 0; font-size: .82rem; }
@@ -592,4 +592,80 @@ dialog h2 { margin-bottom: 1rem; }
   .barras-h-pista { grid-area: pista; height: 10px; }
   .tooltip { min-width: 0; font-size: .74rem; }
   .cabecera-dia { font-size: .8rem; }
+}
+
+
+/* ========== Rediseño de cuadros (tarjetas, franja, pestañas y paneles) ========== */
+:root { --radio: 18px; --sombra: 0 1px 2px rgba(16, 16, 16, .05), 0 6px 20px rgba(16, 16, 16, .05); --tono-ingreso: #2a78d6; --tono-gasto: #e05a24; --tono-pendiente: #d7141f; }
+.tarjeta, .panel, .tira { border-radius: var(--radio); box-shadow: var(--sombra); }
+:root[data-tema="claro"] :is(.panel, .tarjeta, .tira) { border-color: #e6e6e6; }
+
+/* Tarjetas de resumen */
+.tarjetas { gap: .85rem; }
+.tarjeta { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.1rem 1.05rem; transition: transform .15s ease, box-shadow .15s ease; }
+.tarjeta-cabeza { display: flex; align-items: center; gap: .55rem; margin-bottom: .35rem; min-width: 0; }
+.tarjeta .etiqueta { font-size: .7rem; letter-spacing: .07em; line-height: 1.2; }
+.tarjeta .valor { margin: 0; font-size: clamp(1.2rem, 2.2vw, 1.6rem); letter-spacing: -.01em; }
+.tarjeta .nota { font-size: .78rem; line-height: 1.35; }
+.burbuja { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 11px; background: var(--realce); color: var(--tinta); }
+.burbuja .icono { width: 18px; height: 18px; stroke-width: 2.2; }
+.tono-ingreso .burbuja { background: color-mix(in srgb, var(--tono-ingreso) 13%, #fff); color: var(--tono-ingreso); }
+.tono-gasto .burbuja { background: color-mix(in srgb, var(--tono-gasto) 13%, #fff); color: var(--tono-gasto); }
+.tono-pendiente .burbuja { background: color-mix(in srgb, var(--tono-pendiente) 11%, #fff); color: var(--tono-pendiente); }
+.tarjeta.destacada .burbuja { background: rgba(255, 255, 255, .14); color: #fff; }
+.progreso { height: 6px; margin-top: .55rem; border-radius: 999px; background: var(--realce); overflow: hidden; }
+.progreso span { display: block; height: 100%; border-radius: 999px; background: var(--tinta); }
+.tono-ingreso .progreso span { background: var(--tono-ingreso); }
+.tono-gasto .progreso span { background: var(--tono-gasto); }
+
+/* Franja del mes siguiente */
+button.tira { gap: .75rem 1.25rem; flex-wrap: nowrap; padding: .75rem 1rem; min-height: 64px; box-shadow: var(--sombra); }
+button.tira:hover { background: var(--superficie); box-shadow: 0 2px 4px rgba(16, 16, 16, .06), 0 10px 26px rgba(16, 16, 16, .08); }
+.tira-titulo { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.tira-titulo small, .tira-dato small { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--tenue); }
+.tira-titulo strong { font-family: var(--gruesa); font-size: 1rem; text-transform: none; letter-spacing: 0; }
+.tira-datos { display: flex; flex-wrap: wrap; gap: .4rem 1.6rem; margin-left: auto; }
+.tira-dato { display: flex; flex-direction: column; line-height: 1.25; white-space: nowrap; }
+.tira-dato b { font-variant-numeric: tabular-nums; font-size: .98rem; }
+.tira-dato b.negativo { color: var(--rojo); }
+.tira .flecha { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; margin-left: .25rem; border-radius: 50%; background: var(--realce); font-size: 1rem; }
+
+/* Pestañas: selector segmentado dentro de un solo cuadro */
+.segmentos { padding: 4px; gap: 4px; border: 1px solid #e3e3e3; border-radius: 999px; background: #fff; box-shadow: var(--sombra); }
+:root:not([data-tema="claro"]) .segmentos { border-color: #2c2c2c; background: #141414; }
+.segmentos button { min-height: 42px; border: 0; border-radius: 999px; background: none; color: var(--tenue); font-weight: 700; transition: background .15s ease, color .15s ease; }
+:root[data-tema="claro"] .segmentos button { color: #4a4a4a; }
+.segmentos button:hover { background: rgba(127, 127, 127, .12); }
+.segmentos button[aria-selected="true"] { background: var(--tinta); color: var(--fondo); }
+:root[data-tema="claro"] .segmentos button[aria-selected="true"] { background: #0b0b0b; color: #fff; }
+
+/* Paneles */
+.panel { padding: 1.1rem 1.2rem; }
+.panel > header { margin-bottom: .85rem; }
+.panel > header h3 { font-size: .86rem; letter-spacing: .06em; }
+
+@media (hover: hover) {
+  .tarjeta:not(.destacada):hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(16, 16, 16, .06), 0 10px 26px rgba(16, 16, 16, .08); }
+}
+
+@media (max-width: 900px) {
+  .tira-datos { gap: .3rem 1.1rem; }
+}
+
+@media (max-width: 640px) {
+  .tarjetas { gap: .55rem; }
+  .tarjeta { padding: .8rem .85rem .85rem; }
+  .burbuja { width: 30px; height: 30px; border-radius: 10px; }
+  .burbuja .icono { width: 16px; height: 16px; }
+  .tarjeta .valor { font-size: clamp(1.05rem, 5vw, 1.3rem); }
+  .tarjeta .etiqueta { font-size: .64rem; }
+  .tarjeta .nota { font-size: .72rem; }
+  /* Franja: título arriba y los tres importes en una fila debajo. */
+  button.tira { flex-wrap: wrap; padding: .75rem .85rem; }
+  .tira-titulo { flex: 1; }
+  .tira-datos { order: 3; width: 100%; margin-left: 0; justify-content: space-between; padding-top: .55rem; border-top: 1px solid var(--linea); }
+  .tira-dato b { font-size: .9rem; }
+  .segmentos.n4 { border-radius: 20px; }
+  .segmentos.n4 button { border-radius: 16px; }
+  .panel { padding: .95rem .9rem; }
 }
