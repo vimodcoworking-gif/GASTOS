@@ -434,6 +434,14 @@ function avisoDeConsumo(correo) {
   };
 }
 
+// Dirección del dinero en avisos de Yape o Plin, o null si el texto no lo deja claro.
+export function direccionDeBilletera(texto) {
+  const t = String(texto ?? '').trim();
+  if (/^(?:yapeo|plineo|yape|plin)\s+(?:a|para)\s/i.test(t) || /\b(?:yapeaste|plineaste)\b/i.test(t)) return 'gasto';
+  if (/^(?:yapeo|plineo|yape|plin)\s+de\s/i.test(t) || /\bte\s+(?:yapearon|plinearon)\b/i.test(t)) return 'ingreso';
+  return null;
+}
+
 const dias = (a, b) => Math.abs(new Date(`${a}T00:00:00Z`) - new Date(`${b}T00:00:00Z`)) / 86400000;
 
 // Convierte lo que dijo la IA (o el filtro sin IA) en datos para registrar, o null si no es un gasto.
@@ -449,8 +457,11 @@ async function interpretar(correo, monedaLibro, titular) {
   }
   gasto ??= gastoSinIa(correo);
   // «esGasto» es el formato anterior de la respuesta; se sigue aceptando.
-  const tipo = gasto?.tipo === 'ingreso' ? 'ingreso' : esGasto(gasto) ? 'gasto' : null;
+  let tipo = gasto?.tipo === 'ingreso' ? 'ingreso' : esGasto(gasto) ? 'gasto' : null;
   if (!tipo) return null;
+  // «Yapeo a JUAN», «Yapeaste…» es dinero que sale; «Yapeo de JUAN», «Te yapearon…», dinero que entra.
+  // La IA a veces se equivoca con estas frases tan cortas: la dirección escrita manda.
+  tipo = direccionDeBilletera(gasto.descripcion) ?? direccionDeBilletera(correo.asunto) ?? tipo;
   const monto = Math.round(Number(gasto.monto) * 100) / 100;
   if (!Number.isFinite(monto) || monto <= 0) return null;
   const descripcion = typeof gasto.descripcion === 'string' && gasto.descripcion.trim() ? gasto.descripcion.trim() : correo.asunto || (tipo === 'gasto' ? 'Gasto por correo' : 'Ingreso por correo');

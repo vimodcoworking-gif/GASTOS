@@ -424,6 +424,15 @@ export async function corregirMediosBilletera() {
   return hechos;
 }
 
+// Avisos de «Yapeo a JUAN» (dinero que sale) que se registraron como ingreso.
+export async function corregirYapeosEnviados() {
+  const r = await Movimiento.updateMany(
+    { tipo: 'ingreso', descripcion: /^(?:yapeo|plineo|yape|plin)\s+(?:a|para)\s/i },
+    { $set: { tipo: 'gasto', pagado: true } },
+  );
+  return r.modifiedCount;
+}
+
 export async function completarMedios() {
   const { CorreoRevisado } = await import('./models.js');
   let hechos = 0;

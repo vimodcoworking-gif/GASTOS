@@ -14,7 +14,7 @@ import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
 import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail } from './google.js';
 import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
-import { separarRegistrosUnidos, completarMedios, corregirMediosBilletera } from './bot.js';
+import { separarRegistrosUnidos, completarMedios, corregirMediosBilletera, corregirYapeosEnviados } from './bot.js';
 import { Ajuste } from './models.js';
 
 const publico = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -67,7 +67,8 @@ conectar()
     if (!estadoBd.lista) return;
     // Correcciones de datos que se hacen una sola vez (quedan anotadas en Ajuste).
     corregirUnaVez('correccion:registros-unidos', separarRegistrosUnidos).then(() => corregirUnaVez('correccion:medios-de-pago-2', completarMedios))
-      .then(() => corregirUnaVez('correccion:medios-yape-plin', corregirMediosBilletera));
+      .then(() => corregirUnaVez('correccion:medios-yape-plin', corregirMediosBilletera))
+      .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados));
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
     return reanudarWhatsapp();
