@@ -690,6 +690,8 @@ const TRAZOS_ICONO = {
   flecha: '<path d="m9 6 6 6-6 6"/>',
   'flecha-izq': '<path d="m15 6-6 6 6 6"/>',
   descargar: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
+  deshacer: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   imagen: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.8"/><path d="m21 15-4.5-4.5L6 21"/>',
 };
 
@@ -792,8 +794,10 @@ function filaMovimiento(m, editar) {
   return h('li', { class: 'mov' },
     h('button', { type: 'button', class: 'mov-abrir', title: 'Editar o eliminar', onclick: () => abrirMovimiento(m) }, contenido),
     m.pagado
-      ? h('button', { type: 'button', class: 'mini', onclick: () => marcarPagado(m, false), 'aria-label': `Deshacer el pago de ${m.descripcion}` }, 'Deshacer')
-      : h('button', { type: 'button', class: 'mini primario', onclick: () => marcarPagado(m, true) }, m.tipo === 'gasto' ? 'Pagar' : 'Cobrar'),
+      ? h('button', { type: 'button', class: 'mini accion-mov', onclick: () => marcarPagado(m, false), title: 'Volver a dejarlo pendiente', 'aria-label': `Deshacer el pago de ${m.descripcion}` },
+        icono('deshacer'), h('span', { class: 'accion-texto' }, 'Deshacer'))
+      : h('button', { type: 'button', class: 'mini primario accion-mov', onclick: () => marcarPagado(m, true), 'aria-label': `${m.tipo === 'gasto' ? 'Pagar' : 'Cobrar'} ${m.descripcion}` },
+        icono('check'), h('span', { class: 'accion-texto' }, m.tipo === 'gasto' ? 'Pagar' : 'Cobrar')),
   );
 }
 
