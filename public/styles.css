@@ -1018,3 +1018,27 @@ dialog.cajon { border-radius: 0 30px 30px 0; background: var(--t-sup); }
 .nav-calendario strong { font-size: 1.02rem; font-weight: 800; }
 button.primario { font-size: .95rem; letter-spacing: 0; }
 th { font-size: .78rem; font-weight: 600; }
+
+/* ========== Asistente: el chat ocupa la pantalla disponible ========== */
+.chat-panel { height: max(420px, calc(100dvh - 230px)); }
+.chat-lista { flex: 1; min-height: 0; max-height: none; }
+/* Sin mensajes: la presentación queda centrada en el hueco del chat. */
+.chat-lista > .vacio:only-child { margin: auto; max-width: 30rem; }
+.burbuja.yo { background: var(--lima); color: var(--sobre-lima); }
+.burbuja.ia { background: var(--t-elev); color: var(--t-tinta); }
+/* Sugerencias: se deslizan sin barra visible y un degradado indica que hay más. */
+.sugerencias { flex: none; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.sugerencias::-webkit-scrollbar { display: none; }
+.chat-form { flex: none; }
+.chat-form input { min-height: 48px; }
+.chat-form button { min-height: 48px; }
+@media (min-width: 900px) {
+  .sugerencias { -webkit-mask-image: none; mask-image: none; }
+}
+@media (max-width: 900px) {
+  /* Encima de la barra de navegación inferior. */
+  .chat-panel { height: max(300px, calc(100dvh - 340px - env(safe-area-inset-bottom))); }
+}
+
+/* Botones principales en tipo oración, igual que el resto. */
+button.primario { text-transform: none; letter-spacing: 0; }
