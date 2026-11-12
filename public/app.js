@@ -670,7 +670,7 @@ const tarjeta = (etiqueta, valor, nota, clase = '') =>
 // Botones que cambian la sección visible de una vista sin volver a pedir los datos.
 // opciones: [valor, etiqueta, contador opcional, contador en rojo]
 function segmentos(vista, opciones) {
-  return h('div', { class: 'segmentos', role: 'tablist' },
+  return h('div', { class: `segmentos n${opciones.length}`, role: 'tablist' },
     opciones.map(([valor, etiqueta, contador, rojo]) =>
       h('button', {
         type: 'button',
@@ -682,6 +682,221 @@ function segmentos(vista, opciones) {
         },
       }, etiqueta, contador > 0 && h('span', { class: rojo ? 'cuenta' : 'cuenta neutra' }, String(contador))),
     ),
+  );
+}
+
+// ---------- vista: mes · gráficas ----------
+
+const NOMBRE_MEDIO_CORTO = { yape: 'Yape', plin: 'Plin', tarjeta: 'Tarjeta', transferencia: 'Transferencia', efectivo: 'Efectivo', otro: 'Otro' };
+const porcentaje = (parte, total) => (total > 0 ? Math.round((parte / total) * 100) : 0);
+
+// Tarjeta pequeña con un dato destacado.
+const dato = (etiqueta, valor, nota) =>
+  h('div', { class: 'tarjeta dato' },
+    h('div', { class: 'etiqueta' }, etiqueta),
+    h('div', { class: 'valor' }, valor),
+    nota && h('div', { class: 'nota' }, nota));
+
+/**
+ * Barras horizontales ordenadas (gastos por categoría, por medio de pago…): una sola serie, así que el color
+ * es el de la serie y cada barra lleva su importe y su porcentaje escritos.
+ * «filas»: [{ nombre, total, icono?, cuantos }]
+ */
+function barrasHorizontales(filas, { serie = 'gasto', vacio = 'Sin datos este mes.', max = 8 } = {}) {
+  if (!filas.length) return h('p', { class: 'vacio' }, vacio);
+  const total = filas.reduce((s, f) => s + f.total, 0);
+  // Más de «max» filas: el resto se agrupa en «Otras» para que la lista no se alargue.
+  const visibles = filas.length > max
+    ? [...filas.slice(0, max - 1), { nombre: `Otras (${filas.length - max + 1})`, total: filas.slice(max - 1).reduce((s, f) => s + f.total, 0), cuantos: filas.slice(max - 1).reduce((s, f) => s + f.cuantos, 0) }]
+    : filas;
+  const mayor = Math.max(...visibles.map((f) => f.total));
+  return h('ul', { class: 'barras-h' },
+    visibles.map((f) => h('li', { title: `${f.nombre}: ${dinero(f.total)} (${porcentaje(f.total, total)} %) · ${f.cuantos} movimiento${f.cuantos === 1 ? '' : 's'}` },
+      h('div', { class: 'barras-h-nombre' }, f.icono && icono(f.icono), h('span', null, f.nombre)),
+      h('div', { class: 'barras-h-pista' }, h('div', { class: `barras-h-barra serie-${serie}`, style: `width:${Math.max((f.total / mayor) * 100, 1.5)}%` })),
+      h('div', { class: 'barras-h-valor' }, h('strong', null, dinero(f.total)), h('small', null, `${porcentaje(f.total, total)} %`)),
+    )));
+}
+
+// Agrupa movimientos por una clave y suma sus importes, de mayor a menor.
+function agrupar(movimientos, clave) {
+  const grupos = new Map();
+  for (const m of movimientos) {
+    const k = clave(m);
+    const g = grupos.get(k) ?? { nombre: k, total: 0, cuantos: 0 };
+    g.total += m.monto;
+    g.cuantos += 1;
+    grupos.set(k, g);
+  }
+  return [...grupos.values()].sort((a, b) => b.total - a.total);
+}
+
+/**
+ * Ingresos y gastos acumulados día a día: dos líneas (azul ingresos, naranja gastos) con leyenda,
+ * etiqueta al final de cada línea y una guía al pasar el dedo o el ratón que muestra los valores del día.
+ */
+function graficaAcumulada(movimientos, mes) {
+  const [anio, numMes] = mes.split('-').map(Number);
+  const diasMes = new Date(Date.UTC(anio, numMes, 0)).getUTCDate();
+  const esActual = hoy().startsWith(mes);
+  // En el mes en curso la línea llega hasta hoy; lo programado después no se dibuja como hecho.
+  const ultimoDia = esActual ? Number(hoy().slice(8, 10)) : diasMes;
+  const acumulado = (tipo) => {
+    const porDia = Array(diasMes + 1).fill(0);
+    for (const m of movimientos) if (m.tipo === tipo) porDia[Number(m.fecha.slice(8, 10))] += m.monto;
+    const serie = [];
+    let suma = 0;
+    for (let d = 1; d <= ultimoDia; d += 1) {
+      suma += porDia[d];
+      serie.push(suma);
+    }
+    return serie;
+  };
+  const ingresos = acumulado('ingreso');
+  const gastos = acumulado('gasto');
+  const tope = Math.max(1, ...ingresos, ...gastos);
+  // Escala «redonda» para las tres líneas guía.
+  const paso = 10 ** Math.floor(Math.log10(tope));
+  const maximo = Math.ceil(tope / paso) * paso;
+  const x = (dia) => (diasMes === 1 ? 0 : ((dia - 1) / (diasMes - 1)) * 100);
+  const y = (valor) => 100 - (valor / maximo) * 100;
+  const trazo = (serie) => serie.map((v, i) => `${i ? 'L' : 'M'}${x(i + 1).toFixed(2)},${y(v).toFixed(2)}`).join(' ');
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('class', 'linea-svg');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = [0.5, 1].map((f) => `<line class="guia" x1="0" x2="100" y1="${y(maximo * f)}" y2="${y(maximo * f)}"/>`).join('')
+    + `<line class="base" x1="0" x2="100" y1="100" y2="100"/>`
+    + `<path class="serie-linea serie-ingreso" d="${trazo(ingresos)}"/>`
+    + `<path class="serie-linea serie-gasto" d="${trazo(gastos)}"/>`;
+
+  const ultimo = ultimoDia;
+  const punto = (serie, clase) => h('span', { class: `punto-final ${clase}`, style: `left:${x(ultimo)}%;top:${y(serie[ultimo - 1])}%` });
+  const guia = h('div', { class: 'linea-guia', hidden: true });
+  const marcaI = h('span', { class: 'punto-guia serie-ingreso', hidden: true });
+  const marcaG = h('span', { class: 'punto-guia serie-gasto', hidden: true });
+  const tip = h('div', { class: 'tooltip', hidden: true, role: 'status' });
+  const area = h('div', { class: 'linea-area' }, svg, punto(ingresos, 'serie-ingreso'), punto(gastos, 'serie-gasto'), guia, marcaI, marcaG, tip);
+
+  // Guía al pasar el puntero: el día más cercano, con sus dos acumulados y lo de ese día.
+  const mostrar = (ev) => {
+    const caja = area.getBoundingClientRect();
+    const fraccion = Math.min(Math.max((ev.clientX - caja.left) / caja.width, 0), 1);
+    const dia = Math.min(Math.max(Math.round(fraccion * (diasMes - 1)) + 1, 1), ultimo);
+    const i = dia - 1;
+    const fecha = `${mes}-${String(dia).padStart(2, '0')}`;
+    const delDia = (tipo) => movimientos.filter((m) => m.fecha === fecha && m.tipo === tipo).reduce((s, m) => s + m.monto, 0);
+    for (const [el, serie] of [[marcaI, ingresos], [marcaG, gastos]]) {
+      el.hidden = false;
+      el.style.left = `${x(dia)}%`;
+      el.style.top = `${y(serie[i])}%`;
+    }
+    guia.hidden = false;
+    guia.style.left = `${x(dia)}%`;
+    tip.hidden = false;
+    tip.replaceChildren(
+      h('strong', null, fechaTexto(fecha, { weekday: 'short', day: 'numeric', month: 'short' })),
+      h('div', null, h('i', { class: 'muestra serie-ingreso' }), `Ingresos: ${dinero(ingresos[i])}`, delDia('ingreso') ? h('small', null, ` (+${dinero(delDia('ingreso'))} ese día)`) : null),
+      h('div', null, h('i', { class: 'muestra serie-gasto' }), `Gastos: ${dinero(gastos[i])}`, delDia('gasto') ? h('small', null, ` (+${dinero(delDia('gasto'))} ese día)`) : null),
+    );
+    // El cuadro se pone al lado contrario del puntero para no taparlo.
+    tip.style.left = fraccion > 0.55 ? 'auto' : `calc(${x(dia)}% + 12px)`;
+    tip.style.right = fraccion > 0.55 ? `calc(${100 - x(dia)}% + 12px)` : 'auto';
+  };
+  const ocultar = () => [guia, marcaI, marcaG, tip].forEach((el) => { el.hidden = true; });
+  area.addEventListener('pointermove', mostrar);
+  area.addEventListener('pointerdown', mostrar);
+  area.addEventListener('pointerleave', ocultar);
+
+  const etiquetasX = [1, Math.ceil(diasMes / 2), diasMes].map((d) => h('span', { style: `left:${x(d)}%` }, fechaTexto(`${mes}-${String(d).padStart(2, '0')}`, { day: 'numeric', month: 'short' })));
+  return h('div', { class: 'grafica-linea' },
+    h('div', { class: 'leyenda' },
+      h('span', null, h('i', { class: 'muestra serie-ingreso' }), 'Ingresos ', h('strong', null, dinero(ingresos.at(-1) ?? 0))),
+      h('span', null, h('i', { class: 'muestra serie-gasto' }), 'Gastos ', h('strong', null, dinero(gastos.at(-1) ?? 0))),
+    ),
+    h('div', { class: 'linea-marco' },
+      h('div', { class: 'eje-y' }, h('span', { style: 'top:0%' }, dinero(maximo)), h('span', { style: 'top:50%' }, dinero(maximo / 2)), h('span', { style: 'top:100%' }, dinero(0))),
+      area,
+    ),
+    h('div', { class: 'eje-x' }, etiquetasX),
+    esActual && ultimo < diasMes && h('p', { class: 'tenue nota-grafica' }, 'Hasta hoy. Lo programado para los próximos días está en «Pendientes».'),
+  );
+}
+
+function seccionAnalisis(actual) {
+  const gastos = actual.filter((m) => m.tipo === 'gasto');
+  const ingresos = actual.filter((m) => m.tipo === 'ingreso');
+  const t = totales(actual);
+  const esActual = hoy().startsWith(estado.mes);
+  const [anio, numMes] = estado.mes.split('-').map(Number);
+  const dias = esActual ? Number(hoy().slice(8, 10)) : new Date(Date.UTC(anio, numMes, 0)).getUTCDate();
+  const hechosHastaHoy = gastos.filter((m) => !esActual || m.fecha <= hoy());
+  const mayor = [...gastos].sort((a, b) => b.monto - a.monto)[0];
+  const porDia = agrupar(hechosHastaHoy, (m) => m.fecha)[0];
+  const tipo = estado.analisisTipo ?? 'gasto';
+  const deTipo = tipo === 'gasto' ? gastos : ingresos;
+  const cambiarTipo = (nuevo) => () => {
+    estado.analisisTipo = nuevo;
+    render(true);
+  };
+  const conmutador = h('div', { class: 'conmutador', role: 'group', 'aria-label': 'Ver gastos o ingresos' },
+    ['gasto', 'ingreso'].map((v) => h('button', { type: 'button', class: tipo === v ? 'activo' : '', 'aria-pressed': String(tipo === v), onclick: cambiarTipo(v) }, v === 'gasto' ? 'Gastos' : 'Ingresos')));
+
+  if (!actual.length) return h('section', { class: 'panel' }, h('p', { class: 'vacio' }, 'No hay movimientos este mes para mostrar gráficas.'));
+
+  return h('div', { class: 'analisis' },
+    h('div', { class: 'tarjetas datos' },
+      dato('Gasto promedio por día', dinero(hechosHastaHoy.reduce((s, m) => s + m.monto, 0) / Math.max(dias, 1)), esActual ? `en los ${dias} días que van del mes` : `en ${dias} días`),
+      dato('Mayor gasto', mayor ? dinero(mayor.monto) : '—', mayor ? `${mayor.descripcion} · ${fechaCorta(mayor.fecha)}` : 'Sin gastos'),
+      dato('Día con más gasto', porDia ? fechaCorta(porDia.nombre) : '—', porDia ? `${dinero(porDia.total)} en ${porDia.cuantos} movimiento${porDia.cuantos === 1 ? '' : 's'}` : 'Sin gastos'),
+      dato('Ahorro del mes', dinero(t.balance), t.ingresos > 0 ? `${porcentaje(Math.max(t.balance, 0), t.ingresos)} % de los ingresos` : 'Sin ingresos este mes'),
+    ),
+    h('section', { class: 'panel' },
+      h('header', null, h('h3', null, 'Cómo va el mes'), h('span', { class: 'tenue' }, 'ingresos y gastos acumulados día a día')),
+      graficaAcumulada(actual, estado.mes),
+    ),
+    h('div', { class: 'dos-columnas' },
+      h('section', { class: 'panel' },
+        h('header', null, h('h3', null, tipo === 'gasto' ? 'Gastos por categoría' : 'Ingresos por categoría'), h('span', { class: 'espacio' }), conmutador),
+        barrasHorizontales(agrupar(deTipo, (m) => m.categoria || 'General'), { serie: tipo, vacio: tipo === 'gasto' ? 'Sin gastos este mes.' : 'Sin ingresos este mes.' }),
+      ),
+      h('section', { class: 'panel' },
+        h('header', null, h('h3', null, tipo === 'gasto' ? 'Gastos por medio de pago' : 'Ingresos por medio')),
+        barrasHorizontales(
+          agrupar(deTipo, (m) => (m.medio ? [NOMBRE_MEDIO_CORTO[m.medio], ['tarjeta', 'transferencia'].includes(m.medio) && m.entidad].filter(Boolean).join(' · ') : 'Sin indicar'))
+            .map((f) => ({ ...f, icono: MEDIOS[Object.keys(NOMBRE_MEDIO_CORTO).find((k) => f.nombre.startsWith(NOMBRE_MEDIO_CORTO[k]))]?.icono })),
+          { serie: tipo, vacio: 'Sin datos este mes.' },
+        ),
+      ),
+    ),
+  );
+}
+
+// Movimientos agrupados por día, del más reciente al más antiguo, con lo que entró y salió cada día.
+function listaPorDia(movimientos, editar, textoVacio) {
+  if (!movimientos.length) return h('p', { class: 'vacio' }, textoVacio);
+  const dias = new Map();
+  for (const m of [...movimientos].sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))) {
+    if (!dias.has(m.fecha)) dias.set(m.fecha, []);
+    dias.get(m.fecha).push(m);
+  }
+  const ayer = sumarDias(hoy(), -1);
+  return h('div', { class: 'por-dia' },
+    [...dias.entries()].map(([fecha, lista]) => {
+      const suma = (tipo) => lista.filter((m) => m.tipo === tipo).reduce((s, m) => s + m.monto, 0);
+      const titulo = fecha === hoy() ? 'Hoy' : fecha === ayer ? 'Ayer' : fechaTexto(fecha, { weekday: 'long', day: 'numeric', month: 'short' });
+      return h('section', { class: 'grupo-dia' },
+        h('header', { class: 'cabecera-dia' },
+          h('strong', { class: 'capital' }, titulo),
+          h('span', { class: 'totales-dia' },
+            suma('ingreso') > 0 && h('span', { class: 'monto ingreso' }, `+${dinero(suma('ingreso'))}`),
+            suma('gasto') > 0 && h('span', { class: 'monto gasto' }, `−${dinero(suma('gasto'))}`)),
+        ),
+        h('ul', { class: 'lista' }, lista.map((m) => filaMovimiento(m, editar))),
+      );
+    }),
   );
 }
 
@@ -812,10 +1027,11 @@ function pintarMes({ actual, proximo, pendientes }) {
       ),
     movimientos: () =>
       h('section', { class: 'panel' },
-        h('header', null, h('h3', null, 'Movimientos del mes')),
+        h('header', null, h('h3', null, 'Movimientos del mes'), h('span', { class: 'tenue' }, 'del más reciente al más antiguo')),
         filtroMedios(actual),
-        listaMovimientos(actual.filter(pasaFiltroMedio), editar, 'No hay movimientos este mes con ese filtro.'),
+        listaPorDia(actual.filter(pasaFiltroMedio), editar, 'No hay movimientos este mes con ese filtro.'),
       ),
+    analisis: () => seccionAnalisis(actual),
   };
 
   return [
@@ -847,6 +1063,7 @@ function pintarMes({ actual, proximo, pendientes }) {
       ['calendario', 'Calendario'],
       ['pendientes', 'Pendientes', pendientesVista.length, true],
       ['movimientos', 'Movimientos', actual.length],
+      ['analisis', 'Gráficas'],
     ]),
     secciones[estado.seccion.mes](),
   ];

@@ -511,3 +511,85 @@ dialog h2 { margin-bottom: 1rem; }
 .marca { display: inline-flex; margin-left: .35rem; color: var(--tenue); vertical-align: middle; }
 .marca .icono { width: .9em; height: .9em; }
 .sincronizacion .icono { margin-right: .15rem; }
+
+/* ---------- Gráficas del mes ---------- */
+/* Colores de serie validados (azul ingresos / naranja gastos) sobre las superficies blancas de los paneles. */
+:root { --serie-ingreso: #2a78d6; --serie-gasto: #eb6834; --guia-grafica: #e1e0d9; --eje-grafica: #c3c2b7; }
+.serie-ingreso { --serie: var(--serie-ingreso); }
+.serie-gasto { --serie: var(--serie-gasto); }
+
+.analisis .tarjetas.datos .valor { font-size: clamp(1rem, 1.8vw, 1.3rem); }
+.tarjeta.dato .nota { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+.leyenda { display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; font-size: .85rem; color: var(--suave); }
+.leyenda span { display: inline-flex; align-items: center; gap: .4rem; }
+.leyenda strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
+.muestra { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--serie); flex: none; }
+
+.grafica-linea { margin-top: .4rem; }
+.linea-marco { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .5rem; margin-top: .9rem; }
+.eje-y { position: relative; width: 4.6rem; font-size: .7rem; color: var(--tenue); font-variant-numeric: tabular-nums; }
+.eje-y span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+.linea-area { position: relative; height: 220px; touch-action: pan-y; cursor: crosshair; }
+.linea-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.linea-svg .guia { stroke: var(--guia-grafica); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.linea-svg .base { stroke: var(--eje-grafica); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.linea-svg .serie-linea { fill: none; stroke: var(--serie); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.punto-final, .punto-guia { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--serie); box-shadow: 0 0 0 2px #fff; pointer-events: none; }
+.linea-guia { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--eje-grafica); pointer-events: none; }
+.tooltip { position: absolute; top: 4px; z-index: 2; min-width: 11rem; padding: .5rem .65rem; border: 1px solid var(--linea); border-radius: 10px; background: #fff; color: var(--tinta); box-shadow: 0 6px 18px rgba(0, 0, 0, .12); font-size: .8rem; line-height: 1.45; pointer-events: none; }
+.tooltip strong { display: block; margin-bottom: .15rem; text-transform: capitalize; }
+.tooltip div { display: flex; align-items: center; gap: .35rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tooltip small { color: var(--tenue); }
+.eje-x { position: relative; height: 1.2rem; margin: .35rem 0 0 5.1rem; font-size: .7rem; color: var(--tenue); }
+.eje-x span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.eje-x span:first-child { transform: none; }
+.eje-x span:last-child { transform: translateX(-100%); }
+.nota-grafica { margin: .4rem 0 0; font-size: .78rem; }
+
+.barras-h { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.barras-h li { display: grid; grid-template-columns: minmax(6.5rem, 34%) minmax(0, 1fr) auto; align-items: center; gap: .6rem; }
+.barras-h-nombre { display: flex; align-items: center; gap: .35rem; min-width: 0; font-size: .86rem; }
+.barras-h-nombre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barras-h-nombre .icono { color: var(--tenue); }
+.barras-h-pista { height: 14px; }
+.barras-h-barra { height: 100%; border-radius: 0 4px 4px 0; background: var(--serie); }
+.barras-h-valor { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.barras-h-valor strong { font-size: .86rem; }
+.barras-h-valor small { font-size: .7rem; color: var(--tenue); }
+
+.conmutador { display: inline-flex; padding: 2px; border: 1px solid var(--linea); border-radius: 999px; }
+.conmutador button { min-height: 32px; padding: .2rem .8rem; border: 0; border-radius: 999px; background: none; font-size: .8rem; font-weight: 700; }
+.conmutador button.activo { background: var(--tinta); color: var(--superficie); }
+
+/* ---------- Movimientos agrupados por día ---------- */
+.grupo-dia + .grupo-dia { margin-top: .9rem; }
+.cabecera-dia { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .45rem .6rem; margin: 0 -.2rem .15rem; border-radius: 8px; background: var(--realce); font-size: .85rem; }
+.totales-dia { display: inline-flex; gap: .7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.capital::first-letter { text-transform: uppercase; }
+
+/* ---------- Teléfonos ---------- */
+@media (max-width: 640px) {
+  /* Cuatro pestañas: en dos filas de dos, para que todas se vean sin desplazar. */
+  .segmentos.n4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .segmentos.n4 button { min-width: 0; }
+  /* Título del mes: los botones no se encogen y el nombre baja de línea si no cabe. */
+  .periodo > button { flex: none; }
+  .periodo h2 { font-size: 1rem; line-height: 1.15; }
+  /* El título ocupa el hueco libre; el espacio flexible le quitaba sitio y partía «noviembre». */
+  .periodo .espacio { display: none; }
+  /* Filtros por medio de pago en una sola fila deslizable. */
+  .chips-filtro { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; margin: 0 -.85rem; padding-left: .85rem; padding-right: .85rem; }
+  .chips-filtro::-webkit-scrollbar { display: none; }
+  .chips-filtro .filtro, .filtro-entidad { flex: none; }
+  .mov .monto { font-size: .95rem; }
+  .linea-area { height: 180px; }
+  .eje-y { width: 3.6rem; font-size: .64rem; }
+  .eje-x { margin-left: 4.1rem; font-size: .64rem; }
+  .barras-h li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nombre valor" "pista pista"; row-gap: .25rem; }
+  .barras-h-nombre { grid-area: nombre; }
+  .barras-h-valor { grid-area: valor; flex-direction: row; align-items: baseline; gap: .4rem; }
+  .barras-h-pista { grid-area: pista; height: 10px; }
+  .tooltip { min-width: 0; font-size: .74rem; }
+  .cabecera-dia { font-size: .8rem; }
+}
