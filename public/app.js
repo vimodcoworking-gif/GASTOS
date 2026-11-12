@@ -1006,7 +1006,7 @@ function pintarMes({ actual, proximo, pendientes }) {
 
   const secciones = {
     calendario: () =>
-      h('div', { class: 'dos-columnas' },
+      h('div', { class: 'dos-columnas columnas-calendario' },
         h('section', { class: 'panel' },
           // El mes también se cambia desde aquí, sin subir al principio de la página.
           h('div', { class: 'nav-calendario' },
@@ -1017,7 +1017,8 @@ function pintarMes({ actual, proximo, pendientes }) {
           ),
           calendario(actual),
         ),
-        h('section', { class: 'panel' },
+        // Movimientos del día o del mes: en PC, del mismo alto que el calendario y con la lista deslizable.
+        h('section', { class: 'panel panel-dia' },
           estado.dia
             ? [
                 h('header', null,
@@ -1025,7 +1026,7 @@ function pintarMes({ actual, proximo, pendientes }) {
                   h('span', { class: 'espacio' }),
                   h('button', { type: 'button', class: 'mini', onclick: verDia(null) }, `Ver todo ${mesCorto}`)),
                 filtroMedios(delDia),
-                listaMovimientos(delDia.filter(pasaFiltroMedio), editar, 'No hay movimientos este día con ese filtro.'),
+                h('div', { class: 'lista-desliza' }, listaMovimientos(delDia.filter(pasaFiltroMedio), editar, 'No hay movimientos este día con ese filtro.')),
                 editar && h('div', { class: 'pie-panel' },
                   h('button', { type: 'button', class: 'primario ancho', onclick: () => abrirMovimiento(null, estado.dia) }, '+ Añadir en este día')),
               ]
@@ -1037,7 +1038,7 @@ function pintarMes({ actual, proximo, pendientes }) {
                     ? `${sinPagar.length} ${sinPagar.length === 1 ? 'pendiente' : 'pendientes'} · ${dinero(t.gastosPendientes)} por pagar`
                     : actual.length ? 'todo al día' : '')),
                 filtroMedios(actual),
-                listaMovimientos([...sinPagar, ...actual.filter((m) => m.pagado)].filter(pasaFiltroMedio), editar, 'No hay movimientos este mes con ese filtro.'),
+                h('div', { class: 'lista-desliza' }, listaMovimientos([...sinPagar, ...actual.filter((m) => m.pagado)].filter(pasaFiltroMedio), editar, 'No hay movimientos este mes con ese filtro.')),
                 h('p', { class: 'tenue pie-panel' }, 'Toca un día del calendario para ver solo los de esa fecha.'),
               ],
         ),
