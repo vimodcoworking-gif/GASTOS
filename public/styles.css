@@ -669,3 +669,35 @@ button.tira:hover { background: var(--superficie); box-shadow: 0 2px 4px rgba(16
   .segmentos.n4 button { border-radius: 16px; }
   .panel { padding: .95rem .9rem; }
 }
+
+/* ========== Botones cómodos para el dedo ========== */
+/* En teléfonos y pantallas táctiles, todo lo que se pulsa mide al menos 42 px de alto. */
+@media (pointer: coarse), (max-width: 640px) {
+  button, select, summary { min-height: 42px; }
+  button.mini, .mov > button.mini { min-height: 42px; padding-left: .8rem; padding-right: .8rem; }
+  .chips-filtro .filtro, .filtro-entidad { min-height: 42px; padding-left: .85rem; padding-right: .85rem; }
+  .conmutador button { min-height: 40px; padding-left: 1rem; padding-right: 1rem; }
+  .sugerencias button { min-height: 42px; }
+  .tira .flecha { width: 40px; height: 40px; }
+  .instrucciones summary { display: flex; align-items: center; }
+}
+
+/* Sugerencias del asistente: en pantallas grandes bajan de línea en vez de deslizarse. */
+@media (min-width: 900px) {
+  .sugerencias { flex-wrap: wrap; overflow: visible; }
+}
+
+/* Gráfica del año en teléfonos muy estrechos: el nombre del mes no se corta. */
+@media (max-width: 360px) {
+  .grafica .nombre { font-size: .5rem; letter-spacing: -.02em; }
+}
+
+/* Personas de un libro en teléfonos: el nombre arriba y, debajo, el acceso y el botón. */
+@media (max-width: 640px) {
+  .tabla-miembros thead { display: none; }
+  .tabla-miembros tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .45rem .5rem; padding: .7rem 0; border-bottom: 1px solid var(--linea); }
+  .tabla-miembros td { padding: 0; border: 0; }
+  .tabla-miembros td:first-child { grid-column: 1 / -1; }
+  .tabla-miembros select { width: 100%; }
+  .tabla-miembros .correo { overflow-wrap: anywhere; }
+}

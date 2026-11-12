@@ -1058,7 +1058,7 @@ function pintarMes({ actual, proximo, pendientes }) {
     h('div', { class: 'tarjetas' },
       tarjeta('Ingresos', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresos - t.ingresosPendientes)} recibido · ${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido',
         '', { icono: 'entrada', tono: 'ingreso', progreso: t.ingresos > 0 ? (t.ingresos - t.ingresosPendientes) / t.ingresos : 0 }),
-      tarjeta('Gastos', dinero(t.gastos), `${dinero(t.gastos - t.gastosPendientes)} ya pagado (${t.gastos > 0 ? Math.round(((t.gastos - t.gastosPendientes) / t.gastos) * 100) : 0} %)`,
+      tarjeta('Gastos', dinero(t.gastos), `${dinero(t.gastos - t.gastosPendientes)} pagado · ${t.gastos > 0 ? Math.round(((t.gastos - t.gastosPendientes) / t.gastos) * 100) : 0} %`,
         '', { icono: 'salida', tono: 'gasto', progreso: t.gastos > 0 ? (t.gastos - t.gastosPendientes) / t.gastos : 0 }),
       tarjeta('Balance', dinero(t.balance), t.balance >= 0 ? 'Ingresos menos gastos: vas en positivo' : 'Ingresos menos gastos: gastas más de lo que entra', 'destacada', { icono: 'balanza' }),
       tarjeta('Falta por pagar', dinero(t.gastosPendientes), sinPagar.filter((m) => m.tipo === 'gasto').length ? `${sinPagar.filter((m) => m.tipo === 'gasto').length} pagos pendientes este mes` : 'Nada pendiente este mes',
@@ -1447,7 +1447,7 @@ function pintarCompartir({ miembros, canales }) {
         soyPropietario && h('button', { type: 'button', class: 'mini peligro', onclick: eliminarLibro }, 'Eliminar libro'),
       ),
       h('div', { class: 'tabla-scroll' },
-        h('table', null,
+        h('table', { class: 'tabla-miembros' },
           h('thead', null, h('tr', null, h('th', null, 'Persona'), h('th', null, 'Acceso'), h('th', null))),
           h('tbody', null,
             miembros.map((m) =>
