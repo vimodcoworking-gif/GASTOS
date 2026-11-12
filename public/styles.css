@@ -1168,3 +1168,19 @@ button, a, label, select, summary { touch-action: manipulation; -webkit-tap-high
   .heroe-resumen small { font-size: .72rem; color: var(--t-tenue); font-weight: 600; }
   .heroe-resumen strong { font-family: var(--gruesa); font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+/* ---------- Tarjeta de balance junto a ingresos y gastos ---------- */
+.tono-balance .icono-caja { background: color-mix(in srgb, var(--lima) 22%, transparent); color: var(--lima); }
+:root[data-tema="claro"] .tono-balance .icono-caja { color: var(--sobre-lima); background: var(--lima); }
+.tarjeta.balance-negativo .valor { color: var(--rojo); }
+/* Cuatro tarjetas: 4 columnas en tableta grande, 2×2 en tableta y teléfono, en columna en PC. */
+.tarjetas.tres.con-balance { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .tarjetas.tres.con-balance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tarjetas.tres.con-balance .tarjeta.clara { grid-column: auto; }
+}
+@media (min-width: 1100px) {
+  .cabecera-mes > .tarjetas.tres.con-balance { grid-template-columns: minmax(0, 1fr); gap: .6rem; }
+  .cabecera-mes > .tarjetas.tres.con-balance .tarjeta { padding: .65rem 1.1rem; gap: .05rem; }
+  .cabecera-mes > .tarjetas.tres.con-balance .tarjeta .valor { font-size: clamp(1.15rem, 1.6vw, 1.4rem); }
+}
