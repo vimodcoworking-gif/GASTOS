@@ -701,3 +701,320 @@ button.tira:hover { background: var(--superficie); box-shadow: 0 2px 4px rgba(16
   .tabla-miembros select { width: 100%; }
   .tabla-miembros .correo { overflow-wrap: anywhere; }
 }
+
+
+/* =====================================================================
+   Estilo «Lima»: superficies verde oliva oscuro, acento lima, botones en
+   píldora, botones de icono redondos y tarjetas muy redondeadas.
+   Esta capa va al final y redefine colores, tipografía y componentes.
+   ===================================================================== */
+:root {
+  /* Tema oscuro (por defecto) */
+  --t-fondo: #12150e;
+  --t-sup: #1f231a;
+  --t-elev: #2b3024;
+  --t-tinta: #f1f4ea;
+  --t-suave: #cdd1c3;
+  --t-tenue: #959b8a;
+  --t-linea: #30362a;
+  --t-linea-f: #4b5241;
+  --lima: #c6f432;
+  --lima-hover: #d3fa55;
+  --sobre-lima: #141810;
+  --blanco-pildora: #f6f8f1;
+  --positivo: #c6f432;
+  --t-sombra: none;
+  --serie-ingreso: #3987e5;
+  --serie-gasto: #d95926;
+  --tono-ingreso: #3987e5;
+  --tono-gasto: #e0662f;
+  --guia-grafica: #30362a;
+  --eje-grafica: #4b5241;
+  --radio: 26px;
+  --normal: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --gruesa: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --fondo: var(--t-fondo);
+  --tinta: var(--t-tinta);
+  --superficie: var(--t-fondo);
+  --realce: var(--t-elev);
+  --suave: var(--t-suave);
+  --tenue: var(--t-tenue);
+  --linea: var(--t-linea);
+  --linea-fuerte: var(--t-linea-f);
+  color-scheme: dark;
+}
+:root[data-tema="claro"] {
+  --t-fondo: #eef0e8;
+  --t-sup: #ffffff;
+  --t-elev: #f0f2ea;
+  --t-tinta: #151810;
+  --t-suave: #3b4033;
+  --t-tenue: #656b5a;
+  --t-linea: #e2e5d9;
+  --t-linea-f: #b9bdae;
+  --positivo: #4d7c0f;
+  --t-sombra: 0 1px 2px rgba(20, 24, 16, .05), 0 8px 24px rgba(20, 24, 16, .06);
+  --serie-ingreso: #2a78d6;
+  --serie-gasto: #eb6834;
+  --tono-ingreso: #2a78d6;
+  --tono-gasto: #e05a24;
+  --guia-grafica: #e8eadf;
+  --eje-grafica: #c3c6b8;
+
+  --fondo: var(--t-fondo);
+  --tinta: var(--t-tinta);
+  --superficie: var(--t-fondo);
+  --realce: var(--t-elev);
+  --suave: var(--t-suave);
+  --tenue: var(--t-tenue);
+  --linea: var(--t-linea);
+  --linea-fuerte: var(--t-linea-f);
+  color-scheme: light;
+}
+
+/* Superficies: tarjetas, paneles y ventanas usan el color de tarjeta del tema. */
+.panel, .tarjeta, .tira, dialog {
+  --tinta: var(--t-tinta);
+  --superficie: var(--t-sup);
+  --realce: var(--t-elev);
+  --suave: var(--t-suave);
+  --tenue: var(--t-tenue);
+  --linea: var(--t-linea);
+  --linea-fuerte: var(--t-linea-f);
+  background: var(--t-sup);
+  color: var(--t-tinta);
+  color-scheme: inherit;
+  border: 0;
+  box-shadow: var(--t-sombra);
+}
+:root[data-tema="claro"] :is(.panel, .tarjeta, .tira) { border: 0; }
+
+/* Tipografía */
+body { font-family: var(--normal); font-size: 15px; letter-spacing: -.005em; background: var(--t-fondo); }
+h1, h2, h3 { font-family: var(--gruesa); font-weight: 800; text-transform: none; letter-spacing: -.02em; }
+h2 { font-size: 1.35rem; }
+.panel > header h3 { font-size: 1.05rem; letter-spacing: -.01em; }
+.tarjeta .etiqueta { font-size: .8rem; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--tenue); }
+.tarjeta .valor, .heroe-monto, .tira-titulo strong { font-family: var(--gruesa); font-weight: 800; letter-spacing: -.02em; }
+label { font-size: .78rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.tira-titulo small, .tira-dato small { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: .74rem; }
+
+/* Botones: píldoras */
+button {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--t-elev);
+  color: var(--t-tinta);
+  font-weight: 700;
+  transition: background .15s ease, color .15s ease, transform .1s ease;
+}
+button:hover { background: color-mix(in srgb, var(--t-elev) 80%, var(--t-tinta) 20%); }
+button:active { transform: scale(.98); }
+button:focus-visible { outline: 2px solid var(--lima); outline-offset: 2px; }
+button.primario, .pildora.lima { background: var(--lima); color: var(--sobre-lima); border-color: var(--lima); }
+button.primario:hover, .pildora.lima:hover { background: var(--lima-hover); }
+button.peligro { background: transparent; border: 1px dashed var(--rojo); color: var(--rojo); }
+button { text-transform: none; letter-spacing: 0; }
+h2::first-letter, h3::first-letter { text-transform: uppercase; }
+/* Textos de los botones de la tarjeta principal: completos en pantallas anchas, cortos en el teléfono. */
+.texto-corto { display: none; }
+
+/* Botones de icono redondos (menú, flechas, PDF) */
+button.cuadrado, button.circulo { display: inline-grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; background: var(--t-elev); }
+:root[data-tema="claro"] :is(button.cuadrado, button.circulo) { background: #fff; box-shadow: var(--t-sombra); }
+.circulo .icono { width: 20px; height: 20px; }
+.pildora-suave { min-height: 40px; padding: .35rem 1rem; }
+
+/* Cabecera */
+.barra { background: color-mix(in srgb, var(--t-fondo) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 0; }
+#nuevo-rapido { background: var(--lima); color: var(--sobre-lima); border-color: var(--lima); padding: .5rem 1.2rem; }
+.titulo-libro { color: var(--t-tenue); font-weight: 600; }
+
+/* Campos */
+input, select, textarea {
+  border-radius: 16px;
+  border: 1px solid var(--t-linea);
+  background: var(--t-elev);
+  color: var(--t-tinta);
+  font-family: var(--normal);
+}
+input:focus, select:focus, textarea:focus { border-color: var(--lima); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--lima) 25%, transparent); }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--lima); }
+dialog { border-radius: 30px; }
+dialog::backdrop { background: rgb(8 10 6 / 72%); backdrop-filter: blur(3px); }
+.segmento { border-radius: 999px; background: var(--t-elev); padding: 4px; border: 0; }
+.segmento label { border-radius: 999px; }
+.segmento label:has(input:checked) { background: var(--lima); color: var(--sobre-lima); }
+
+/* ---------- Tarjeta principal del mes ---------- */
+.heroe { padding: 1.1rem 1.2rem 1.25rem; margin-bottom: .9rem; border-radius: 32px; background: var(--t-sup); color: var(--t-tinta); box-shadow: var(--t-sombra); --tinta: var(--t-tinta); --tenue: var(--t-tenue); --realce: var(--t-elev); }
+.heroe-nav { display: flex; align-items: center; gap: .5rem; }
+.heroe-nav h2 { margin: 0 .25rem; font-size: 1.2rem; }
+.heroe-cuerpo { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.25rem; margin: 1.1rem 0 1.15rem; }
+.heroe-saldo { display: flex; align-items: center; gap: .9rem; min-width: 0; }
+.icono-caja.grande { width: 56px; height: 56px; border-radius: 50%; background: var(--blanco-pildora); color: var(--sobre-lima); }
+.icono-caja.grande .icono { width: 26px; height: 26px; }
+.heroe-monto { font-size: clamp(1.9rem, 4.2vw, 2.7rem); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.heroe-nota { display: flex; align-items: center; gap: .3rem; margin-top: .3rem; font-size: .82rem; font-weight: 600; color: var(--t-tenue); }
+.heroe-nota .icono { width: 14px; height: 14px; }
+.heroe-nota.positivo .icono { color: var(--positivo); }
+.heroe-nota.negativo .icono { color: var(--rojo); }
+/* Gastos de los últimos 7 días: barras blancas y la de hoy en lima. */
+.heroe-barras { display: grid; grid-template-columns: repeat(7, 26px); gap: 10px; height: 118px; flex: none; }
+.heroe-dia { display: grid; grid-template-rows: 1fr auto; gap: .35rem; justify-items: center; min-width: 0; }
+.heroe-pista { width: 100%; display: flex; align-items: flex-end; border-bottom: 1px dashed var(--t-linea-f); }
+.heroe-barra { width: 100%; border-radius: 8px 8px 3px 3px; background: var(--t-tinta); opacity: .9; }
+.heroe-dia.hoy .heroe-barra { background: var(--lima); opacity: 1; }
+.heroe-dia small { font-size: .68rem; font-weight: 700; color: var(--t-tenue); text-transform: uppercase; }
+.heroe-acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.pildora { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; min-height: 56px; padding: .5rem 1.2rem; border-radius: 999px; font-size: 1rem; font-weight: 800; }
+.pildora .icono { width: 30px; height: 30px; padding: 6px; border-radius: 50%; border: 1.5px solid currentColor; }
+.pildora.blanca { background: var(--blanco-pildora); color: var(--sobre-lima); border-color: var(--blanco-pildora); }
+.pildora.blanca:hover { background: #fff; }
+:root[data-tema="claro"] .pildora.blanca { background: var(--t-tinta); color: #fff; border-color: var(--t-tinta); }
+
+/* ---------- Tarjetas ---------- */
+.tarjetas.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tarjeta { border-radius: var(--radio); }
+.tarjeta .progreso { background: var(--t-elev); }
+.icono-caja { background: var(--t-elev); }
+.tono-ingreso .icono-caja { background: color-mix(in srgb, var(--tono-ingreso) 20%, transparent); color: var(--tono-ingreso); }
+.tono-gasto .icono-caja { background: color-mix(in srgb, var(--tono-gasto) 20%, transparent); color: var(--tono-gasto); }
+.tono-pendiente .icono-caja { background: color-mix(in srgb, var(--rojo) 16%, transparent); color: #ff5a5f; }
+/* Tarjeta destacada en lima (balance del año, espacio libre…). */
+.tarjeta.destacada { --tinta: var(--sobre-lima); --tenue: #3d4a12; --realce: rgba(20, 24, 16, .12); background: var(--lima); color: var(--sobre-lima); border: 0; }
+.tarjeta.destacada .icono-caja { background: rgba(20, 24, 16, .12); color: var(--sobre-lima); }
+/* Tarjeta clara (falta por pagar): blanca sobre el fondo oscuro; oscura en el tema claro. */
+.tarjeta.clara { --tinta: #151810; --tenue: #656b5a; --realce: #eef0e8; background: var(--blanco-pildora); color: #151810; }
+:root[data-tema="claro"] .tarjeta.clara { --tinta: #f1f4ea; --tenue: #a3a998; --realce: #2b3024; background: #1f231a; color: #f1f4ea; }
+.tarjeta.clara .tono-pendiente .icono-caja, .tarjeta.clara .icono-caja { color: #d7141f; }
+@media (hover: hover) {
+  .tarjeta:not(.destacada):hover { transform: translateY(-2px); box-shadow: var(--t-sombra); }
+}
+
+/* Franja del mes siguiente */
+button.tira { border-radius: var(--radio); background: var(--t-sup); }
+button.tira:hover { background: color-mix(in srgb, var(--t-sup) 85%, var(--t-tinta) 15%); }
+.tira .flecha { background: var(--t-elev); }
+.tira-dato b.negativo { color: #ff5a5f; }
+
+/* Pestañas: píldoras sueltas, la elegida en lima */
+.segmentos { padding: 0; gap: .5rem; border: 0; border-radius: 0; background: none; box-shadow: none; }
+:root:not([data-tema="claro"]) .segmentos { background: none; border: 0; }
+.segmentos button { min-height: 46px; background: var(--t-sup); color: var(--t-suave); }
+:root[data-tema="claro"] .segmentos button { background: #fff; color: var(--t-suave); box-shadow: var(--t-sombra); }
+.segmentos button:hover { background: var(--t-elev); }
+.segmentos button[aria-selected="true"], :root[data-tema="claro"] .segmentos button[aria-selected="true"] { background: var(--lima); color: var(--sobre-lima); }
+.segmentos button[aria-selected="true"] .cuenta.neutra { background: rgba(20, 24, 16, .2); color: var(--sobre-lima); }
+
+/* Filtros, selector Gastos/Ingresos y etiquetas */
+.chips-filtro .filtro { background: var(--t-elev); border-color: transparent; color: var(--t-suave); }
+.chips-filtro .filtro.activo, .conmutador button.activo { background: var(--lima); color: var(--sobre-lima); border-color: var(--lima); }
+.chips-filtro .filtro.activo small { color: var(--sobre-lima); }
+.conmutador { border: 0; background: var(--t-elev); }
+.filtro-entidad { background: var(--t-elev); border-color: transparent; }
+.chip { border-radius: 999px; }
+.chip.ok { background: var(--t-elev); border-color: transparent; color: var(--t-suave); }
+.chip:not(.ok):not(.vencido):not(.medio) { border-color: var(--t-linea-f); color: var(--t-suave); }
+
+/* Movimientos */
+.mov { border-bottom-color: var(--t-linea); }
+button.mov-abrir { border-radius: 18px; background: none; }
+button.mov-abrir:hover { background: var(--t-elev); }
+.monto.ingreso, .ingreso { color: var(--positivo); }
+.monto.gasto, .gasto { color: var(--t-tinta); }
+.cabecera-dia { background: var(--t-elev); border-radius: 14px; }
+.mov > button.mini.primario { background: var(--lima); color: var(--sobre-lima); }
+
+/* Calendario */
+.calendario .dia { border-radius: 16px; border-color: transparent; background: var(--t-elev); color: var(--t-tinta); }
+:root[data-tema="claro"] .calendario .dia { background: var(--t-elev); }
+.calendario .dia:hover { border-color: var(--t-linea-f); }
+.calendario .dia.hoy { border-color: var(--lima); }
+.calendario .dia.elegido { background: var(--lima); border-color: var(--lima); color: var(--sobre-lima); }
+.dia.elegido .punto:not(.rojo) { background: var(--sobre-lima); }
+
+/* Gráficas sobre la superficie oscura */
+.tooltip { background: var(--t-elev); border-color: var(--t-linea-f); color: var(--t-tinta); box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
+.punto-final, .punto-guia { box-shadow: 0 0 0 2px var(--t-sup); }
+.barras-h-pista { border-radius: 0 6px 6px 0; background: color-mix(in srgb, var(--t-elev) 60%, transparent); }
+.barras-h-barra { border-radius: 0 6px 6px 0; }
+.grafica .mes:hover { background: var(--t-elev); }
+
+/* Menú lateral */
+dialog.cajon { border-radius: 0 30px 30px 0; background: var(--t-sup); }
+.cajon-nav button { border-radius: 16px; background: none; justify-content: flex-start; }
+.cajon-nav button[aria-current="page"] { background: var(--lima); color: var(--sobre-lima); }
+
+/* Acceso */
+.auth-caja .panel { border-radius: 30px; }
+
+/* ---------- Navegación inferior (teléfonos y tabletas) ---------- */
+.nav-inferior { display: none; }
+@media (max-width: 900px) {
+  .nav-inferior {
+    position: fixed;
+    left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: var(--blanco-pildora);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, .35);
+  }
+  :root[data-tema="claro"] .nav-inferior { background: #151810; }
+  .nav-inferior button {
+    display: inline-grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    min-height: 52px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: #6f7564;
+  }
+  :root[data-tema="claro"] .nav-inferior button { color: #a3a998; }
+  .nav-inferior button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .nav-inferior .icono { width: 22px; height: 22px; }
+  .nav-inferior button[aria-current="page"] { background: #151810; color: #fff; }
+  :root[data-tema="claro"] .nav-inferior button[aria-current="page"] { background: var(--lima); color: var(--sobre-lima); }
+  /* Hueco para que la barra no tape lo último de la página. */
+  .contenido { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
+
+/* ---------- Tableta ---------- */
+@media (max-width: 900px) {
+  .tarjetas.tres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tarjetas.tres .tarjeta.clara { grid-column: 1 / -1; }
+}
+
+/* ---------- Teléfono ---------- */
+@media (max-width: 640px) {
+  .heroe { padding: .95rem .95rem 1rem; border-radius: 28px; margin-bottom: .6rem; }
+  .heroe-nav h2 { font-size: 1.05rem; }
+  .heroe-cuerpo { flex-direction: column; align-items: stretch; gap: 1rem; margin: .9rem 0 1rem; }
+  .heroe-barras { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; height: 104px; }
+  .icono-caja.grande { width: 48px; height: 48px; }
+  .heroe-monto { font-size: 2rem; }
+  .heroe-acciones { gap: .55rem; }
+  .pildora { min-height: 52px; padding: .45rem .8rem; font-size: .92rem; gap: .45rem; }
+  .pildora .icono { width: 26px; height: 26px; padding: 5px; }
+  .segmentos.n4 { gap: .45rem; }
+  .segmentos.n4 button { border-radius: 999px; }
+}
+@media (max-width: 640px) {
+  .texto-largo { display: none; }
+  .texto-corto { display: inline; }
+}
+/* Sin mayúsculas forzadas: títulos y etiquetas en tipo oración, como el resto del estilo. */
+.nav-calendario strong, button.opcion strong, th, .cuenta-correo .etiqueta, .tira strong { text-transform: none; letter-spacing: 0; }
+.nav-calendario strong { font-size: 1.02rem; font-weight: 800; }
+button.primario { font-size: .95rem; letter-spacing: 0; }
+th { font-size: .78rem; font-weight: 600; }

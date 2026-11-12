@@ -1,8 +1,8 @@
-// Se carga antes que la página para aplicar el tema guardado sin parpadeo. Por defecto, modo claro.
+// Se carga antes que la página para aplicar el tema guardado sin parpadeo. Por defecto, modo oscuro.
 (function () {
-  var tema = 'claro';
+  var tema = 'oscuro';
   try {
-    tema = localStorage.getItem('tema') || 'claro';
+    tema = localStorage.getItem('tema') || 'oscuro';
   } catch (e) {
     // Almacenamiento bloqueado: se queda el modo claro.
   }

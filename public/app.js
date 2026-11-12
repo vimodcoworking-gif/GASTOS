@@ -251,7 +251,7 @@ async function entrar(usuario) {
 function aplicarTema(tema) {
   document.documentElement.dataset.tema = tema;
   $('#cambiar-tema').textContent = tema === 'claro' ? 'Modo oscuro' : 'Modo claro';
-  $('meta[name=theme-color]').content = tema === 'claro' ? '#f2f2f2' : '#000000';
+  $('meta[name=theme-color]').content = tema === 'claro' ? '#eef0e8' : '#12150e';
 }
 
 aplicarTema(document.documentElement.dataset.tema ?? 'claro');
@@ -273,6 +273,16 @@ $('#abrir-menu').addEventListener('click', () => $('#menu').showModal());
 // Tocar fuera del menú (sobre el fondo oscurecido) lo cierra.
 $('#menu').addEventListener('click', (ev) => {
   if (ev.target === ev.currentTarget) ev.currentTarget.close();
+});
+
+// Barra de navegación inferior (teléfonos): las vistas principales y «Más» para el resto del menú.
+$('#nav-inferior').addEventListener('click', (ev) => {
+  const boton = ev.target.closest('button');
+  if (!boton) return;
+  if (boton.id === 'nav-mas') return $('#menu').showModal();
+  estado.vista = boton.dataset.vista;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 $('#pestanas').addEventListener('click', (ev) => {
@@ -385,10 +395,11 @@ function pintarTipoMovimiento() {
 }
 
 // Sin movimiento abre el alta; «fecha» propone un día concreto (el elegido en el calendario).
-function abrirMovimiento(mov = null, fecha = null) {
+function abrirMovimiento(mov = null, fecha = null, tipo = null) {
   movEnEdicion = mov;
   const form = $('#form-mov');
   form.reset();
+  if (!mov && tipo) form.tipo.value = tipo;
   $('#mov-titulo').textContent = mov ? 'Editar movimiento' : 'Nuevo movimiento';
   $('#mov-error').textContent = '';
   $('#mov-eliminar').hidden = !mov;
@@ -543,6 +554,8 @@ const TRAZOS_ICONO = {
   alza: '<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
   billetera: '<path d="M20 7H5a2 2 0 0 1 0-4h13v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15V7"/><path d="M16 14h.01"/>',
   flecha: '<path d="m9 6 6 6-6 6"/>',
+  'flecha-izq': '<path d="m15 6-6 6 6 6"/>',
+  descargar: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
 };
 
 function icono(nombre, titulo = '') {
@@ -1045,24 +1058,52 @@ function pintarMes({ actual, proximo, pendientes }) {
     analisis: () => seccionAnalisis(actual),
   };
 
+  // Gastos de los últimos 7 días del mes (hasta hoy en el mes en curso), para la tarjeta principal.
+  const finSemana = esMesActual ? hoy() : `${estado.mes}-${String(new Date(Date.UTC(Number(estado.mes.slice(0, 4)), Number(estado.mes.slice(5, 7)), 0)).getUTCDate()).padStart(2, '0')}`;
+  const semana = Array.from({ length: 7 }, (_, i) => sumarDias(finSemana, i - 6)).map((fecha) => ({
+    fecha,
+    total: actual.filter((m) => m.tipo === 'gasto' && m.fecha === fecha).reduce((s, m) => s + m.monto, 0),
+  }));
+  const mayorSemana = Math.max(1, ...semana.map((d) => d.total));
+
   return [
-    h('div', { class: 'periodo' },
-      h('button', { type: 'button', class: 'cuadrado', onclick: () => irAMes(moverMes(estado.mes, -1)), 'aria-label': 'Mes anterior' }, '‹'),
-      h('h2', null, nombreMes(estado.mes)),
-      h('button', { type: 'button', class: 'cuadrado', onclick: () => irAMes(siguiente), 'aria-label': 'Mes siguiente' }, '›'),
-      estado.mes !== mesActual && h('button', { type: 'button', onclick: () => irAMes(mesActual) }, 'Hoy'),
-      h('span', { class: 'espacio' }),
-      h('button', { type: 'button', title: 'Descargar el informe de este mes en PDF', onclick: () => descargarPdf(...rangoDeMes(estado.mes)) }, 'PDF'),
+    h('section', { class: 'heroe' },
+      h('div', { class: 'heroe-nav' },
+        h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(moverMes(estado.mes, -1)), 'aria-label': 'Mes anterior' }, icono('flecha-izq')),
+        h('h2', { class: 'capital' }, nombreMes(estado.mes)),
+        h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(siguiente), 'aria-label': 'Mes siguiente' }, icono('flecha')),
+        h('span', { class: 'espacio' }),
+        estado.mes !== mesActual && h('button', { type: 'button', class: 'pildora-suave', onclick: () => irAMes(mesActual) }, 'Hoy'),
+        h('button', { type: 'button', class: 'circulo', title: 'Descargar el informe de este mes en PDF', 'aria-label': 'Descargar PDF del mes', onclick: () => descargarPdf(...rangoDeMes(estado.mes)) }, icono('descargar')),
+      ),
+      h('div', { class: 'heroe-cuerpo' },
+        h('div', { class: 'heroe-saldo' },
+          h('span', { class: 'icono-caja grande' }, icono('billetera')),
+          h('div', null,
+            h('div', { class: 'heroe-monto' }, dinero(t.balance)),
+            h('div', { class: `heroe-nota ${t.balance < 0 ? 'negativo' : 'positivo'}` },
+              icono(t.balance < 0 ? 'salida' : 'entrada'),
+              t.balance < 0 ? ' Balance del mes: gastas más de lo que entra' : ' Balance del mes: vas en positivo')),
+        ),
+        h('div', { class: 'heroe-barras', role: 'img', 'aria-label': `Gastos de los últimos 7 días: ${semana.map((d) => `${fechaCorta(d.fecha)} ${dinero(d.total)}`).join(', ')}` },
+          semana.map((d) => h('div', { class: `heroe-dia ${d.fecha === hoy() ? 'hoy' : ''}`, title: `${fechaTexto(d.fecha, { weekday: 'long', day: 'numeric', month: 'short' })}: ${dinero(d.total)}` },
+            h('div', { class: 'heroe-pista' }, h('div', { class: 'heroe-barra', style: `height:${Math.max((d.total / mayorSemana) * 100, d.total ? 6 : 2)}%` })),
+            h('small', null, fechaTexto(d.fecha, { weekday: 'narrow' })))),
+        ),
+      ),
+      editar && h('div', { class: 'heroe-acciones' },
+        h('button', { type: 'button', class: 'pildora lima', onclick: () => abrirMovimiento(null, estado.dia, 'gasto') }, icono('salida'), h('span', { class: 'texto-largo' }, 'Añadir gasto'), h('span', { class: 'texto-corto' }, 'Gasto')),
+        h('button', { type: 'button', class: 'pildora blanca', onclick: () => abrirMovimiento(null, estado.dia, 'ingreso') }, icono('entrada'), h('span', { class: 'texto-largo' }, 'Añadir ingreso'), h('span', { class: 'texto-corto' }, 'Ingreso')),
+      ),
     ),
 
-    h('div', { class: 'tarjetas' },
+    h('div', { class: 'tarjetas tres' },
       tarjeta('Ingresos', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresos - t.ingresosPendientes)} recibido · ${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido',
         '', { icono: 'entrada', tono: 'ingreso', progreso: t.ingresos > 0 ? (t.ingresos - t.ingresosPendientes) / t.ingresos : 0 }),
       tarjeta('Gastos', dinero(t.gastos), `${dinero(t.gastos - t.gastosPendientes)} pagado · ${t.gastos > 0 ? Math.round(((t.gastos - t.gastosPendientes) / t.gastos) * 100) : 0} %`,
         '', { icono: 'salida', tono: 'gasto', progreso: t.gastos > 0 ? (t.gastos - t.gastosPendientes) / t.gastos : 0 }),
-      tarjeta('Balance', dinero(t.balance), t.balance >= 0 ? 'Ingresos menos gastos: vas en positivo' : 'Ingresos menos gastos: gastas más de lo que entra', 'destacada', { icono: 'balanza' }),
       tarjeta('Falta por pagar', dinero(t.gastosPendientes), sinPagar.filter((m) => m.tipo === 'gasto').length ? `${sinPagar.filter((m) => m.tipo === 'gasto').length} pagos pendientes este mes` : 'Nada pendiente este mes',
-        '', { icono: 'reloj', tono: 'pendiente' }),
+        'clara', { icono: 'reloj', tono: 'pendiente' }),
     ),
 
     h('button', { type: 'button', class: 'tira', onclick: () => irAMes(siguiente), title: 'Ver el mes siguiente' },
@@ -2224,6 +2265,10 @@ async function render(reutilizar = false) {
   const cont = $('#contenido');
   const libro = libroActual();
 
+  for (const boton of document.querySelectorAll('#nav-inferior [data-vista]')) {
+    if (boton.dataset.vista === estado.vista) boton.setAttribute('aria-current', 'page');
+    else boton.removeAttribute('aria-current');
+  }
   for (const boton of $('#pestanas').children) {
     if (boton.dataset.vista === estado.vista) boton.setAttribute('aria-current', 'page');
     else boton.removeAttribute('aria-current');

@@ -1,5 +1,5 @@
 // Cambia la versión al publicar cambios para que se descarte la caché anterior.
-const CACHE = 'nfta-gastos-v39';
+const CACHE = 'nfta-gastos-v40';
 const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-vimod.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 // Si la red tarda más que esto (servidor dormido), se enseña la copia guardada.
 const ESPERA_RED_MS = 4000;
