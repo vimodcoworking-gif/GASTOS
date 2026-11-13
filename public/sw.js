@@ -1,5 +1,5 @@
 // Cambia la versión al publicar cambios para que se descarte la caché anterior.
-const CACHE = 'nfta-gastos-v59';
+const CACHE = 'nfta-gastos-v60';
 const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-duolab.png', '/logo-duolab-blanco.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 // Si la red tarda más que esto (servidor dormido), se enseña la copia guardada.
 const ESPERA_RED_MS = 4000;
@@ -51,8 +51,8 @@ self.addEventListener('push', (ev) => {
   }
   ev.waitUntil(self.registration.showNotification(datos.titulo || 'DUOLAB Gastos', {
     body: datos.cuerpo || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: '/icons/notificacion-duolab-256.png',
+    badge: '/icons/insignia-duolab-96.png',
     tag: datos.etiqueta || undefined,
     renotify: Boolean(datos.etiqueta),
     data: { url: datos.url || '/' },
