@@ -1,5 +1,5 @@
 // Cambia la versión al publicar cambios para que se descarte la caché anterior.
-const CACHE = 'nfta-gastos-v65';
+const CACHE = 'nfta-gastos-v66';
 const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-duolab.png', '/logo-duolab-blanco.png', '/icons/app-duolab-192.png', '/icons/app-duolab-512.png'];
 
 self.addEventListener('install', (ev) => {
