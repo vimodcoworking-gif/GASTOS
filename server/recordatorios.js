@@ -109,7 +109,7 @@ export async function revisarRecordatorios({ forzarHora = false } = {}) {
       let llego = false;
       if (wa && persona.whatsapp) {
         try {
-          await enviarANumero(persona.whatsapp, texto, { movimientos: items.map((i) => i.mov._id) });
+          await enviarANumero(persona.whatsapp, { texto }, { movimientos: items.map((i) => i.mov._id) });
           llego = true;
         } catch (err) {
           console.error(`Recordatorio a ${persona.whatsapp.slice(0, 4)}…:`, err.message);
@@ -150,7 +150,7 @@ export async function recordatorioDePrueba(usuario) {
   const texto = pendientes.length
     ? textoAviso(usuario.nombre, pendientes.map((mov) => ({ mov, faltan: diasEntre(hoy, mov.fecha.toISOString().slice(0, 10)) })), libros[0]?.moneda ?? 'PEN')
     : `⏰ *Recordatorios activados*\nHola ${usuario.nombre.split(' ')[0]}, no tienes pagos pendientes en los próximos 30 días.`;
-  await enviarANumero(usuario.whatsapp, `${texto}\n\n_Mensaje de prueba. Te avisaré ${cuando} de cada pago pendiente._`);
+  await enviarANumero(usuario.whatsapp, { texto: `${texto}\n\n_Mensaje de prueba. Te avisaré ${cuando} de cada pago pendiente._` });
 }
 
 let temporizador;
