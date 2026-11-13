@@ -942,12 +942,12 @@ export function pararRevisionGmail() {
  * Una vez: vuelve a leer, con el lector de correos de Yape, los yapes registrados desde el correo en las
  * últimas 2 semanas y corrige los que quedaron al revés (p. ej. un ingreso anotado como «Yapeo a…»).
  */
-export async function corregirYapesDeCorreo() {
+export async function corregirYapesDeCorreo({ soloPendientes = false } = {}) {
   let corregidos = 0;
   const desde = new Date(Date.now() - 14 * 86400000);
   const usuarios = await Usuario.find({ $or: [{ 'gmail.token': { $exists: true } }, { 'gmailExtra.0': { $exists: true } }] }).limit(500);
   for (const usuario of usuarios) {
-    const movimientos = await Movimiento.find({ creadoPor: usuario._id, medio: 'yape', correoId: { $exists: true }, createdAt: { $gte: desde } }).limit(200);
+    const movimientos = soloPendientes ? [] : await Movimiento.find({ creadoPor: usuario._id, medio: 'yape', correoId: { $exists: true }, createdAt: { $gte: desde } }).limit(200);
     for (const mov of movimientos) {
       for (const cuenta of cuentasDe(usuario)) {
         try {
@@ -963,6 +963,22 @@ export async function corregirYapesDeCorreo() {
         } catch {
           // No está en esta cuenta (o sin permiso): se prueba la siguiente.
         }
+      }
+    }
+    // Correos de Yape del último mes que no se registraron (p. ej. la IA los descartó antes de que existiera
+    // el lector de Yape): se vuelven a leer, aunque ya estuvieran marcados como revisados.
+    for (const cuenta of cuentasDe(usuario)) {
+      try {
+        const { libro, autorizacion } = await prepararLectura(usuario, cuenta);
+        const lista = await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${new URLSearchParams({ q: 'from:yape newer_than:30d', maxResults: '100' })}`, autorizacion);
+        const resultado = { revisados: 0, registrados: 0, duplicados: 0 };
+        for (const { id } of lista.messages ?? []) {
+          if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) continue;
+          await procesarUno(usuario, cuenta, libro, autorizacion, id, resultado).catch(() => {});
+        }
+        corregidos += resultado.registrados;
+      } catch (err) {
+        console.error(`Yapes de ${cuenta.datos.email}:`, err.message);
       }
     }
   }

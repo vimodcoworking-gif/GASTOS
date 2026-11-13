@@ -76,10 +76,12 @@ conectar()
       .then(() => corregirUnaVez('correccion:medios-yape-plin', corregirMediosBilletera))
       .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados))
       .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez))
-      .then(() => corregirUnaVez('correccion:yapes-correo-v2', corregirYapesDeCorreo));
+      .then(() => corregirUnaVez('correccion:yapes-correo-v3', corregirYapesDeCorreo));
     iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
+    // Cada 6 horas se recuperan los correos de Yape que no llegaron a registrarse.
+    setInterval(() => corregirYapesDeCorreo({ soloPendientes: true }).catch((err) => console.error('Yapes pendientes:', err.message)), 6 * 3600_000);
     // Recordatorios por WhatsApp de los pagos que vencen pronto.
     iniciarRecordatorios();
     prepararPush();
