@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { generarInforme } from './informe.js';
 import { montarExtras } from './extras.js';
 import { recordatorioDePrueba } from './recordatorios.js';
-import { informePeriodo, conversar, ejecutarAcciones, registrarVarios, hoyLocal } from './bot.js';
+import { informePeriodo, conversar, ejecutarAcciones, registrarVarios, hoyLocal, huellaDe } from './bot.js';
 import { iaDisponible, leerComprobante, explicarError } from './ia.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { correoDisponible, enviarCorreo, metodoCorreo, sinFormatoWhatsapp } from './correo.js';
@@ -488,9 +488,12 @@ libro.post('/capturas', puedeEditar, limiteCapturas, express.raw({ type: ['image
       ...(moneda !== req.libro.moneda && { moneda }),
     };
     const dia = new Date(`${fecha}T00:00:00Z`);
-    mov.yaAnotado = moneda === req.libro.moneda && Boolean(await Movimiento.exists({
-      libro: req.libro._id, tipo, monto, fecha: { $gte: dia, $lt: new Date(dia.getTime() + 86400000) },
-    }));
+    const enElDia = { $gte: dia, $lt: new Date(dia.getTime() + 86400000) };
+    const huella = huellaDe({ fecha, hora: mov.hora, tipo, monto });
+    // Con hora: ya está si tiene la misma huella o si hay uno igual ese día llegado por otro lado (correo).
+    mov.yaAnotado = moneda === req.libro.moneda && Boolean(huella
+      ? await Movimiento.exists({ libro: req.libro._id, huella }) || await Movimiento.exists({ libro: req.libro._id, tipo, monto, fecha: enElDia, huella: { $exists: false } })
+      : await Movimiento.exists({ libro: req.libro._id, tipo, monto, fecha: enElDia }));
     movimientos.push(mov);
   }
   // Dos movimientos iguales en la misma captura (dos yapes de S/ 5 el mismo día) no se marcan entre sí:
@@ -514,6 +517,7 @@ libro.post('/capturas/registrar', puedeEditar, async (req, res) => {
     ...(MEDIOS_CAPTURA.includes(m?.medio) && { medio: m.medio }),
     ...(typeof m?.entidad === 'string' && m.entidad.trim() && { entidad: m.entidad.slice(0, 40) }),
     ...(typeof m?.moneda === 'string' && /^[A-Z]{3}$/.test(m.moneda) && { moneda: m.moneda }),
+    ...(typeof m?.hora === 'string' && /^\d{1,2}:\d{2}$/.test(m.hora) && { hora: m.hora }),
   }));
   // La persona ya eligió cuáles registrar: no se descarta ninguno por parecido.
   const mensaje = await registrarVarios(usuario, movimientos, { libro: req.libro, repetidos: 'ninguno', origen: 'desde tu captura' });

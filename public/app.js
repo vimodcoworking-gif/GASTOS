@@ -406,7 +406,7 @@ function pintarCaptura(dlg, libroId, { movimientos, nota }) {
   });
   const repetidos = movimientos.filter((m) => m.yaAnotado).length;
   boton.addEventListener('click', async () => {
-    const elegidos = movimientos.filter((_, i) => casillas[i].checked).map(({ yaAnotado, hora, ...m }) => m);
+    const elegidos = movimientos.filter((_, i) => casillas[i].checked).map(({ yaAnotado, ...m }) => m);
     boton.disabled = true;
     boton.textContent = 'Registrando…';
     try {
@@ -1962,15 +1962,19 @@ function seccionAvisosTelefono() {
               h('li', null, 'Guarda la macro y dale a MacroDroid permiso de acceso a notificaciones. Haz un yape de prueba: te llegará la confirmación por WhatsApp.'),
             ),
           ),
-          h('details', { class: 'instrucciones' },
-            h('summary', null, '🍎 iPhone: registrar desde la constancia (Atajos)'),
+          h('details', { class: 'instrucciones', open: esIOS },
+            h('summary', null, '🍎 iPhone: registrar todos los yapes con dos toques en la parte de atrás'),
+            h('p', null, 'Registra de una vez todos los pagos que se ven en «Movimientos» de Yape, también los pequeños (S/ 1.20, S/ 2.00). Si mandas la misma lista otra vez, no se repite ninguno.'),
             h('ol', null,
-              h('li', null, 'Abre la app Atajos → «+» → añade la acción «Obtener contenido de URL».'),
-              h('li', null, 'URL: tu enlace. Pulsa «Mostrar más»: Método POST, Cuerpo de la solicitud «Archivo» y elige «Entrada del atajo».'),
-              h('li', null, 'En los ajustes del atajo activa «Mostrar en hoja de compartir» (tipo: Imágenes) y ponle de nombre «Registrar gasto».'),
-              h('li', null, 'Después de yapear, en la constancia pulsa Compartir → «Registrar gasto». También sirve con una captura de pantalla.'),
+              h('li', null, 'Abre la app ', h('b', null, 'Atajos'), ' → pestaña Atajos → ', h('b', null, '«+»'), '.'),
+              h('li', null, 'Añade la acción ', h('b', null, '«Hacer captura de pantalla»'), '.'),
+              h('li', null, 'Añade ', h('b', null, '«Obtener contenido de URL»'), '. En URL pega tu enlace (botón «Copiar enlace» de arriba). Toca la flecha: Método ', h('b', null, 'POST'), ', Cuerpo de la solicitud ', h('b', null, 'Archivo'), ' → elige ', h('b', null, '«Captura de pantalla»'), '.'),
+              h('li', null, 'Añade ', h('b', null, '«Obtener valor del diccionario»'), ' con la clave ', h('b', null, 'mensaje'), ' y después ', h('b', null, '«Mostrar notificación»'), ' con ese valor: verás qué se registró.'),
+              h('li', null, 'Ponle de nombre ', h('b', null, '«Registrar Yape»'), '. En sus ajustes activa también «Mostrar en hoja de compartir» (Imágenes) para mandar constancias o capturas guardadas.'),
+              h('li', null, 'Ve a ', h('b', null, 'Ajustes → Accesibilidad → Tocar → Toque atrás → Doble toque'), ' y elige ', h('b', null, '«Registrar Yape»'), '.'),
+              h('li', null, h('b', null, 'Para usarlo:'), ' en Yape abre «Mostrar movimientos» y toca dos veces la parte de atrás del iPhone. En unos segundos te llega la notificación con lo registrado (y el aviso por WhatsApp).'),
             ),
-            h('p', { class: 'tenue' }, 'iPhone no deja que otras apps lean las notificaciones de Yape, por eso se usa la constancia. Leer capturas requiere la IA activada.'),
+            h('p', { class: 'tenue' }, 'Apple no deja que otras apps lean las notificaciones de Yape; por eso se lee la lista de movimientos. Hace falta tener la IA activada. Si tu iPhone no tiene «Toque atrás», añade el atajo a la pantalla de inicio o al botón de Acción.'),
           ),
         )
       : h('div', null,

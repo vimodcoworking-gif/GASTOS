@@ -266,6 +266,7 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
     creadoPor: usuario._id,
     ...(medio && { medio }),
     ...(entidad && { entidad }),
+    ...(typeof datos.huella === 'string' && datos.huella && { huella: datos.huella }),
     ...(extra.correoId && { correoId: extra.correoId }),
     // Cobrado en otra moneda: «monto» ya viene convertido a la del libro.
     ...(/^[A-Z]{3}$/.test(datos.moneda ?? '') && datos.moneda !== libro.moneda && datos.montoOriginal > 0
@@ -592,6 +593,13 @@ function leerVarios(mensaje, hoy) {
  * Convierte los cobrados en otra moneda y se salta los que ya estaban anotados (mismo tipo, monto y fecha ±1 día).
  * Devuelve el texto de confirmación; «deshacer» los borra todos juntos.
  */
+/** «2026-11-13|10:41|gasto|5.90» para un pago con hora (de una lista de movimientos), o null. */
+export function huellaDe({ fecha, hora, tipo, monto }) {
+  const h = /^(\d{1,2}):(\d{2})$/.exec(String(hora ?? '').trim());
+  if (!h || !/^\d{4}-\d{2}-\d{2}$/.test(String(fecha ?? '')) || !(Number(monto) > 0)) return null;
+  return `${fecha}|${h[1].padStart(2, '0')}:${h[2]}|${tipo}|${Number(monto).toFixed(2)}`;
+}
+
 export async function registrarVarios(usuario, movimientos, { origen = '', libro: fijo = null, repetidos: modoRepetidos = 'dia' } = {}) {
   const libros = await librosDe(usuario);
   // El libro abierto en la app (si se pide desde allí) o el elegido en WhatsApp.
@@ -612,7 +620,10 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
     const fecha = typeof original.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(original.fecha) ? original.fecha : hoy;
     const datos = { ...original, tipo, monto, fecha };
     const moneda = normalizarMoneda(original.moneda) ?? libro.moneda;
+    const huella = huellaDe({ ...original, tipo, monto, fecha });
     delete datos.hora;
+    delete datos.huella;
+    if (huella) datos.huella = huella;
     delete datos.moneda;
     delete datos.montoOriginal;
     if (moneda !== libro.moneda) {
@@ -630,7 +641,13 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
     // - «manual» (lo que la persona escribe o dicta): solo el doble envío accidental, mismo monto y descripción
     //   en los últimos 3 minutos. Si alguien dice «gasté 30 en taxi», se registra aunque ya haya otro de 30.
     const dia = aFecha(fecha).getTime();
-    const igual = modoRepetidos !== 'ninguno' && await Movimiento.exists({
+    // Con hora (lista de movimientos de Yape o del banco): ya está si tiene la misma huella, o si hay uno
+    // igual ese día que llegó por otro lado (correo, a mano) y por eso no tiene huella. Así dos yapes del
+    // mismo monto a distintas horas se registran los dos, y reenviar la lista no repite ninguno.
+    const igual = modoRepetidos !== 'ninguno' && (huella
+      ? await Movimiento.exists({ libro: libro._id, huella })
+        || await Movimiento.exists({ libro: libro._id, tipo, monto: datos.monto, huella: { $exists: false }, fecha: { $gte: new Date(dia), $lt: new Date(dia + 86400000) } })
+      : await Movimiento.exists({
       libro: libro._id,
       tipo,
       ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: datos.monto }),
@@ -639,7 +656,7 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
         : modoRepetidos === 'reciente'
           ? { createdAt: { $gte: new Date(Date.now() - 20 * 60_000) } }
           : { fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) } }),
-    });
+      }));
     if (igual) {
       repetidos.push(`${datos.descripcion ?? tipo}: ${datos.moneda ? `${datos.moneda} ${monto.toFixed(2)}` : dinero(monto)}`);
       continue;

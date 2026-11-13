@@ -105,7 +105,8 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
       const lectura = await leerComprobante(entrada, { hoy: hoyLocal(), moneda: libro.moneda, titular: usuario.nombre });
       if (!lectura?.movimientos.length) return res.json({ ok: false, mensaje: lectura?.nota || 'No encontré ningún pago en la captura.' });
       const mensaje = await registrarVarios(usuario, lectura.movimientos, { origen: 'desde tu captura' });
-      avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
+      // Si todo ya estaba registrado (la misma lista enviada otra vez), no se avisa: la respuesta lo dice.
+      if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
       return res.json({ ok: true, mensaje: mensaje.replace(/\*/g, '') });
     } catch (err) {
       console.error('Aviso (captura):', err.message);

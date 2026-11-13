@@ -133,12 +133,16 @@ const movimientoSchema = new Schema(
     // Recordatorio por WhatsApp: días antes del vencimiento (-1 = sin recordatorio; sin valor = el ajuste
     // de la persona). «recordado» guarda qué avisos ya se mandaron («2026-11-20:3»), para no repetirlos.
     recordar: { type: Number, min: -1, max: 7 },
+    // Huella de un pago leído de una lista con hora (captura de «Movimientos» de Yape, Plin o el banco):
+    // «fecha|hora|tipo|monto». Sirve para no repetirlo si la misma lista se envía otra vez.
+    huella: String,
     recordado: { type: [String], default: undefined },
   },
   { timestamps: true },
 );
 movimientoSchema.index({ libro: 1, fecha: 1 });
 movimientoSchema.index({ pagado: 1, fecha: 1 });
+movimientoSchema.index({ libro: 1, huella: 1 }, { sparse: true });
 movimientoSchema.index({ libro: 1, serie: 1 });
 movimientoSchema.index({ correoId: 1 }, { sparse: true });
 
