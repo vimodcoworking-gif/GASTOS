@@ -2909,7 +2909,7 @@ async function abrirAvisoApp({ forzar = false } = {}) {
 
     if (instalada) {
       return [
-        h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=4', alt: '', width: 64, height: 64 }),
+        h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=5', alt: '', width: 64, height: 64 }),
           h('div', null, h('h2', null, '¡Ya tienes la app!'), h('p', { class: 'tenue' }, 'Activa las notificaciones para no perderte nada.'))),
         h('ul', { class: 'ventajas' },
           h('li', null, icono('correo'), 'Cada gasto o ingreso que llegue por correo, Yape o el banco, al momento'),
@@ -2923,7 +2923,7 @@ async function abrirAvisoApp({ forzar = false } = {}) {
     }
     const pestana = (id, texto) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(plataforma === id), onclick: () => { plataforma = id; pintar(); } }, texto);
     return [
-      h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=4', alt: '', width: 64, height: 64 }),
+      h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=5', alt: '', width: 64, height: 64 }),
         h('div', null, h('h2', null, 'Instala DUOLAB Gastos'), h('p', { class: 'tenue' }, 'Úsala como una app: desde tu pantalla de inicio, a pantalla completa y con notificaciones.'))),
       h('ul', { class: 'ventajas' },
         h('li', null, icono('campana'), 'Notificaciones de cada gasto que llegue por correo o del banco, también los que no ves en tu bandeja'),
