@@ -1651,3 +1651,8 @@ html { scroll-behavior: auto; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Gráfica de 7 días: columnas sin separación (cada barra centrada en su columna) para que la línea
+   pase exactamente por el centro de cada barra en cualquier tamaño de pantalla. */
+.heroe .heroe-barras, .cabecera-mes .heroe .heroe-barras { column-gap: 0; gap: 0; }
+.heroe .heroe-pista { width: 62%; max-width: 46px; }

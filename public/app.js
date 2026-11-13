@@ -2425,21 +2425,31 @@ function pintarAdmin(datos) {
 
 // Línea suave (curva de Catmull-Rom pasada a Bézier) por lo alto de las 7 barras, con un punto en el día de más gasto.
 function lineaSemana(semana, mayor) {
-  // La curva pasa por encima de cada barra (un poco más alta que ella), con un suavizado ligero para que
-  // fluya sin perder los picos, y se prolonga hasta los bordes de la gráfica.
-  const alto = semana.map((d) => (d.total / mayor) * 100);
-  const suave = alto.map((v, i) => (alto[i - 1] ?? v) * 0.15 + v * 0.7 + (alto[i + 1] ?? v) * 0.15);
-  const y = (v) => 100 - Math.min(97, 6 + v * 0.92);
+  // Cada punto va en el centro de su barra, justo encima de ella (la misma altura que la barra, un poco más
+  // arriba). La curva es «monótona»: pasa por todos los puntos sin pasarse de los picos ni hundirse de más,
+  // así el punto más alto cae exactamente sobre el día de más gasto.
   const n = semana.length;
-  const puntos = [[0, y(suave[0])], ...suave.map((v, i) => [((i + 0.5) / n) * 100, y(v)]), [100, y(suave[n - 1])]];
+  const alto = semana.map((d) => Math.max((d.total / mayor) * 100, d.total ? 6 : 2));
+  const y = (v) => Math.max(3, 100 - v - 4);
+  const centros = alto.map((v, i) => [((i + 0.5) / n) * 100, y(v)]);
+  const puntos = [[0, centros[0][1]], ...centros, [100, centros[n - 1][1]]];
+  // Pendientes de Fritsch-Carlson.
+  const dx = puntos.slice(1).map((q, i) => q[0] - puntos[i][0]);
+  const dy = puntos.slice(1).map((q, i) => (q[1] - puntos[i][1]) / dx[i]);
+  const m = puntos.map((_, i) => {
+    if (i === 0) return dy[0];
+    if (i === puntos.length - 1) return dy[i - 1];
+    if (dy[i - 1] * dy[i] <= 0) return 0;
+    const w1 = 2 * dx[i] + dx[i - 1];
+    const w2 = dx[i] + 2 * dx[i - 1];
+    return (w1 + w2) / (w1 / dy[i - 1] + w2 / dy[i]);
+  });
   let camino = `M${puntos[0][0]},${puntos[0][1].toFixed(2)}`;
-  // Curva cardinal (tensión 0.5): tangentes suaves en cada punto, sin esquinas.
   for (let i = 0; i < puntos.length - 1; i += 1) {
-    const [p0, p1, p2, p3] = [puntos[i - 1] ?? puntos[i], puntos[i], puntos[i + 1], puntos[i + 2] ?? puntos[i + 1]];
-    const c1 = [p1[0] + (p2[0] - p0[0]) / 4, p1[1] + (p2[1] - p0[1]) / 4];
-    const c2 = [p2[0] - (p3[0] - p1[0]) / 4, p2[1] - (p3[1] - p1[1]) / 4];
-    const lim = (v) => Math.max(1, Math.min(99, v)).toFixed(2);
-    camino += ` C${c1[0].toFixed(2)},${lim(c1[1])} ${c2[0].toFixed(2)},${lim(c2[1])} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+    const [x1, y1] = puntos[i];
+    const [x2, y2] = puntos[i + 1];
+    const h3 = dx[i] / 3;
+    camino += ` C${(x1 + h3).toFixed(2)},${(y1 + m[i] * h3).toFixed(2)} ${(x2 - h3).toFixed(2)},${(y2 - m[i + 1] * h3).toFixed(2)} ${x2.toFixed(2)},${y2.toFixed(2)}`;
   }
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 100 100');
@@ -2451,7 +2461,7 @@ function lineaSemana(semana, mayor) {
   const max = semana.findIndex((d) => d.total > 0 && d.total === mayor);
   return h('div', { class: 'heroe-linea-caja', 'aria-hidden': 'true' },
     svg,
-    max >= 0 && h('span', { class: 'heroe-punto', style: `left:${puntos[max + 1][0]}%;top:${puntos[max + 1][1]}%` }));
+    max >= 0 && h('span', { class: 'heroe-punto', style: `left:${centros[max][0]}%;top:${centros[max][1]}%` }));
 }
 
 function conInsignia(el, pendientes) {
