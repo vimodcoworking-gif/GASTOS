@@ -11,7 +11,7 @@ import { rutasAdmin } from './admin.js';
 import { rutasApi } from './routes.js';
 import { manejarErrores } from './errores.js';
 import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
-import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail } from './google.js';
+import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail, corregirYapesDeCorreo } from './google.js';
 import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
 import { iniciarRecordatorios } from './recordatorios.js';
@@ -75,7 +75,8 @@ conectar()
     corregirUnaVez('correccion:registros-unidos', separarRegistrosUnidos).then(() => corregirUnaVez('correccion:medios-de-pago-2', completarMedios))
       .then(() => corregirUnaVez('correccion:medios-yape-plin', corregirMediosBilletera))
       .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados))
-      .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez));
+      .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez))
+      .then(() => corregirUnaVez('correccion:yapes-correo-v1', corregirYapesDeCorreo));
     iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();

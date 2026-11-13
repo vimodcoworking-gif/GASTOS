@@ -8,6 +8,7 @@ import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
 import { librosDe, libroActivo, registrarMovimiento, hoyLocal, puedeEscribir, leerAvisoDePago } from './bot.js';
 import { notificarMensaje } from './push.js';
+import { leerCorreoYape, registrarAlBeneficiario } from './yape.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { comprobarLicencia } from './licencias.js';
 import { convertir, ErrorCambio } from './cambio.js';
@@ -446,7 +447,10 @@ export function direccionDeBilletera(texto) {
 const dias = (a, b) => Math.abs(new Date(`${a}T00:00:00Z`) - new Date(`${b}T00:00:00Z`)) / 86400000;
 
 // Convierte lo que dijo la IA (o el filtro sin IA) en datos para registrar, o null si no es un gasto.
-async function interpretar(correo, monedaLibro, titular) {
+async function interpretar(correo, monedaLibro, titular, nombre = '') {
+  // Correos de Yape: se leen campo por campo (más rápido y sin errores de quién pagó a quién).
+  const deYape = leerCorreoYape(correo, nombre);
+  if (deYape) return deYape;
   let gasto = await leerGastoDeCorreo(correo, titular);
   const esGasto = (g) => g?.tipo === 'gasto' || g?.esGasto === true;
   // Un aviso de consumo con tarjeta inequívoco se registra aunque la IA diga otra cosa.
@@ -550,6 +554,11 @@ async function buscarPendientes(usuario, autorizacion, q, cuantos, { releer = fa
 // En otra moneda se compara el importe cobrado, que no depende del tipo de cambio.
 async function yaRegistrado(libro, datos) {
   const fecha = new Date(`${datos.fecha}T00:00:00Z`).getTime();
+  // Con hora (correos de Yape): el mismo pago ya leído de una captura, o uno igual ese día sin hora.
+  if (datos.huella) {
+    return await Movimiento.findOne({ libro: libro._id, huella: datos.huella }).select('descripcion fecha').lean()
+      ?? Movimiento.findOne({ libro: libro._id, tipo: datos.tipo, monto: Math.round(datos.monto * 100) / 100, huella: { $exists: false }, correoId: { $exists: false }, fecha: { $gte: new Date(fecha), $lt: new Date(fecha + DIA) } }).select('descripcion fecha').lean();
+  }
   return Movimiento.findOne({
     libro: libro._id,
     tipo: datos.tipo,
@@ -567,7 +576,7 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
   }
   const correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`, autorizacion));
   // Si la IA falla, el correo no se marca como visto y se vuelve a intentar en la próxima revisión.
-  const datos = await interpretar(correo, libro.moneda, titularDe(usuario));
+  const datos = await interpretar(correo, libro.moneda, titularDe(usuario), usuario.nombre);
   await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
   resultado.revisados += 1;
   let decision = 'No es un gasto ni un ingreso';
@@ -586,6 +595,8 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
         resultado.registrados += 1;
         const mov = alRegistrar && await Movimiento.findOne({ correoId: id, creadoPor: usuario._id }).select('_id').lean();
         alRegistrar?.(confirmacion, correo, mov?._id);
+        // Yape a otra persona que también usa la app: a ella se le registra el ingreso.
+        if (datos.yape) registrarAlBeneficiario(usuario, datos);
       }
     }
   }
@@ -924,4 +935,36 @@ async function vigilarDespierto() {
 export function pararRevisionGmail() {
   clearInterval(temporizador);
   temporizador = null;
+}
+
+
+/**
+ * Una vez: vuelve a leer, con el lector de correos de Yape, los yapes registrados desde el correo en las
+ * últimas 2 semanas y corrige los que quedaron al revés (p. ej. un ingreso anotado como «Yapeo a…»).
+ */
+export async function corregirYapesDeCorreo() {
+  let corregidos = 0;
+  const desde = new Date(Date.now() - 14 * 86400000);
+  const usuarios = await Usuario.find({ $or: [{ 'gmail.token': { $exists: true } }, { 'gmailExtra.0': { $exists: true } }] }).limit(500);
+  for (const usuario of usuarios) {
+    const movimientos = await Movimiento.find({ creadoPor: usuario._id, medio: 'yape', correoId: { $exists: true }, createdAt: { $gte: desde } }).limit(200);
+    for (const mov of movimientos) {
+      for (const cuenta of cuentasDe(usuario)) {
+        try {
+          const autorizacion = { headers: { Authorization: `Bearer ${await accesoGmail(usuario, cuenta)}` } };
+          const correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${mov.correoId}?format=full`, autorizacion));
+          const datos = leerCorreoYape(correo, usuario.nombre);
+          if (datos && (datos.tipo !== mov.tipo || datos.descripcion !== mov.descripcion)) {
+            Object.assign(mov, { tipo: datos.tipo, descripcion: datos.descripcion, ...(datos.huella && { huella: datos.huella }) });
+            await mov.save();
+            corregidos += 1;
+          }
+          break; // el correo estaba en esta cuenta
+        } catch {
+          // No está en esta cuenta (o sin permiso): se prueba la siguiente.
+        }
+      }
+    }
+  }
+  return corregidos;
 }
