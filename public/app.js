@@ -246,7 +246,8 @@ async function entrar(usuario) {
   aplicarDestinoDeUrl();
   render();
   // Una sola vez: invitación a instalar la app (o, ya instalada, a activar las notificaciones).
-  setTimeout(() => abrirAvisoApp().catch(() => {}), 1500);
+  // Si no hubo nada que mostrar, en iPhone se enseña (una vez) cómo registrar los yapes con el atajo.
+  setTimeout(() => abrirAvisoApp().then((mostrado) => { if (!mostrado) tutorialAtajoUnaVez(); }).catch(() => {}), 1500);
 }
 
 // ---------- tema claro u oscuro ----------
@@ -1965,6 +1966,7 @@ function seccionAvisosTelefono() {
           h('details', { class: 'instrucciones', open: esIOS },
             h('summary', null, '🍎 iPhone: registrar todos los yapes con dos toques en la parte de atrás'),
             h('p', null, 'Registra de una vez todos los pagos que se ven en «Movimientos» de Yape, también los pequeños (S/ 1.20, S/ 2.00). Si mandas la misma lista otra vez, no se repite ninguno.'),
+            h('button', { type: 'button', class: 'primario', onclick: abrirTutorialAtajo }, 'Ver el tutorial paso a paso'),
             h('ol', null,
               h('li', null, 'Abre la app ', h('b', null, 'Atajos'), ' → pestaña Atajos → ', h('b', null, '«+»'), '.'),
               h('li', null, 'Añade la acción ', h('b', null, '«Hacer captura de pantalla»'), '.'),
@@ -2951,10 +2953,11 @@ async function abrirAvisoApp({ forzar = false } = {}) {
   if (!forzar) {
     // Una sola vez: el aviso de instalar y, ya dentro de la app instalada, el de las notificaciones.
     const clave = instalada ? 'aviso-app-notificaciones-v1' : 'aviso-app-instalar-v1';
-    if (guardado.leer(clave) || (instalada && estadoPush !== 'inactivo')) return;
+    if (guardado.leer(clave) || (instalada && estadoPush !== 'inactivo')) return false;
     guardado.poner(clave, '1');
   }
   pintar();
+  return true;
 }
 
 // En «Mi cuenta»: estado de la app y de las notificaciones en este dispositivo.
@@ -2994,6 +2997,121 @@ function aplicarDestinoDeUrl() {
     estado.vista = 'mes';
     estado.seccion.mes = seccion;
   }
+}
+
+// ---------- tutorial del atajo de iPhone para registrar los yapes ----------
+// Ventana paso a paso, con dibujos de cada pantalla. Se abre sola una vez en iPhone y desde «Mi cuenta».
+
+async function enlaceAvisos() {
+  const { enlace } = await api('/avisos/enlace');
+  return enlace ?? (await api('/avisos/enlace', { method: 'POST' })).enlace;
+}
+
+// Bloque que imita una acción de la app Atajos.
+const accionAtajo = (color, icono_, titulo, ...filas) => h('div', { class: 'atajo-accion', style: `--c:${color}` },
+  h('div', { class: 'atajo-accion-titulo' }, h('span', { class: 'atajo-icono' }, icono_), h('b', null, titulo)),
+  filas.map(([clave, valor]) => h('div', { class: 'atajo-fila' }, h('span', null, clave), h('span', { class: 'atajo-valor' }, valor))));
+
+function pantallaYape() {
+  return h('div', { class: 'tel-mini yape' },
+    h('div', { class: 'tel-barra' }, 'Movimientos'),
+    [['Raul Tov*', 'Hoy 11:00 am', '- S/ 1.20'], ['Plin - Raul Tovar', 'Hoy 10:55 am', '- S/ 2.00'], ['*** *** 266', 'Hoy 10:41 am', '- S/ 5.90']]
+      .map(([n, t, m]) => h('div', { class: 'tel-fila' }, h('span', null, h('b', null, n), h('small', null, t)), h('span', { class: 'tel-monto' }, m))));
+}
+
+async function abrirTutorialAtajo() {
+  let paso = 0;
+  let enlace = null;
+  const copiar = async (boton) => {
+    try {
+      enlace ??= await enlaceAvisos();
+      await navigator.clipboard.writeText(enlace);
+      boton.textContent = '✓ Enlace copiado';
+    } catch {
+      boton.textContent = 'Mantén pulsado el enlace para copiarlo';
+    }
+  };
+  const campoEnlace = () => {
+    const caja = h('div', { class: 'tutorial-enlace' }, h('code', null, 'Cargando tu enlace…'));
+    enlaceAvisos().then((e) => {
+      enlace = e;
+      caja.replaceChildren(h('code', null, e));
+    }).catch(() => caja.replaceChildren(h('code', null, 'No se pudo cargar. Ábrelo en Mi cuenta.')));
+    return caja;
+  };
+
+  const PASOS = [
+    {
+      titulo: 'Registra tus yapes con dos toques',
+      texto: 'Apple no deja que otras apps lean las notificaciones de Yape. Con este atajo, en Yape abres «Mostrar movimientos», tocas dos veces la parte de atrás del iPhone y se registran todos los pagos de la pantalla, también los pequeños. Se configura una sola vez (unos 3 minutos).',
+      dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(), h('div', { class: 'toques' }, h('span'), h('span'), h('small', null, 'toc toc'))),
+    },
+    {
+      titulo: '1. Copia tu enlace personal',
+      texto: 'Es la dirección a la que el atajo manda la captura. No la compartas: con ella se registran pagos en tu cuenta.',
+      dibujo: () => h('div', { class: 'tutorial-dibujo columna' }, campoEnlace(),
+        h('button', { type: 'button', class: 'primario', onclick: (ev) => copiar(ev.currentTarget) }, 'Copiar enlace')),
+    },
+    {
+      titulo: '2. Crea el atajo',
+      texto: 'Abre la app Atajos, toca «+» arriba a la derecha, luego «Añadir acción» y busca «Hacer captura de pantalla».',
+      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+        accionAtajo('#3987e5', '📸', 'Hacer captura de pantalla'),
+        h('a', { class: 'boton-enlace', href: 'shortcuts://' }, 'Abrir la app Atajos')),
+    },
+    {
+      titulo: '3. Envía la captura a tu enlace',
+      texto: 'Añade «Obtener contenido de URL». En URL pega tu enlace. Toca la flechita «>» y elige Método POST y Cuerpo de la solicitud: Archivo → Captura de pantalla.',
+      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+        accionAtajo('#3987e5', '📸', 'Hacer captura de pantalla'),
+        accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['URL', 'tu enlace'], ['Método', 'POST'], ['Cuerpo', 'Archivo'], ['Archivo', 'Captura de pantalla'])),
+    },
+    {
+      titulo: '4. Muestra lo que se registró',
+      texto: 'Añade «Obtener valor del diccionario» con la clave «mensaje» y después «Mostrar notificación» con ese valor. Así verás al momento qué pagos entraron.',
+      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+        accionAtajo('#f2a516', '📖', 'Obtener valor del diccionario', ['Clave', 'mensaje']),
+        accionAtajo('#e5484d', '🔔', 'Mostrar notificación', ['Texto', 'Valor del diccionario'])),
+    },
+    {
+      titulo: '5. Ponle nombre y actívalo con Toque atrás',
+      texto: 'Llama al atajo «Registrar Yape». Luego ve a Ajustes → Accesibilidad → Tocar → Toque atrás → Doble toque y elige «Registrar Yape».',
+      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+        h('div', { class: 'ajustes-ruta' }, ['Ajustes', 'Accesibilidad', 'Tocar', 'Toque atrás', 'Doble toque'].map((t, i) => h('span', null, i ? '›' : '', h('b', null, t)))),
+        h('div', { class: 'ajustes-opcion' }, h('span', null, 'Registrar Yape'), h('b', null, '✓'))),
+    },
+    {
+      titulo: '¡Listo! Pruébalo',
+      texto: 'Abre Yape → «Mostrar movimientos» y toca dos veces la parte de atrás del iPhone. En unos segundos te llega la notificación. Si mandas la misma lista otra vez, no se repite ningún pago.',
+      dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(),
+        h('div', { class: 'noti-mini' }, h('b', null, 'Registrar Yape'), h('span', null, '✅ 3 movimientos registrados · Total gastos: S/ 9.10'))),
+    },
+  ];
+
+  const pintar = () => {
+    const p = PASOS[paso];
+    const ultimo = paso === PASOS.length - 1;
+    ventana(h('div', { class: 'tutorial' },
+      h('div', { class: 'tutorial-puntos', 'aria-label': `Paso ${paso + 1} de ${PASOS.length}` },
+        PASOS.map((_, i) => h('span', { class: i === paso ? 'activo' : i < paso ? 'hecho' : '' }))),
+      p.dibujo(),
+      h('h2', null, p.titulo),
+      h('p', null, p.texto),
+      h('div', { class: 'acciones' },
+        paso > 0
+          ? h('button', { type: 'button', class: 'al-inicio', onclick: () => { paso -= 1; pintar(); } }, 'Atrás')
+          : h('button', { type: 'button', class: 'al-inicio', onclick: () => $('#dlg-extra').close() }, 'Ahora no'),
+        h('button', { type: 'button', class: 'primario', onclick: () => { if (ultimo) $('#dlg-extra').close(); else { paso += 1; pintar(); } } }, ultimo ? 'Entendido' : paso === 0 ? 'Empezar' : 'Siguiente')),
+    ), { ancho: 'dlg-tutorial' });
+  };
+  pintar();
+}
+
+// Una sola vez, en iPhone o iPad (si ese día no se mostró ya el aviso de instalar la app).
+function tutorialAtajoUnaVez() {
+  if (!esIOS || guardado.leer('tutorial-atajo-v1')) return;
+  guardado.poner('tutorial-atajo-v1', '1');
+  abrirTutorialAtajo();
 }
 
 // ---------- render ----------

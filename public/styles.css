@@ -1460,3 +1460,46 @@ button.circulo.pequeno .icono { width: 17px; height: 17px; }
   .app-cabecera img { width: 56px; height: 56px; }
   .pasos { padding: .75rem; }
 }
+
+/* ---------- Tutorial del atajo de iPhone ---------- */
+.dlg-extra.dlg-tutorial { width: min(460px, calc(100vw - 24px)); }
+.tutorial { display: grid; gap: .8rem; }
+.tutorial h2 { margin: 0; font-size: 1.2rem; }
+.tutorial > p { margin: 0; font-size: .92rem; line-height: 1.5; color: var(--t-suave); }
+.tutorial .acciones { margin-top: .2rem; }
+.tutorial-puntos { display: flex; justify-content: center; gap: .35rem; }
+.tutorial-puntos span { width: 8px; height: 8px; border-radius: 999px; background: var(--t-linea-f); transition: width .2s ease; }
+.tutorial-puntos span.hecho { background: color-mix(in srgb, var(--lima) 55%, var(--t-linea-f)); }
+.tutorial-puntos span.activo { width: 24px; background: var(--lima); }
+.tutorial-dibujo { position: relative; display: grid; place-items: center; min-height: 200px; padding: 1rem; border-radius: 22px; background: radial-gradient(80% 70% at 80% 100%, rgba(198, 244, 50, .18), transparent 65%), linear-gradient(160deg, #262b21, #13160f); overflow: hidden; }
+.tutorial-dibujo.columna { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: .55rem; }
+.tutorial-dibujo .primario, .tutorial-dibujo .boton-enlace { align-self: center; }
+.boton-enlace { display: inline-flex; align-items: center; min-height: 42px; padding: 0 1.1rem; border-radius: 999px; background: rgba(255, 255, 255, .1); color: #f3f6ee; font-weight: 700; text-decoration: none; }
+/* Teléfono con la lista de Yape */
+.tel-mini { width: min(250px, 100%); border-radius: 18px; background: #fff; color: #222; box-shadow: 0 14px 30px -12px rgba(0, 0, 0, .6); overflow: hidden; font-size: .78rem; }
+.tel-barra { padding: .55rem .8rem; background: #742284; color: #fff; font-weight: 700; }
+.tel-fila { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .45rem .8rem; border-top: 1px solid #eee; }
+.tel-fila span:first-child { display: grid; }
+.tel-fila small { color: #999; }
+.tel-monto { color: #d4485f; font-weight: 700; white-space: nowrap; }
+.toques { position: absolute; right: 3%; top: 50%; display: grid; place-items: center; transform: translateY(-50%); }
+.toques span { position: absolute; width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--lima); animation: toque 1.6s ease-out infinite; }
+.toques span + span { animation-delay: .25s; }
+.toques small { margin-top: 70px; color: var(--lima); font-weight: 800; letter-spacing: .05em; }
+@keyframes toque { 0% { transform: scale(.4); opacity: 1; } 70%, 100% { transform: scale(1.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .toques span { animation: none; } }
+/* Acciones de la app Atajos */
+.atajo-accion { padding: .6rem .75rem; border-radius: 14px; background: #2c2c2e; color: #f2f2f7; font-size: .82rem; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .6); }
+.atajo-accion-titulo { display: flex; align-items: center; gap: .5rem; }
+.atajo-icono { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--c); font-size: .85rem; }
+.atajo-fila { display: flex; justify-content: space-between; gap: .5rem; margin-top: .4rem; padding-top: .4rem; border-top: 1px solid rgba(255, 255, 255, .08); }
+.atajo-fila span:first-child { color: #8e8e93; }
+.atajo-valor { padding: .05rem .45rem; border-radius: 6px; background: color-mix(in srgb, var(--c) 35%, transparent); color: #fff; font-weight: 600; }
+.tutorial-enlace { padding: .65rem .8rem; border-radius: 12px; background: rgba(255, 255, 255, .08); color: #f3f6ee; overflow-wrap: anywhere; font-size: .78rem; }
+.tutorial-enlace code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.ajustes-ruta { display: flex; flex-wrap: wrap; gap: .3rem; color: #f3f6ee; font-size: .82rem; }
+.ajustes-ruta span { display: inline-flex; gap: .3rem; color: #8e8e93; }
+.ajustes-ruta b { color: #f3f6ee; padding: .2rem .5rem; border-radius: 8px; background: rgba(255, 255, 255, .08); }
+.ajustes-opcion { display: flex; justify-content: space-between; padding: .65rem .85rem; border-radius: 12px; background: #2c2c2e; color: #f2f2f7; font-size: .88rem; }
+.ajustes-opcion b { color: #0a84ff; }
+.noti-mini { position: absolute; left: 50%; top: 12px; width: min(280px, 90%); transform: translateX(-50%); display: grid; gap: .1rem; padding: .55rem .75rem; border-radius: 14px; background: rgba(245, 245, 247, .94); color: #111; font-size: .76rem; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .6); backdrop-filter: blur(8px); }
