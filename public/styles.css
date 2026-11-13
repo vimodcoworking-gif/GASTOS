@@ -1698,3 +1698,24 @@ html { scroll-behavior: auto; }
 .historial-icono { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 800; font-size: .75rem; }
 .historial-avisos li.ok .historial-icono { background: color-mix(in srgb, var(--lima) 40%, transparent); color: var(--t-tinta); }
 .historial-avisos li.falla .historial-icono { background: color-mix(in srgb, var(--rojo) 20%, transparent); color: var(--rojo); }
+
+/* Tutorial: pasos numerados */
+.tutorial-pasos { margin: 0; padding: 0; list-style: none; counter-reset: paso; display: grid; gap: .5rem; }
+.tutorial-pasos li { counter-increment: paso; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: .55rem; font-size: .9rem; line-height: 1.45; color: var(--t-suave); }
+.tutorial-pasos li::before { content: counter(paso); display: grid; place-items: center; width: 22px; height: 22px; margin-top: .05rem; border-radius: 50%; background: var(--lima); color: var(--sobre-lima); font-size: .75rem; font-weight: 800; }
+.tutorial-pasos b { color: var(--t-tinta); }
+.permiso-mini { display: grid; gap: .7rem; width: min(280px, 100%); padding: .9rem; border-radius: 16px; background: rgba(245, 245, 247, .96); color: #111; font-size: .8rem; text-align: center; box-shadow: 0 14px 30px -12px rgba(0, 0, 0, .6); }
+.permiso-mini > div { display: grid; gap: .35rem; }
+.permiso-mini span { padding: .45rem; border-top: 1px solid #ddd; color: #0a84ff; }
+.permiso-mini span.si { font-weight: 800; }
+
+/* ---------- Gestos: atrás desde el borde y tirar para actualizar ---------- */
+.gesto-atras, .gesto-actualizar { position: fixed; z-index: 60; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #1b1f17; color: #f3f6ee; box-shadow: 0 8px 20px -6px rgba(0, 0, 0, .5); opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+.gesto-atras { left: 0; top: 50%; transform: translate(-44px, -50%); }
+.gesto-actualizar { left: 50%; top: calc(8px + env(safe-area-inset-top)); transform: translate(-50%, 0); }
+.gesto-atras .icono, .gesto-actualizar .icono { width: 22px; height: 22px; }
+.gesto-atras.listo, .gesto-actualizar.listo { background: var(--lima); color: var(--sobre-lima); }
+/* En la app instalada, el rebote del navegador no compite con «tirar para actualizar». */
+@media (display-mode: standalone) {
+  html, body { overscroll-behavior-y: none; }
+}

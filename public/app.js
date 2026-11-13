@@ -3079,55 +3079,87 @@ async function abrirTutorialAtajo() {
 
   const PASOS = [
     {
-      titulo: 'Registra tus yapes con dos toques',
-      texto: 'Apple no deja que otras apps lean las notificaciones de Yape. Con este atajo, en Yape abres «Mostrar movimientos», tocas dos veces la parte de atrás del iPhone y se registran todos los pagos de la pantalla, también los pequeños. Se configura una sola vez (unos 3 minutos).',
+      titulo: 'Registra tus yapes desde el iPhone',
+      texto: 'Apple no deja que ninguna app lea las notificaciones de Yape. Con un atajo de iPhone envías la constancia o la lista de movimientos y se registran todos los pagos, también los pequeños, sin duplicar. Se configura una vez (unos 5 minutos).',
       dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(), h('div', { class: 'toques' }, h('span'), h('span'), h('small', null, 'toc toc'))),
     },
     {
-      titulo: '1. Copia tu enlace personal',
-      texto: 'Es la dirección a la que el atajo manda la captura. No la compartas: con ella se registran pagos en tu cuenta.',
+      titulo: 'Antes de empezar: copia tu enlace',
+      texto: 'Es la dirección a la que el atajo manda la captura. No la compartas.',
       dibujo: () => h('div', { class: 'tutorial-dibujo columna' }, campoEnlace(),
         h('button', { type: 'button', class: 'primario', onclick: (ev) => copiar(ev.currentTarget) }, 'Copiar enlace')),
     },
     {
-      titulo: '2. Crea el atajo',
-      texto: 'Abre la app Atajos, toca «+» arriba a la derecha, luego «Añadir acción» y busca «Hacer captura de pantalla».',
+      titulo: 'Parte 1 · Crea el atajo',
+      pasos: [
+        ['Abre la app ', h('b', null, 'Atajos'), ' y en la pestaña Atajos toca ', h('b', null, '«+»'), ' arriba a la derecha.'],
+        ['Toca ', h('b', null, '«Añadir acción»'), ', busca ', h('b', null, '«Hacer captura de pantalla»'), ' y añádela.'],
+      ],
       dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
         accionAtajo('#3987e5', '📸', 'Hacer captura de pantalla'),
         h('a', { class: 'boton-enlace', href: 'shortcuts://' }, 'Abrir la app Atajos')),
     },
     {
-      titulo: '3. Envía la captura a tu enlace',
-      texto: 'Añade «Obtener contenido de URL». En URL pega tu enlace. Toca la flechita «>» y elige Método POST y Cuerpo de la solicitud: Archivo → Captura de pantalla.',
+      titulo: 'Parte 1 · Envía la captura a tu enlace',
+      pasos: [
+        ['Añade ', h('b', null, '«Obtener contenido de URL»'), ' debajo y pega tu enlace en ', h('b', null, 'URL'), '.'],
+        ['Toca la flechita ', h('b', null, '«>»'), ' de esa acción: ', h('b', null, 'Método POST'), ', ', h('b', null, 'Cuerpo de la solicitud: Archivo'), '.'],
+        ['En ', h('b', null, 'Archivo'), ' elige ', h('b', null, '«Captura de pantalla»'), '.'],
+      ],
       dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
         accionAtajo('#3987e5', '📸', 'Hacer captura de pantalla'),
         accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['URL', 'tu enlace'], ['Método', 'POST'], ['Cuerpo', 'Archivo'], ['Archivo', 'Captura de pantalla'])),
     },
     {
-      titulo: '4. Muestra lo que se registró',
-      texto: 'Añade «Obtener valor del diccionario» con la clave «mensaje» y después «Mostrar notificación» con ese valor. Así verás al momento qué pagos entraron.',
+      titulo: 'Parte 1 · Mira qué se registró y ponle nombre',
+      pasos: [
+        ['(Opcional) Añade ', h('b', null, '«Obtener valor del diccionario»'), ' con la clave ', h('b', null, 'mensaje'), ' y luego ', h('b', null, '«Mostrar notificación»'), ' con ese valor.'],
+        ['Arriba, toca el nombre y escribe ', h('b', null, 'Registrar Yape'), '. Toca ', h('b', null, 'OK'), '.'],
+      ],
       dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
         accionAtajo('#f2a516', '📖', 'Obtener valor del diccionario', ['Clave', 'mensaje']),
         accionAtajo('#e5484d', '🔔', 'Mostrar notificación', ['Texto', 'Valor del diccionario'])),
     },
     {
-      titulo: '5. Ponle nombre y actívalo con Toque atrás',
-      texto: 'Llama al atajo «Registrar Yape». Luego ve a Ajustes → Accesibilidad → Tocar → Toque atrás → Doble toque y elige «Registrar Yape».',
+      titulo: 'Actívalo con dos toques atrás',
+      pasos: [
+        ['Ve a ', h('b', null, 'Ajustes → Accesibilidad → Tocar → Tocar atrás → Doble toque'), '.'],
+        ['Elige ', h('b', null, 'Registrar Yape'), '.'],
+        ['Úsalo: en Yape, con la constancia o «Mostrar movimientos» en pantalla, toca dos veces la parte de atrás del iPhone.'],
+      ],
       dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
-        h('div', { class: 'ajustes-ruta' }, ['Ajustes', 'Accesibilidad', 'Tocar', 'Toque atrás', 'Doble toque'].map((t, i) => h('span', null, i ? '›' : '', h('b', null, t)))),
+        h('div', { class: 'ajustes-ruta' }, ['Ajustes', 'Accesibilidad', 'Tocar', 'Tocar atrás', 'Doble toque'].map((t, i) => h('span', null, i ? '›' : '', h('b', null, t)))),
         h('div', { class: 'ajustes-opcion' }, h('span', null, 'Registrar Yape'), h('b', null, '✓'))),
     },
     {
-      titulo: '6. (Recomendado) Que se envíe solo al cerrar Yape',
-      texto: 'Así no tienes que acordarte: después de yapear, toma una captura de la constancia (o de «Movimientos») y cierra Yape. En Atajos → Automatización → «+» → App → Yape → «Se cierra» → «Ejecutar inmediatamente». Acciones: «Obtener las últimas capturas de pantalla» (1) y «Obtener contenido de URL» con tu enlace, POST, Archivo → Capturas de pantalla. Si no hay captura nueva, no se repite nada.',
+      titulo: 'Parte 2 · Que se envíe solo al cerrar Yape',
+      pasos: [
+        ['En Atajos, pestaña ', h('b', null, 'Automatización'), ' → ', h('b', null, '«+»'), '.'],
+        ['Elige ', h('b', null, 'App'), ' → ', h('b', null, 'Yape'), '. Marca ', h('b', null, '«Se cierra»'), ' y desmarca «Se abre».'],
+        ['Elige ', h('b', null, '«Ejecutar inmediatamente»'), ' → Siguiente → ', h('b', null, '«Nuevo atajo en blanco»'), '.'],
+        ['Añade ', h('b', null, '«Obtener las últimas capturas de pantalla»'), ' (cantidad 1) y ', h('b', null, '«Obtener contenido de URL»'), ' con tu enlace, POST, Archivo → Capturas de pantalla. Toca OK.'],
+      ],
       dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
         h('div', { class: 'ajustes-ruta' }, ['Automatización', 'App', 'Yape', 'Se cierra', 'Ejecutar inmediatamente'].map((t, i) => h('span', null, i ? '›' : '', h('b', null, t)))),
         accionAtajo('#3987e5', '🖼️', 'Obtener las últimas capturas de pantalla', ['Cantidad', '1']),
-        accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['URL', 'tu enlace'], ['Método', 'POST'], ['Archivo', 'Capturas de pantalla'])),
+        accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['Método', 'POST'], ['Archivo', 'Capturas de pantalla'])),
     },
     {
-      titulo: '¡Listo! Pruébalo',
-      texto: 'Después de yapear o recibir un yape: toca dos veces la parte de atrás del iPhone en la constancia o en «Movimientos» (o, con la automatización, haz una captura y cierra Yape). En unos segundos te llega la notificación. Revisa en Mi cuenta → «Últimos envíos» qué llegó. Nada se repite.',
+      titulo: 'La primera vez',
+      pasos: [
+        ['El iPhone preguntará si el atajo puede conectarse a ', h('b', null, 'gastos-g63s.onrender.com'), ' y ver tus capturas: elige ', h('b', null, '«Permitir siempre»'), '.'],
+        ['Haz una prueba y revisa en la app ', h('b', null, 'Mi cuenta → Últimos envíos'), ': ahí ves si llegó y cuántos pagos se registraron.'],
+      ],
+      dibujo: () => h('div', { class: 'tutorial-dibujo' },
+        h('div', { class: 'permiso-mini' }, h('b', null, '¿Permitir que «Registrar Yape» se conecte a gastos-g63s.onrender.com?'),
+          h('div', null, h('span', null, 'No permitir'), h('span', null, 'Permitir una vez'), h('span', { class: 'si' }, 'Permitir siempre')))),
+    },
+    {
+      titulo: '¡Listo!',
+      pasos: [
+        ['Después de yapear o recibir un yape: haz una captura de la constancia y cierra Yape (o toca dos veces atrás).'],
+        ['En unos segundos te llega la notificación. Si envías la misma captura otra vez, no se repite nada.'],
+      ],
       dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(),
         h('div', { class: 'noti-mini' }, h('b', null, 'Registrar Yape'), h('span', null, '✅ 3 movimientos registrados · Total gastos: S/ 15.00'))),
     },
@@ -3141,7 +3173,8 @@ async function abrirTutorialAtajo() {
         PASOS.map((_, i) => h('span', { class: i === paso ? 'activo' : i < paso ? 'hecho' : '' }))),
       p.dibujo(),
       h('h2', null, p.titulo),
-      h('p', null, p.texto),
+      p.texto && h('p', null, p.texto),
+      p.pasos && h('ol', { class: 'tutorial-pasos' }, p.pasos.map((partes) => h('li', null, h('span', null, ...partes)))),
       h('div', { class: 'acciones' },
         paso > 0
           ? h('button', { type: 'button', class: 'al-inicio', onclick: () => { paso -= 1; pintar(); } }, 'Atrás')
@@ -3201,6 +3234,7 @@ async function render(reutilizar = false) {
     if (boton.dataset.vista === estado.vista) boton.setAttribute('aria-current', 'page');
     else boton.removeAttribute('aria-current');
   }
+  sincronizarHistorial();
   $('#titulo-libro').textContent = libro ? `${libro.nombre} · ${libro.moneda}` : '';
   $('#nuevo-rapido').hidden = !puedeEditar() || estado.vista === 'admin' || estado.vista === 'cuenta';
 
@@ -3292,3 +3326,141 @@ try {
   if (errorGoogle) $('#auth-error').textContent = errorGoogle;
   else if (err.estado !== 401) $('#auth-error').textContent = err.message;
 }
+
+
+// ---------- gestos de teléfono: atrás, deslizar desde el borde y tirar para actualizar ----------
+// Cada vista queda en el historial: el botón o gesto «atrás» del teléfono (Android) y el del navegador
+// cierran la ventana abierta o vuelven a la vista anterior, en vez de salir de la app.
+
+// «var» y «function»: la app arranca (y llama a render) antes de que se lea esta parte del archivo.
+var pasoPorHistorial = false; // eslint-disable-line no-var
+var cierrePorHistorial = false; // eslint-disable-line no-var
+function estadoDeNavegacion() {
+  return { app: true, vista: estado.vista, seccion: estado.seccion.mes };
+}
+
+function sincronizarHistorial() {
+  if (pasoPorHistorial) {
+    pasoPorHistorial = false;
+    return;
+  }
+  const actual = history.state;
+  const nuevo = estadoDeNavegacion();
+  if (!actual?.app) history.replaceState(nuevo, '');
+  else if (!actual.dialogo && (actual.vista !== nuevo.vista || actual.seccion !== nuevo.seccion)) history.pushState(nuevo, '');
+}
+
+// Cada ventana que se abre añade un paso al historial: «atrás» la cierra.
+const abrirVentanaOriginal = HTMLDialogElement.prototype.showModal;
+HTMLDialogElement.prototype.showModal = function showModal() {
+  abrirVentanaOriginal.call(this);
+  history.pushState({ ...estadoDeNavegacion(), dialogo: true }, '');
+  this.addEventListener('close', () => {
+    if (cierrePorHistorial) {
+      cierrePorHistorial = false;
+      return;
+    }
+    // Cerrada con un botón: se quita su paso del historial (si no se abrió otra ventana justo después).
+    setTimeout(() => {
+      if (history.state?.dialogo && !document.querySelector('dialog[open]')) {
+        pasoPorHistorial = true;
+        history.back();
+      }
+    }, 0);
+  }, { once: true });
+};
+
+window.addEventListener('popstate', (ev) => {
+  const abierta = [...document.querySelectorAll('dialog[open]')].pop();
+  if (abierta) {
+    cierrePorHistorial = true;
+    abierta.close();
+    return;
+  }
+  const destino = ev.state;
+  if (pasoPorHistorial) {
+    // Fue la app quien retrocedió (al cerrar una ventana): si mientras tanto se cambió de vista
+    // (p. ej. desde el menú), se anota la vista nueva.
+    pasoPorHistorial = false;
+    const nav = estadoDeNavegacion();
+    if (destino?.app && (destino.vista !== nav.vista || destino.seccion !== nav.seccion)) history.pushState(nav, '');
+    return;
+  }
+  if (!destino?.app || !estado.usuario) return;
+  if (destino.vista !== estado.vista || destino.seccion !== estado.seccion.mes) {
+    estado.vista = destino.vista;
+    if (destino.seccion) estado.seccion.mes = destino.seccion;
+    pasoPorHistorial = true;
+    render();
+    window.scrollTo({ top: 0 });
+  }
+});
+
+// «Atrás» desde un gesto propio (iPhone instalado no tiene gesto de atrás del sistema).
+function irAtras() {
+  if (document.querySelector('dialog[open]') || (history.state?.app && history.length > 1 && estado.vista !== 'mes')) return history.back();
+  if (estado.vista !== 'mes') {
+    estado.vista = 'mes';
+    render();
+  }
+}
+
+// Deslizar desde el borde izquierdo hacia la derecha = atrás (como en las apps de iPhone).
+// Tirar hacia abajo desde arriba del todo = actualizar los datos.
+(() => {
+  const tactil = 'ontouchstart' in window;
+  if (!tactil) return;
+  const flecha = h('div', { class: 'gesto-atras', 'aria-hidden': 'true' }, icono('flecha-izq'));
+  const actualizar = h('div', { class: 'gesto-actualizar', 'aria-hidden': 'true' }, icono('sincronizar'));
+  document.body.append(flecha, actualizar);
+  let inicio = null;
+  let modo = null;
+  const dentroDeDeslizable = (el) => el?.closest?.('.lista-desliza, .chips-filtro, .tabla-scroll, .lista-captura, dialog, input, select, textarea, .calendario');
+
+  document.addEventListener('touchstart', (ev) => {
+    if (ev.touches.length !== 1) return (inicio = null);
+    const t = ev.touches[0];
+    inicio = { x: t.clientX, y: t.clientY };
+    // Borde izquierdo: solo en la app instalada (en el navegador ya existe el gesto del sistema).
+    if (t.clientX < 24 && enModoApp()) modo = 'atras';
+    else if (window.scrollY <= 0 && enModoApp() && !dentroDeDeslizable(ev.target) && !document.querySelector('dialog[open]')) modo = 'actualizar';
+    else modo = null;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (ev) => {
+    if (!inicio || !modo) return;
+    const t = ev.touches[0];
+    const dx = t.clientX - inicio.x;
+    const dy = t.clientY - inicio.y;
+    if (modo === 'atras') {
+      if (Math.abs(dy) > 60) return (modo = null, flecha.style.opacity = 0);
+      const avance = Math.max(0, Math.min(1, dx / 90));
+      flecha.style.opacity = avance;
+      flecha.style.transform = `translate(${Math.min(dx, 90) - 44}px, -50%) scale(${0.7 + avance * 0.3})`;
+      flecha.classList.toggle('listo', dx > 80);
+    } else if (modo === 'actualizar') {
+      if (dy < 0 || Math.abs(dx) > dy) return (modo = null, actualizar.style.opacity = 0);
+      const avance = Math.max(0, Math.min(1, dy / 110));
+      actualizar.style.opacity = avance;
+      actualizar.style.transform = `translate(-50%, ${Math.min(dy, 110) * 0.6}px) rotate(${dy * 2}deg)`;
+      actualizar.classList.toggle('listo', dy > 100);
+    }
+  }, { passive: true });
+
+  const terminar = () => {
+    if (modo === 'atras' && flecha.classList.contains('listo')) irAtras();
+    if (modo === 'actualizar' && actualizar.classList.contains('listo')) {
+      datosRecordados.clear();
+      render().then?.(() => avisar('Actualizado'));
+    }
+    for (const el of [flecha, actualizar]) {
+      el.classList.remove('listo');
+      el.style.opacity = 0;
+      el.style.transform = '';
+    }
+    inicio = null;
+    modo = null;
+  };
+  document.addEventListener('touchend', terminar, { passive: true });
+  document.addEventListener('touchcancel', terminar, { passive: true });
+})();
