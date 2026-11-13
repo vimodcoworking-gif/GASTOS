@@ -1555,3 +1555,33 @@ button.circulo.pequeno .icono { width: 17px; height: 17px; }
   .form-perfil { grid-template-columns: minmax(0, 1fr); }
   .cuenta-tarjeta > button { justify-self: stretch; width: 100%; }
 }
+
+/* ---------- Teléfono: todas las ventanas como hoja inferior a todo el ancho ---------- */
+@media (max-width: 640px) {
+  dialog.dlg-extra, dialog.dlg-extra.dlg-app, dialog.dlg-extra.dlg-tutorial, dialog.dlg-captura {
+    width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 26px 26px 0 0;
+    max-height: calc(100dvh - 24px); overflow-y: auto;
+    padding: 1.1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  }
+  .tutorial { gap: .65rem; }
+  .tutorial h2 { font-size: 1.12rem; }
+  .tutorial > p { font-size: .88rem; }
+  .tutorial-dibujo { min-height: 170px; padding: .8rem; }
+  /* El teléfono de ejemplo deja sitio a la derecha para los «toques». */
+  .tutorial-dibujo .tel-mini { width: 74%; justify-self: start; }
+  .toques { right: 6%; }
+  .toques span { width: 38px; height: 38px; }
+  .toques small { margin-top: 62px; font-size: .7rem; }
+  .noti-mini { width: 92%; }
+  .app-cabecera h2 { font-size: 1.12rem; }
+  .ventajas li { font-size: .85rem; }
+}
+@media (max-width: 380px) {
+  .tutorial-dibujo .tel-mini { width: 70%; font-size: .72rem; }
+  .tel-fila { padding: .4rem .6rem; }
+}
+#nuevo-rapido { white-space: nowrap; flex: none; }
+@media (max-width: 360px) {
+  #titulo-libro { display: none; }
+  .barra { gap: .5rem; }
+}
