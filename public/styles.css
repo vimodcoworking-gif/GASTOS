@@ -391,7 +391,7 @@ dialog h2 { margin-bottom: 1rem; }
 .zona-qr li, .ayuda li { margin-bottom: .35rem; }
 .ayuda { margin: 0 0 .75rem; padding-left: 1.1rem; }
 /* Los formularios de una columna no se estiran a todo el ancho en pantallas grandes. */
-.panel > form:not(.form-linea):not(.chat-form) { max-width: 640px; }
+.panel > form:not(.form-linea):not(.chat-form):not(.form-cuenta) { max-width: 640px; }
 .auth-caja .panel { max-width: none; }
 
 /* ---------- Pantallas grandes: las ventanas emergentes crecen con la resolución ---------- */
@@ -1504,3 +1504,54 @@ button.circulo.pequeno .icono { width: 17px; height: 17px; }
 .ajustes-opcion { display: flex; justify-content: space-between; padding: .65rem .85rem; border-radius: 12px; background: #2c2c2e; color: #f2f2f7; font-size: .88rem; }
 .ajustes-opcion b { color: #0a84ff; }
 .noti-mini { position: absolute; left: 50%; top: 12px; width: min(280px, 90%); transform: translateX(-50%); display: grid; gap: .1rem; padding: .55rem .75rem; border-radius: 14px; background: rgba(245, 245, 247, .94); color: #111; font-size: .76rem; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .6); backdrop-filter: blur(8px); }
+
+/* ---------- Mi cuenta: tarjetas compactas en rejilla ---------- */
+.cuenta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; align-items: start; }
+.cuenta-grid > .panel { margin: 0; min-width: 0; }
+.cuenta-tarjeta.ancha { grid-column: 1 / -1; }
+.cuenta-tarjeta { display: grid; gap: .8rem; }
+.cuenta-tarjeta > * { margin: 0; }
+.cuenta-cabecera { display: flex; align-items: center; gap: .75rem; margin: 0; }
+.cuenta-cabecera .icono-caja { width: 40px; height: 40px; border-radius: 13px; background: color-mix(in srgb, var(--lima) 22%, transparent); color: var(--t-tinta); }
+.cuenta-cabecera .icono-caja .icono { width: 20px; height: 20px; }
+.cuenta-cabecera > div { flex: 1; min-width: 0; }
+.cuenta-cabecera h3 { margin: 0; font-size: 1.02rem; }
+.cuenta-cabecera p { margin: .1rem 0 0; font-size: .82rem; }
+.cuenta-tarjeta p.nota, .cuenta-tarjeta .nota { font-size: .8rem; margin: 0; }
+.form-cuenta { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .65rem; align-items: end; margin: 0; max-width: none; }
+.form-cuenta label { margin: 0; min-width: 0; }
+.form-cuenta > button, .form-cuenta .botones-fila { align-self: end; }
+.form-cuenta label.check { align-self: center; min-height: 44px; }
+.form-cuenta .botones-fila { flex-wrap: nowrap; }
+.enlace-fila { grid-template-columns: minmax(0, 1fr) auto; }
+.estado-filas { display: grid; gap: .45rem; }
+.estado-filas > div { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .55rem .75rem; border-radius: 14px; background: var(--t-elev); font-size: .88rem; font-weight: 600; }
+.estado-chip { display: inline-flex; align-items: center; padding: .2rem .6rem; border-radius: 999px; background: var(--t-sup); color: var(--t-tenue); font-size: .76rem; font-weight: 700; white-space: nowrap; box-shadow: inset 0 0 0 1px var(--t-linea); }
+.estado-chip.ok { background: color-mix(in srgb, var(--lima) 30%, transparent); color: var(--t-tinta); box-shadow: none; }
+.cuenta-tarjeta .instrucciones { margin: 0; }
+.cuenta-tarjeta .instrucciones summary { font-weight: 700; }
+.cuenta-tarjeta .instrucciones > .primario { margin-top: .5rem; }
+.cuenta-tarjeta .escaneo { margin: 0; }
+@media (max-width: 900px) {
+  .cuenta-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .form-cuenta, .enlace-fila { grid-template-columns: minmax(0, 1fr); }
+  .form-cuenta > button, .form-cuenta .botones-fila > button { width: 100%; }
+  .form-cuenta .botones-fila { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cuenta-tarjeta .botones-fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+}
+
+.cuenta-grid { align-items: stretch; }
+.cuenta-tarjeta { align-content: start; }
+.cuenta-tarjeta > button, .cuenta-tarjeta > div > button { justify-self: start; width: auto; }
+.form-perfil { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+.form-perfil > button { min-width: 120px; }
+@media (max-width: 900px) {
+  .form-perfil { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .form-perfil > button { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .form-perfil { grid-template-columns: minmax(0, 1fr); }
+  .cuenta-tarjeta > button { justify-self: stretch; width: 100%; }
+}

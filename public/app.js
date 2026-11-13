@@ -1719,6 +1719,12 @@ function pintarCompartir({ miembros, canales }) {
 
 // ---------- vista: mi cuenta ----------
 
+// Cabecera de cada tarjeta de «Mi cuenta»: icono, título corto y una línea de explicación.
+const cabeceraCuenta = (nombreIcono, titulo, sub, extra = null) => h('header', { class: 'cuenta-cabecera' },
+  h('span', { class: 'icono-caja' }, icono(nombreIcono)),
+  h('div', null, h('h3', null, titulo), sub && h('p', { class: 'tenue' }, sub)),
+  extra);
+
 function pintarCuenta() {
   const u = estado.usuario;
   const guardar = (ev) => {
@@ -1803,7 +1809,7 @@ function pintarCuenta() {
 
   const seccionEscaneo = correos.length > 0 && h('div', { class: 'escaneo' },
     h('h4', null, 'Correos anteriores'),
-    h('p', { class: 'tenue' }, `Revisa los avisos de compras, pagos e ingresos que ya tienes en ${varios ? 'todos tus Gmail' : 'tu Gmail'}, de los meses que elijas o de todo tu correo, y regístralos en tu libro y calendario. Avanza solo por tandas hasta terminar. Los que ya anotaste (mismo monto y fecha) no se duplican. También puedes pedírselo al Asistente IA.`),
+    h('p', { class: 'tenue nota' }, 'Registra los avisos que ya tienes en el correo. No se duplican.'),
     correos.filter((c) => c.escaneo).map((c) => h('p', { class: c.escaneo.estado === 'error' ? 'error' : null }, varios ? h('strong', null, `${c.email}: `) : null, textoEscaneo(c.escaneo))),
     escaneando
       ? h('div', { class: 'acciones' },
@@ -1857,7 +1863,7 @@ function pintarCuenta() {
     if (revisadosAbiertos) cargar();
     return h('div', { class: 'escaneo' },
       h('h4', null, 'Correos revisados'),
-      h('p', { class: 'tenue' }, 'Los avisos que se leyeron en la última semana y qué se hizo con cada uno. Si uno no se registró por error, pulsa «Volver a revisar».'),
+      h('p', { class: 'tenue nota' }, 'Qué se hizo con cada aviso de la última semana.'),
       h('button', { type: 'button', onclick: cargar }, 'Ver correos revisados'),
       lista,
     );
@@ -1873,7 +1879,7 @@ function pintarCuenta() {
         h('span', { class: `etiqueta ${c.activo ? 'ok' : ''}` }, c.activo ? 'Activo' : sinPermiso ? 'Sin permiso' : 'En pausa'),
       ),
       c.error && h('p', { class: 'error' }, c.error),
-      h('p', { class: 'tenue' }, `Última revisión: ${cuando(c.ultimaRevision)} · Registrados: ${c.registrados} · Desde el ${new Date(c.desde).toLocaleDateString('es')}`),
+      h('p', { class: 'tenue nota' }, `Revisado: ${cuando(c.ultimaRevision)} · ${c.registrados} registrados`),
       h('div', { class: 'acciones' },
         sinPermiso
           ? h('button', { type: 'button', class: 'primario', onclick: vincular }, 'Volver a vincular')
@@ -1883,54 +1889,45 @@ function pintarCuenta() {
     );
   };
 
-  const seccionGmail = googleDisponible && h('section', { class: 'panel' },
-    h('header', null, h('h3', null, 'Gastos desde tu Gmail'), varios && h('span', { class: 'tenue' }, `${correos.length} correos vinculados`)),
+  const seccionGmail = googleDisponible && h('section', { class: 'panel cuenta-tarjeta ancha' },
+    cabeceraCuenta('correo', 'Gastos desde tu Gmail', 'Registra solos los avisos de bancos, Yape, tiendas y apps.', varios && h('span', { class: 'estado-chip' }, `${correos.length} correos`)),
     correos.length
       ? [
-          correos.some((c) => c.activo) && h('p', { class: 'sincronizacion' }, icono('sincronizar'), ` Sincronización automática activa: cada ${minutosGmail} minutos se leen los avisos nuevos y se registran solos, también los de hoy.`),
-          h('p', null, 'El bot revisa tus correos cada pocos minutos y registra solo en tu libro y en el calendario los gastos e ingresos que te avisan tus bancos, Yape, Plin, tiendas y apps (compras, pagos, transferencias, yapeos recibidos, sueldo). Los verás marcados con ', icono('correo', 'el icono de correo'), '.'),
-          u.whatsapp
-            ? h('p', { class: 'tenue' }, 'Cada movimiento que se registre te llegará también por WhatsApp; si alguno no es correcto, responde «deshacer».')
-            : h('p', { class: 'tenue' }, 'Añade tu WhatsApp arriba para recibir un aviso cada vez que se registre un gasto.'),
+          correos.some((c) => c.activo) && h('p', { class: 'sincronizacion' }, icono('sincronizar'), ` Automático cada ${minutosGmail} min. Los verás con `, icono('correo', 'el icono de correo'), '.'),
           correos.map(tarjetaCorreo),
           h('div', { class: 'acciones' },
             correos.some((c) => c.activo) && h('button', { type: 'button', class: 'primario', onclick: revisar }, 'Revisar ahora'),
             correos.length < MAX_CORREOS && h('button', { type: 'button', onclick: vincular }, '+ Añadir otro correo'),
           ),
-          correos.length < MAX_CORREOS && h('p', { class: 'tenue' }, `Puedes vincular hasta ${MAX_CORREOS} cuentas de Gmail (personal, trabajo…). Al añadir otra, elige en Google la cuenta que quieres sumar.`),
+          correos.length < MAX_CORREOS && h('p', { class: 'tenue nota' }, `Hasta ${MAX_CORREOS} cuentas de Gmail.`),
           seccionEscaneo,
           seccionRevisados(),
         ]
       : [
-          h('p', null, 'Vincula tu cuenta de Google para que el bot lea los avisos de compra y pago que te llegan por correo y los registre solo como gastos en tu libro.'),
-          h('p', { class: 'tenue' }, 'Google te pedirá permiso para leer tus correos. Solo se abren los avisos de compras y pagos, nunca se envía ni se borra nada, y puedes desvincularlo cuando quieras. Después podrás añadir más correos.'),
+          h('p', { class: 'tenue nota' }, 'Solo se leen avisos de compras y pagos. Nunca se envía ni se borra nada.'),
           h('button', { type: 'button', class: 'primario', onclick: vincular }, 'Vincular con Google'),
         ],
   );
 
   return [
     h('div', { class: 'periodo' }, h('h2', { class: 'izquierda' }, 'Mi cuenta')),
-    h('section', { class: 'panel' },
-      h('form', { class: 'form-linea', onsubmit: guardar },
-        h('label', null, 'Nombre', h('input', { name: 'nombre', maxLength: 60, required: true, value: u.nombre })),
-        h('label', null, 'Correo', h('input', { value: u.email, disabled: true })),
-        h('label', null, 'WhatsApp (con código de país)',
-          h('input', { name: 'whatsapp', type: 'tel', maxLength: 24, placeholder: '51 987 654 321', value: u.whatsapp ? `+${u.whatsapp}` : '' })),
-        h('button', { class: 'primario' }, 'Guardar'),
+    h('div', { class: 'cuenta-grid' },
+      h('section', { class: 'panel cuenta-tarjeta ancha' },
+        cabeceraCuenta('billetera', 'Tus datos', 'El bot de WhatsApp te reconoce por tu número.'),
+        h('form', { class: 'form-cuenta form-perfil', onsubmit: guardar },
+          h('label', null, 'Nombre', h('input', { name: 'nombre', maxLength: 60, required: true, value: u.nombre })),
+          h('label', null, 'Correo', h('input', { value: u.email, disabled: true })),
+          h('label', null, 'WhatsApp',
+            h('input', { name: 'whatsapp', type: 'tel', maxLength: 24, placeholder: '+51 987 654 321', value: u.whatsapp ? `+${u.whatsapp}` : '' })),
+          h('button', { class: 'primario' }, 'Guardar'),
+        ),
+        !u.tienePassword && h('p', { class: 'tenue nota' }, 'Entras con Google. Para usar contraseña: «¿Olvidaste tu contraseña?» al entrar.'),
       ),
+      seccionRecordatorios(),
+      seccionApp(),
+      seccionGmail,
+      seccionAvisosTelefono(),
     ),
-    h('section', { class: 'panel' },
-      h('header', null, h('h3', null, 'Para qué sirve el WhatsApp')),
-      h('p', null, u.whatsapp
-        ? 'El bot de WhatsApp te reconoce por este número: desde él puedes pedir tu estado de cuenta, tus deudas o el informe en PDF, y aquí recibirás los estados de cuenta que envíe el administrador.'
-        : 'Añade tu número para poder pedir por WhatsApp tu estado de cuenta, tus deudas o el informe en PDF, y para recibir los estados de cuenta que envíe el administrador.'),
-      h('p', { class: 'tenue' }, 'Escribe el número con el código de país (51 para Perú). Si lo dejas vacío, el bot no te responderá.'),
-      !u.tienePassword && h('p', { class: 'tenue' }, 'Tu cuenta usa Google para entrar. Si quieres entrar también con contraseña, cierra sesión y usa «¿Olvidaste tu contraseña?».'),
-    ),
-    seccionRecordatorios(),
-    seccionApp(),
-    seccionGmail,
-    seccionAvisosTelefono(),
   ];
 }
 
@@ -1949,45 +1946,33 @@ function seccionAvisosTelefono() {
     });
     zona.replaceChildren(enlace
       ? h('div', null,
-          h('label', null, 'Tu enlace personal (no lo compartas)', h('input', { value: enlace, readOnly: true, onfocus: (ev) => ev.target.select() })),
-          h('div', { class: 'acciones' },
-            h('button', { type: 'button', class: 'primario', onclick: copiar }, 'Copiar enlace'),
-            h('button', { type: 'button', onclick: () => crear(true) }, 'Cambiar enlace'),
-          ),
+          h('div', { class: 'form-cuenta enlace-fila' },
+            h('label', null, 'Tu enlace personal (no lo compartas)', h('input', { value: enlace, readOnly: true, onfocus: (ev) => ev.target.select() })),
+            h('div', { class: 'botones-fila' },
+              h('button', { type: 'button', class: 'primario', onclick: copiar }, 'Copiar'),
+              h('button', { type: 'button', onclick: () => crear(true) }, 'Cambiar'))),
           h('details', { class: 'instrucciones' },
-            h('summary', null, '🤖 Android: registrar cada Yape al instante (MacroDroid, gratis)'),
+            h('summary', null, 'Android: automático con MacroDroid'),
             h('ol', null,
-              h('li', null, 'Instala MacroDroid desde Play Store y crea una macro nueva.'),
-              h('li', null, 'Disparador: Dispositivo / Notificación → Notificación recibida → elige la app Yape (y si quieres Plin o tu banco).'),
-              h('li', null, 'Acción: Conectividad → Solicitud HTTP → método POST, URL: tu enlace. En «Cuerpo» elige JSON y escribe: {"titulo":"[notification_title]","texto":"[notification]","app":"[app_name]"}'),
-              h('li', null, 'Guarda la macro y dale a MacroDroid permiso de acceso a notificaciones. Haz un yape de prueba: te llegará la confirmación por WhatsApp.'),
+              h('li', null, 'Instala MacroDroid y crea una macro.'),
+              h('li', null, 'Disparador: Notificación recibida → Yape (y Plin o tu banco).'),
+              h('li', null, 'Acción: Solicitud HTTP · POST · URL: tu enlace · Cuerpo JSON: {"titulo":"[notification_title]","texto":"[notification]","app":"[app_name]"}'),
+              h('li', null, 'Dale permiso de notificaciones y haz un yape de prueba.'),
             ),
           ),
           h('details', { class: 'instrucciones', open: esIOS },
-            h('summary', null, '🍎 iPhone: registrar todos los yapes con dos toques en la parte de atrás'),
-            h('p', null, 'Registra de una vez todos los pagos que se ven en «Movimientos» de Yape, también los pequeños (S/ 1.20, S/ 2.00). Si mandas la misma lista otra vez, no se repite ninguno.'),
-            h('button', { type: 'button', class: 'primario', onclick: abrirTutorialAtajo }, 'Ver el tutorial paso a paso'),
-            h('ol', null,
-              h('li', null, 'Abre la app ', h('b', null, 'Atajos'), ' → pestaña Atajos → ', h('b', null, '«+»'), '.'),
-              h('li', null, 'Añade la acción ', h('b', null, '«Hacer captura de pantalla»'), '.'),
-              h('li', null, 'Añade ', h('b', null, '«Obtener contenido de URL»'), '. En URL pega tu enlace (botón «Copiar enlace» de arriba). Toca la flecha: Método ', h('b', null, 'POST'), ', Cuerpo de la solicitud ', h('b', null, 'Archivo'), ' → elige ', h('b', null, '«Captura de pantalla»'), '.'),
-              h('li', null, 'Añade ', h('b', null, '«Obtener valor del diccionario»'), ' con la clave ', h('b', null, 'mensaje'), ' y después ', h('b', null, '«Mostrar notificación»'), ' con ese valor: verás qué se registró.'),
-              h('li', null, 'Ponle de nombre ', h('b', null, '«Registrar Yape»'), '. En sus ajustes activa también «Mostrar en hoja de compartir» (Imágenes) para mandar constancias o capturas guardadas.'),
-              h('li', null, 'Ve a ', h('b', null, 'Ajustes → Accesibilidad → Tocar → Toque atrás → Doble toque'), ' y elige ', h('b', null, '«Registrar Yape»'), '.'),
-              h('li', null, h('b', null, 'Para usarlo:'), ' en Yape abre «Mostrar movimientos» y toca dos veces la parte de atrás del iPhone. En unos segundos te llega la notificación con lo registrado (y el aviso por WhatsApp).'),
-            ),
-            h('p', { class: 'tenue' }, 'Apple no deja que otras apps lean las notificaciones de Yape; por eso se lee la lista de movimientos. Hace falta tener la IA activada. Si tu iPhone no tiene «Toque atrás», añade el atajo a la pantalla de inicio o al botón de Acción.'),
+            h('summary', null, 'iPhone: dos toques en la parte de atrás'),
+            h('p', { class: 'tenue nota' }, 'Registra todos los pagos de «Movimientos» de Yape, también los pequeños.'),
+            h('button', { type: 'button', class: 'primario', onclick: abrirTutorialAtajo }, 'Ver tutorial'),
           ),
         )
       : h('div', null,
-          h('p', { class: 'tenue' }, 'Crea tu enlace personal y pégalo en tu teléfono para que cada Yape, Plin o aviso del banco se registre solo.'),
           h('button', { type: 'button', class: 'primario', onclick: () => crear(false) }, 'Crear mi enlace'),
         ));
   };
   api('/avisos/enlace').then(({ enlace }) => pintar(enlace)).catch(() => zona.replaceChildren(h('p', { class: 'tenue' }, 'No se pudo cargar tu enlace. Recarga la página.')));
-  return h('section', { class: 'panel' },
-    h('header', null, h('h3', null, 'Yape, Plin y avisos del teléfono')),
-    h('p', null, 'No todos los yapes llegan por correo. Para no perder ninguno, tu teléfono puede reenviar a la app cada notificación de Yape, Plin o de tu banco (Android) o la constancia del yape (iPhone). Se registran al momento, sin repetir los que ya llegaron por correo, y te llega la confirmación por WhatsApp.'),
+  return h('section', { class: 'panel cuenta-tarjeta ancha' },
+    cabeceraCuenta('movil', 'Yape, Plin y avisos del teléfono', 'Registra los yapes que no llegan por correo, sin duplicar.'),
     zona,
   );
 }
@@ -2773,20 +2758,18 @@ function seccionRecordatorios() {
     await api('/recordatorios/prueba', { method: 'POST' });
     avisar('Te envié un recordatorio de prueba por WhatsApp');
   });
-  return h('section', { class: 'panel' },
-    h('header', null, h('h3', null, icono('campana'), ' Recordatorios de pago por WhatsApp')),
-    h('p', null, 'Te escribo por WhatsApp antes de que venza cada pago pendiente (luz, alquiler, tarjeta…), con el monto y la fecha. Cuando lo marques como pagado, dejo de recordártelo.'),
-    h('form', { class: 'form-linea', onsubmit: guardar },
+  return h('section', { class: 'panel cuenta-tarjeta' },
+    cabeceraCuenta('campana', 'Recordatorios de pago', 'Te aviso por WhatsApp y notificación antes de que venza un pago.'),
+    h('form', { class: 'form-cuenta', onsubmit: guardar },
       h('label', null, 'Avisarme',
         h('select', { name: 'dias' },
           [[0, 'No avisar antes'], [1, '1 día antes'], [2, '2 días antes'], [3, '3 días antes'], [5, '5 días antes'], [7, '1 semana antes']]
             .map(([v, t]) => h('option', { value: v, selected: r.dias === v }, t)))),
-      h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'mismoDia', checked: r.mismoDia }), h('span', null, 'y también el mismo día')),
-      h('button', { class: 'primario' }, 'Guardar'),
-      h('button', { type: 'button', disabled: !u.whatsapp, onclick: probar }, 'Enviarme una prueba')),
-    h('p', { class: 'tenue' }, u.whatsapp
-      ? 'Los avisos se mandan de 8:00 a 21:00. En cada pago puedes cambiar cuándo avisar (al crearlo o editarlo, en «Recordarme por WhatsApp»).'
-      : 'Para recibirlos, guarda arriba tu número de WhatsApp.'));
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'mismoDia', checked: r.mismoDia }), h('span', null, 'También el mismo día')),
+      h('div', { class: 'botones-fila' },
+        h('button', { class: 'primario' }, 'Guardar'),
+        h('button', { type: 'button', disabled: !u.whatsapp, onclick: probar }, 'Probar'))),
+    h('p', { class: 'tenue nota' }, u.whatsapp ? 'De 8:00 a 21:00. Puedes cambiarlo en cada pago.' : 'Guarda tu WhatsApp para recibirlos.'));
 }
 
 // ---------- app instalada y notificaciones push ----------
@@ -2962,27 +2945,30 @@ async function abrirAvisoApp({ forzar = false } = {}) {
 
 // En «Mi cuenta»: estado de la app y de las notificaciones en este dispositivo.
 function seccionApp() {
-  const caja = h('section', { class: 'panel' },
-    h('header', null, h('h3', null, icono('movil'), ' App y notificaciones en este dispositivo')),
+  const caja = h('section', { class: 'panel cuenta-tarjeta' },
+    cabeceraCuenta('movil', 'App y notificaciones', 'En este dispositivo.'),
     h('p', { class: 'tenue' }, 'Comprobando…'));
   estadoNotificaciones().then((estadoPush) => {
     const textos = {
-      activo: '✅ Las notificaciones están activadas en este dispositivo: te aviso de cada movimiento que llegue solo (correo, Yape, banco) y de tus pagos por vencer.',
-      inactivo: 'Las notificaciones están desactivadas en este dispositivo.',
-      bloqueado: esIOS ? 'Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → DUOLAB Gastos.' : 'Las notificaciones están bloqueadas en este navegador. Permítelas desde el candado de la barra de direcciones.',
-      instalar: 'En iPhone las notificaciones solo funcionan con la app instalada: Safari → Compartir → «Agregar a inicio», y ábrela desde ese icono.',
-      'no-disponible': 'Este navegador no admite notificaciones. Prueba con Chrome, Edge o Safari actualizados.',
+      activo: 'Te aviso de cada movimiento nuevo y de tus pagos por vencer.',
+      inactivo: 'Actívalas para enterarte de cada gasto al momento.',
+      bloqueado: esIOS ? 'Bloqueadas: actívalas en Ajustes → Notificaciones → DUOLAB.' : 'Bloqueadas: permítelas desde el candado de la barra de direcciones.',
+      instalar: 'En iPhone, primero instala la app (Compartir → Agregar a inicio).',
+      'no-disponible': 'Este navegador no las admite.',
     };
+    const chip = (texto, ok) => h('span', { class: `estado-chip ${ok ? 'ok' : ''}` }, texto);
     const accion = (texto, clase, fn) => h('button', { type: 'button', class: clase, onclick: () => intentar(async () => { await fn(); render(); }) }, texto);
     caja.replaceChildren(
       caja.firstChild,
-      h('p', null, enModoApp() ? 'Estás usando la app instalada.' : 'Estás usando la app desde el navegador.'),
-      h('p', { class: estadoPush === 'activo' ? '' : 'tenue' }, textos[estadoPush]),
+      h('div', { class: 'estado-filas' },
+        h('div', null, h('span', null, 'App'), chip(enModoApp() ? 'Instalada' : 'En el navegador', enModoApp())),
+        h('div', null, h('span', null, 'Notificaciones'), chip(estadoPush === 'activo' ? 'Activadas' : estadoPush === 'bloqueado' ? 'Bloqueadas' : 'Desactivadas', estadoPush === 'activo'))),
+      h('p', { class: 'tenue nota' }, textos[estadoPush]),
       h('div', { class: 'botones-fila' },
-        estadoPush === 'inactivo' && accion('Activar notificaciones', 'primario', async () => { await activarNotificaciones(); avisar('Notificaciones activadas'); }),
-        estadoPush === 'activo' && accion('Enviar una de prueba', 'primario', async () => { await api('/push/prueba', { method: 'POST' }); avisar('Notificación enviada'); }),
-        estadoPush === 'activo' && accion('Desactivar', '', async () => { await desactivarNotificaciones(); avisar('Notificaciones desactivadas en este dispositivo'); }),
-        !enModoApp() && h('button', { type: 'button', onclick: () => abrirAvisoApp({ forzar: true }) }, 'Cómo instalar la app')));
+        estadoPush === 'inactivo' && accion('Activar', 'primario', async () => { await activarNotificaciones(); avisar('Notificaciones activadas'); }),
+        estadoPush === 'activo' && accion('Probar', 'primario', async () => { await api('/push/prueba', { method: 'POST' }); avisar('Notificación enviada'); }),
+        estadoPush === 'activo' && accion('Desactivar', '', async () => { await desactivarNotificaciones(); avisar('Notificaciones desactivadas'); }),
+        !enModoApp() && h('button', { type: 'button', onclick: () => abrirAvisoApp({ forzar: true }) }, 'Instalar app')));
   });
   return caja;
 }
