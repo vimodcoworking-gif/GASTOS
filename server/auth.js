@@ -217,7 +217,7 @@ rutasAuth.post('/olvide', limite, async (req, res) => {
     usuario.codigoIntentos = 0;
     await usuario.save();
 
-    const mensaje = `Tu código para cambiar la contraseña de N.F.T.A Gastos es *${codigo}*. Caduca en ${MINUTOS_CODIGO} minutos. Si no lo pediste, ignora este mensaje.`;
+    const mensaje = `Tu código para cambiar la contraseña de DUOLAB Gastos es *${codigo}*. Caduca en ${MINUTOS_CODIGO} minutos. Si no lo pediste, ignora este mensaje.`;
     // Los envíos no se esperan: así la respuesta tarda lo mismo exista o no la cuenta.
     if (porWhatsapp && usuario.whatsapp) {
       enviarANumero(usuario.whatsapp, { texto: `🔐 ${mensaje}` }).catch((err) => console.error('Código por WhatsApp:', err.message));

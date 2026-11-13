@@ -2826,7 +2826,7 @@ async function activarNotificaciones() {
   if (!pushPosible()) throw new Error('Este navegador no admite notificaciones. Prueba con Chrome, Edge o Safari actualizados.');
   const permiso = await Notification.requestPermission();
   if (permiso !== 'granted') throw new Error(permiso === 'denied'
-    ? 'Las notificaciones están bloqueadas. Actívalas en los ajustes del navegador (o en Ajustes → Notificaciones → VIMOD Gastos en el iPhone).'
+    ? 'Las notificaciones están bloqueadas. Actívalas en los ajustes del navegador (o en Ajustes → Notificaciones → DUOLAB Gastos en el iPhone).'
     : 'No se dio permiso para las notificaciones.');
   const reg = await navigator.serviceWorker.ready;
   const { clave } = await api('/push/clave');
@@ -2869,7 +2869,7 @@ function pasosInstalar(plataforma) {
       !esSafariIOS && paso(0, h('b', null, 'Abre esta página en Safari'), ' (en otros navegadores del iPhone no siempre aparece la opción).'),
       paso(1, 'Toca ', h('span', { class: 'tecla' }, iconoCompartir(), 'Compartir'), ' en la barra de Safari (abajo, o arriba en iPad).'),
       paso(2, 'Baja y elige ', h('span', { class: 'tecla' }, iconoAgregar(), 'Agregar a inicio'), '. Luego toca ', h('b', null, 'Agregar'), '.'),
-      paso(3, 'Abre ', h('b', null, 'VIMOD Gastos'), ' desde el icono de tu pantalla de inicio.'),
+      paso(3, 'Abre ', h('b', null, 'DUOLAB Gastos'), ' desde el icono de tu pantalla de inicio.'),
       paso(4, 'Dentro de la app, toca ', h('b', null, 'Activar notificaciones'), ' y permite los avisos (iOS 16.4 o posterior).'));
   }
   if (plataforma === 'android') {
@@ -2879,7 +2879,7 @@ function pasosInstalar(plataforma) {
       paso(3, 'Abre la app desde su icono y activa las notificaciones.'));
   }
   return h('ol', { class: 'pasos' },
-    paso(1, 'En Chrome o Edge, pulsa el icono ', h('b', null, 'Instalar'), ' de la barra de direcciones (o el menú ⋮ → «Instalar VIMOD Gastos»).'),
+    paso(1, 'En Chrome o Edge, pulsa el icono ', h('b', null, 'Instalar'), ' de la barra de direcciones (o el menú ⋮ → «Instalar DUOLAB Gastos»).'),
     paso(2, 'La app se abre en su propia ventana y queda en el menú Inicio o en el escritorio.'),
     paso(3, 'Activa las notificaciones para recibir los avisos aunque la tengas minimizada.'));
 }
@@ -2909,22 +2909,22 @@ async function abrirAvisoApp({ forzar = false } = {}) {
 
     if (instalada) {
       return [
-        h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=3', alt: '', width: 64, height: 64 }),
+        h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=4', alt: '', width: 64, height: 64 }),
           h('div', null, h('h2', null, '¡Ya tienes la app!'), h('p', { class: 'tenue' }, 'Activa las notificaciones para no perderte nada.'))),
         h('ul', { class: 'ventajas' },
           h('li', null, icono('correo'), 'Cada gasto o ingreso que llegue por correo, Yape o el banco, al momento'),
           h('li', null, icono('reloj'), 'Recordatorios de tus pagos antes de que venzan'),
           h('li', null, icono('check'), 'Sin abrir la app: llegan a la pantalla de bloqueo')),
         estadoPush === 'bloqueado'
-          ? h('p', { class: 'aviso-bloqueo' }, esIOS ? 'Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → VIMOD Gastos.' : 'Las notificaciones están bloqueadas en este navegador. Permítelas desde el candado de la barra de direcciones.')
+          ? h('p', { class: 'aviso-bloqueo' }, esIOS ? 'Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → DUOLAB Gastos.' : 'Las notificaciones están bloqueadas en este navegador. Permítelas desde el candado de la barra de direcciones.')
           : estadoPush !== 'activo' && botonNotificar,
         h('div', { class: 'acciones' }, h('button', { type: 'button', onclick: (ev) => cerrar(ev.target.closest('dialog')) }, estadoPush === 'activo' ? 'Cerrar' : 'Ahora no')),
       ];
     }
     const pestana = (id, texto) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(plataforma === id), onclick: () => { plataforma = id; pintar(); } }, texto);
     return [
-      h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=3', alt: '', width: 64, height: 64 }),
-        h('div', null, h('h2', null, 'Instala VIMOD Gastos'), h('p', { class: 'tenue' }, 'Úsala como una app: desde tu pantalla de inicio, a pantalla completa y con notificaciones.'))),
+      h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=4', alt: '', width: 64, height: 64 }),
+        h('div', null, h('h2', null, 'Instala DUOLAB Gastos'), h('p', { class: 'tenue' }, 'Úsala como una app: desde tu pantalla de inicio, a pantalla completa y con notificaciones.'))),
       h('ul', { class: 'ventajas' },
         h('li', null, icono('campana'), 'Notificaciones de cada gasto que llegue por correo o del banco, también los que no ves en tu bandeja'),
         h('li', null, icono('reloj'), 'Recordatorios de pago antes del vencimiento'),
@@ -2962,7 +2962,7 @@ function seccionApp() {
     const textos = {
       activo: '✅ Las notificaciones están activadas en este dispositivo: te aviso de cada movimiento que llegue solo (correo, Yape, banco) y de tus pagos por vencer.',
       inactivo: 'Las notificaciones están desactivadas en este dispositivo.',
-      bloqueado: esIOS ? 'Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → VIMOD Gastos.' : 'Las notificaciones están bloqueadas en este navegador. Permítelas desde el candado de la barra de direcciones.',
+      bloqueado: esIOS ? 'Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → DUOLAB Gastos.' : 'Las notificaciones están bloqueadas en este navegador. Permítelas desde el candado de la barra de direcciones.',
       instalar: 'En iPhone las notificaciones solo funcionan con la app instalada: Safari → Compartir → «Agregar a inicio», y ábrela desde ese icono.',
       'no-disponible': 'Este navegador no admite notificaciones. Prueba con Chrome, Edge o Safari actualizados.',
     };

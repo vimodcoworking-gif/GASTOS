@@ -46,7 +46,7 @@ export const config = {
   // Envío de correo: clave de Brevo (por HTTPS) o un servidor SMTP. Hace falta el remitente en ambos casos.
   correo: {
     remitente: process.env.CORREO_REMITENTE?.trim() || '',
-    nombreRemitente: process.env.CORREO_NOMBRE?.trim() || 'N.F.T.A Gastos',
+    nombreRemitente: process.env.CORREO_NOMBRE?.trim() || 'DUOLAB Gastos',
     cuentaCloudflare: process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || '',
     tokenCloudflare: process.env.CLOUDFLARE_EMAIL_TOKEN?.trim() || '',
     claveBrevo: process.env.BREVO_API_KEY?.trim() || '',

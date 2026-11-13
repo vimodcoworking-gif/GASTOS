@@ -179,7 +179,7 @@ export function textoMenu(usuario, libro, conIa) {
   menuReciente.set(usuario.id, Date.now());
   return [
     `¡Hola, ${usuario.nombre}! ${saludoSegunHora()}`,
-    'Soy tu asistente de *N.F.T.A Gastos*. ¿Qué quieres hacer hoy?',
+    'Soy tu asistente de *DUOLAB Gastos*. ¿Qué quieres hacer hoy?',
     '',
     '1️⃣ Ver el *resumen* del mes',
     '2️⃣ Ver mis *deudas* y pagos pendientes',

@@ -562,7 +562,7 @@ libro.post('/enviar', limiteEnvios, async (req, res) => {
       await enviarCorreo({
         para,
         asunto: `Estado de cuenta · ${req.libro.nombre} · ${informe.periodo}`,
-        texto: `${sinFormatoWhatsapp(informe.texto).replace(/^\S+\s/, '')}\n\nEl detalle de gastos e ingresos va en el PDF adjunto.\nEnviado por ${usuario.nombre} desde N.F.T.A Gastos.`,
+        texto: `${sinFormatoWhatsapp(informe.texto).replace(/^\S+\s/, '')}\n\nEl detalle de gastos e ingresos va en el PDF adjunto.\nEnviado por ${usuario.nombre} desde DUOLAB Gastos.`,
         adjuntos: [informe.pdf],
       });
     } catch (err) {
@@ -681,6 +681,6 @@ rutasApi.post('/ia/whatsapp', async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id);
   if (!usuario.whatsapp) throw new ErrorHttp(400, 'Añade tu número de WhatsApp en «Mi cuenta».');
   if (!whatsappConectado()) throw new ErrorHttp(503, 'El bot de WhatsApp no está conectado ahora mismo.');
-  await enviarANumero(usuario.whatsapp, { texto: `🤖 *Asistente N.F.T.A*\n\n${mensaje}` });
+  await enviarANumero(usuario.whatsapp, { texto: `🤖 *Asistente DUOLAB*\n\n${mensaje}` });
   res.status(204).end();
 });

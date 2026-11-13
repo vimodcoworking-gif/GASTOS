@@ -1,4 +1,9 @@
 import PDFDocument from 'pdfkit';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// Logo de DUOLAB para la cabecera del PDF (si falta el archivo, se escribe el nombre).
+const LOGO = fileURLToPath(new URL('../public/logo-duolab.png', import.meta.url));
 
 const MARGEN = 40;
 const ALTO_FILA = 18;
@@ -134,7 +139,8 @@ export function generarInforme(salida, { libro, desde, hasta, movimientos }) {
   const ingresos = movimientos.filter((m) => m.tipo === 'ingreso');
   const suma = (lista) => lista.reduce((total, m) => total + m.monto, 0);
 
-  doc.font('Helvetica-Bold').fontSize(20).text('N.F.T.A CORP', MARGEN, MARGEN, { characterSpacing: 0.5 });
+  if (existsSync(LOGO)) doc.image(LOGO, MARGEN, MARGEN, { height: 20 });
+  else doc.font('Helvetica-Bold').fontSize(20).text('DUOLAB', MARGEN, MARGEN, { characterSpacing: 0.5 });
   doc.font('Helvetica-Bold').fontSize(13).text('Informe de gastos', MARGEN, MARGEN + 26);
   doc.font('Helvetica').fontSize(10).fillColor('#444444')
     .text(`Libro: ${limpio(libro.nombre)}  ·  Moneda: ${libro.moneda}`, MARGEN, MARGEN + 44)
