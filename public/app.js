@@ -3013,9 +3013,10 @@ const accionAtajo = (color, icono_, titulo, ...filas) => h('div', { class: 'ataj
   filas.map(([clave, valor]) => h('div', { class: 'atajo-fila' }, h('span', null, clave), h('span', { class: 'atajo-valor' }, valor))));
 
 function pantallaYape() {
-  return h('div', { class: 'tel-mini yape' },
-    h('div', { class: 'tel-barra' }, 'Movimientos'),
-    [['Raul Tov*', 'Hoy 11:00 am', '- S/ 1.20'], ['Plin - Raul Tovar', 'Hoy 10:55 am', '- S/ 2.00'], ['*** *** 266', 'Hoy 10:41 am', '- S/ 5.90']]
+  // Datos inventados, solo de ejemplo.
+  return h('div', { class: 'tel-mini' },
+    h('div', { class: 'tel-barra' }, h('span', null, 'Mis movimientos'), h('small', null, 'Ejemplo')),
+    [['Bodega Don Lucho', 'Hoy 9:15 am', '- S/ 3.50'], ['Ana Gómez*', 'Hoy 8:40 am', '- S/ 10.00'], ['*** *** 512', 'Ayer 7:05 pm', '- S/ 1.50']]
       .map(([n, t, m]) => h('div', { class: 'tel-fila' }, h('span', null, h('b', null, n), h('small', null, t)), h('span', { class: 'tel-monto' }, m))));
 }
 
@@ -3084,7 +3085,7 @@ async function abrirTutorialAtajo() {
       titulo: '¡Listo! Pruébalo',
       texto: 'Abre Yape → «Mostrar movimientos» y toca dos veces la parte de atrás del iPhone. En unos segundos te llega la notificación. Si mandas la misma lista otra vez, no se repite ningún pago.',
       dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(),
-        h('div', { class: 'noti-mini' }, h('b', null, 'Registrar Yape'), h('span', null, '✅ 3 movimientos registrados · Total gastos: S/ 9.10'))),
+        h('div', { class: 'noti-mini' }, h('b', null, 'Registrar Yape'), h('span', null, '✅ 3 movimientos registrados · Total gastos: S/ 15.00'))),
     },
   ];
 

@@ -1477,7 +1477,8 @@ button.circulo.pequeno .icono { width: 17px; height: 17px; }
 .boton-enlace { display: inline-flex; align-items: center; min-height: 42px; padding: 0 1.1rem; border-radius: 999px; background: rgba(255, 255, 255, .1); color: #f3f6ee; font-weight: 700; text-decoration: none; }
 /* Teléfono con la lista de Yape */
 .tel-mini { width: min(250px, 100%); border-radius: 18px; background: #fff; color: #222; box-shadow: 0 14px 30px -12px rgba(0, 0, 0, .6); overflow: hidden; font-size: .78rem; }
-.tel-barra { padding: .55rem .8rem; background: #742284; color: #fff; font-weight: 700; }
+.tel-barra { display: flex; justify-content: space-between; align-items: center; padding: .55rem .8rem; background: #1d2118; color: #fff; font-weight: 700; }
+.tel-barra small { padding: .1rem .45rem; border-radius: 999px; background: var(--lima); color: var(--sobre-lima); font-size: .66rem; }
 .tel-fila { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .45rem .8rem; border-top: 1px solid #eee; }
 .tel-fila span:first-child { display: grid; }
 .tel-fila small { color: #999; }
