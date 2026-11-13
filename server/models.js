@@ -208,3 +208,15 @@ const metaSchema = new Schema(
   { timestamps: true },
 );
 export const Meta = model('Meta', metaSchema);
+
+// Dispositivos con las notificaciones push activadas (uno por navegador o app instalada).
+const suscripcionPushSchema = new Schema(
+  {
+    usuario: { type: ObjectId, ref: 'Usuario', required: true, index: true },
+    endpoint: { type: String, required: true, unique: true },
+    keys: { p256dh: { type: String, required: true }, auth: { type: String, required: true } },
+    dispositivo: String,
+  },
+  { timestamps: true },
+);
+export const SuscripcionPush = model('SuscripcionPush', suscripcionPushSchema);

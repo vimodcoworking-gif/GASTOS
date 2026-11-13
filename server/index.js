@@ -15,6 +15,7 @@ import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail } from './google.
 import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
 import { iniciarRecordatorios } from './recordatorios.js';
+import { rutasPush, prepararPush } from './push.js';
 import { separarRegistrosUnidos, completarMedios, corregirMediosBilletera, corregirYapeosEnviados } from './bot.js';
 import { Ajuste } from './models.js';
 
@@ -41,6 +42,7 @@ app.use('/api', (req, res, next) => {
 app.use('/api/auth/google', rutasGoogle);
 app.use('/api/auth', rutasAuth);
 app.use('/api/admin', requiereSesion, requiereAdmin, rutasAdmin);
+app.use('/api/push', requiereSesion, rutasPush);
 app.use('/api', requiereSesion, rutasApi);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 app.use(express.static(publico, {
@@ -74,6 +76,7 @@ conectar()
     iniciarRevisionGmail();
     // Recordatorios por WhatsApp de los pagos que vencen pronto.
     iniciarRecordatorios();
+    prepararPush();
     return reanudarWhatsapp();
   })
   .catch((err) => console.error('No se pudo reanudar WhatsApp:', err.message));

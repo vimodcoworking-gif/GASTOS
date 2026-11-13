@@ -1426,3 +1426,30 @@ button.circulo.pequeno .icono { width: 17px; height: 17px; }
   .mes-pildora { padding: .4rem .55rem; }
   .heroe-nav { gap: .25rem; }
 }
+
+/* ---------- Aviso «Instala la app» y notificaciones ---------- */
+.dlg-extra.dlg-app { width: min(480px, calc(100vw - 24px)); }
+.aviso-app { display: grid; gap: .9rem; }
+.app-cabecera { display: flex; align-items: center; gap: .9rem; }
+.app-cabecera img { flex: none; width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .45); }
+.app-cabecera h2 { margin: 0; font-size: 1.25rem; }
+.app-cabecera p { margin: .15rem 0 0; font-size: .88rem; }
+.ventajas { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.ventajas li { display: flex; align-items: flex-start; gap: .6rem; font-size: .88rem; line-height: 1.35; }
+.ventajas .icono { flex: none; width: 30px; height: 30px; padding: 6px; border-radius: 10px; background: color-mix(in srgb, var(--lima) 22%, transparent); color: var(--t-tinta); }
+.pestanas-app { margin: 0; }
+.pestanas-app button { min-height: 40px; font-size: .85rem; }
+.pasos { list-style: none; margin: 0; padding: .9rem; display: grid; gap: .7rem; border-radius: 18px; background: var(--t-elev); }
+.pasos li { display: flex; align-items: flex-start; gap: .65rem; font-size: .9rem; line-height: 1.45; }
+.paso-n { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--lima); color: var(--sobre-lima); font-weight: 800; font-size: .8rem; }
+.tecla { display: inline-flex; align-items: center; gap: .25rem; padding: .05rem .45rem; border-radius: 8px; background: var(--t-sup); font-weight: 700; white-space: nowrap; box-shadow: inset 0 0 0 1px var(--t-linea); }
+.tecla .icono { width: 16px; height: 16px; color: #2a78d6; }
+.aviso-app button.ancho { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; min-height: 50px; border-radius: 999px; font-size: 1rem; }
+.aviso-app button.ancho .icono { width: 20px; height: 20px; }
+.aviso-bloqueo { margin: 0; padding: .7rem .85rem; border-radius: 14px; background: color-mix(in srgb, var(--rojo) 12%, transparent); font-size: .88rem; }
+.aviso-app .acciones { margin-top: 0; }
+.botones-fila { display: flex; flex-wrap: wrap; gap: .5rem; }
+@media (max-width: 640px) {
+  .app-cabecera img { width: 56px; height: 56px; }
+  .pasos { padding: .75rem; }
+}

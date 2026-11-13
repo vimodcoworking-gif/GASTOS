@@ -3,6 +3,8 @@ import { config } from './config.js';
 import { Libro, Movimiento, Usuario } from './models.js';
 import { formateador } from './informe.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
+import { notificar } from './push.js';
+import { SuscripcionPush } from './models.js';
 
 const hoyLocal = () => new Intl.DateTimeFormat('en-CA', { timeZone: config.zona }).format(new Date());
 const horaLocal = () => Number(new Intl.DateTimeFormat('en-GB', { timeZone: config.zona, hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
@@ -58,7 +60,7 @@ let enCurso = false;
 
 /** Revisa los pagos pendientes de los próximos 7 días y manda los recordatorios que toquen. */
 export async function revisarRecordatorios({ forzarHora = false } = {}) {
-  if (enCurso || !whatsappConectado()) return 0;
+  if (enCurso) return 0;
   // Solo de 8:00 a 21:00 (hora de Lima), para no escribir de madrugada.
   const hora = horaLocal();
   if (!forzarHora && (hora < 8 || hora >= 21)) return 0;
@@ -79,6 +81,10 @@ export async function revisarRecordatorios({ forzarHora = false } = {}) {
       if (libro) idsUsuarios.add(String(libro.propietario));
     }
     const usuarios = new Map((await Usuario.find({ _id: { $in: [...idsUsuarios] } }).select('nombre whatsapp recordatorio').lean()).map((u) => [String(u._id), u]));
+    // Quién tiene la app con notificaciones activadas.
+    const conPush = new Set((await SuscripcionPush.distinct('usuario', { usuario: { $in: [...idsUsuarios] } })).map(String));
+    const wa = whatsappConectado();
+    const alcanzable = (u) => u && ((wa && u.whatsapp) || conPush.has(String(u._id)));
 
     // Cada aviso va a quien registró el pago (si tiene WhatsApp) o, si no, al dueño del libro.
     const porPersona = new Map();
@@ -86,8 +92,8 @@ export async function revisarRecordatorios({ forzarHora = false } = {}) {
       const libro = libros.get(String(mov.libro));
       if (!libro) continue;
       const creador = usuarios.get(String(mov.creadoPor));
-      const persona = creador?.whatsapp ? creador : usuarios.get(String(libro.propietario));
-      if (!persona?.whatsapp) continue;
+      const persona = alcanzable(creador) ? creador : usuarios.get(String(libro.propietario));
+      if (!alcanzable(persona)) continue;
       const toca = avisoQueToca(mov, ajusteDe(persona), hoy);
       if (!toca) continue;
       const lista = porPersona.get(String(persona._id)) ?? { persona, items: [], moneda: libro.moneda, libros: new Set() };
@@ -99,12 +105,28 @@ export async function revisarRecordatorios({ forzarHora = false } = {}) {
     for (const { persona, items, moneda, libros: nombres } of porPersona.values()) {
       items.sort((a, b) => a.faltan - b.faltan);
       const variosLibros = nombres.size > 1;
-      try {
-        await enviarANumero(persona.whatsapp, textoAviso(persona.nombre, items.map((i) => ({ ...i, libro: variosLibros ? i.libroNombre : '' })), moneda), { movimientos: items.map((i) => i.mov._id) });
+      const texto = textoAviso(persona.nombre, items.map((i) => ({ ...i, libro: variosLibros ? i.libroNombre : '' })), moneda);
+      let llego = false;
+      if (wa && persona.whatsapp) {
+        try {
+          await enviarANumero(persona.whatsapp, texto, { movimientos: items.map((i) => i.mov._id) });
+          llego = true;
+        } catch (err) {
+          console.error(`Recordatorio a ${persona.whatsapp.slice(0, 4)}…:`, err.message);
+        }
+      }
+      const dinero = formateador(moneda);
+      const primero = items[0];
+      const cuando = (f) => (f === 0 ? 'vence hoy' : f === 1 ? 'vence mañana' : `vence en ${f} días`);
+      const push = await notificar(persona._id, {
+        titulo: items.length === 1 ? `⏰ ${primero.mov.descripcion}: ${cuando(primero.faltan)}` : `⏰ ${items.length} pagos por vencer`,
+        cuerpo: items.slice(0, 4).map((i) => `${i.mov.descripcion}: ${dinero(i.mov.monto)} · ${cuando(i.faltan)}`).join('\n'),
+        url: '/?seccion=pendientes',
+        etiqueta: 'recordatorio',
+      });
+      if (llego || push) {
         await Promise.all(items.map((i) => Movimiento.updateOne({ _id: i.mov._id }, { $addToSet: { recordado: i.clave } })));
         enviados += 1;
-      } catch (err) {
-        console.error(`Recordatorio a ${persona.whatsapp.slice(0, 4)}…:`, err.message);
       }
     }
     if (enviados) console.log(`Recordatorios de pago enviados: ${enviados}`);

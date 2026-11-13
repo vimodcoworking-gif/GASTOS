@@ -7,6 +7,7 @@ import { ErrorHttp } from './errores.js';
 import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
 import { librosDe, libroActivo, registrarMovimiento, hoyLocal, puedeEscribir, leerAvisoDePago } from './bot.js';
+import { notificarMensaje } from './push.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { comprobarLicencia } from './licencias.js';
 import { convertir, ErrorCambio } from './cambio.js';
@@ -621,6 +622,7 @@ async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultad
 
 // «movimientos»: ids que confirma el aviso, para poder corregirlos respondiendo al mensaje.
 function avisarPorWhatsapp(usuario, texto, movimientos = []) {
+  notificarMensaje(usuario._id, texto, { etiqueta: movimientos[0] ? `mov-${movimientos[0]}` : undefined });
   if (!usuario.whatsapp || !whatsappConectado()) return;
   enviarANumero(usuario.whatsapp, { texto }, { movimientos }).catch((err) => console.error('Aviso de Gmail por WhatsApp:', err.message));
 }

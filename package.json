@@ -26,6 +26,7 @@
     "nodemailer": "^10.1.0",
     "pdfkit": "^0.20.2",
     "qrcode": "^1.5.4",
-    "unpdf": "1.8.1"
+    "unpdf": "1.8.1",
+    "web-push": "3.6.7"
   }
 }

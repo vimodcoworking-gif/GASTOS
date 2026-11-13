@@ -8,6 +8,7 @@ import { estadoBd } from './db.js';
 import { requiereSesion } from './auth.js';
 import { comprobarLicencia } from './licencias.js';
 import { leerAvisoDePago, registrarVarios, librosDe, libroActivo, hoyLocal } from './bot.js';
+import { notificarMensaje } from './push.js';
 import { leerComprobante, iaDisponible } from './ia.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 
@@ -63,6 +64,7 @@ function textoDelAviso(req) {
 
 // El aviso queda vinculado a lo que se registró desde «inicio», para corregirlo respondiendo al mensaje.
 async function avisarPorWhatsapp(usuario, texto, inicio) {
+  notificarMensaje(usuario._id, texto);
   if (!usuario.whatsapp || !whatsappConectado()) return;
   const movimientos = (await Movimiento.find({ creadoPor: usuario._id, createdAt: { $gte: inicio } }).select('_id').lean().catch(() => [])).map((m) => m._id);
   enviarANumero(usuario.whatsapp, { texto }, { movimientos }).catch((err) => console.error('Aviso del teléfono por WhatsApp:', err.message));

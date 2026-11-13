@@ -243,7 +243,10 @@ async function entrar(usuario) {
   $('#auth').hidden = true;
   $('#app').hidden = false;
   await cargarLibros();
+  aplicarDestinoDeUrl();
   render();
+  // Una sola vez: invitación a instalar la app (o, ya instalada, a activar las notificaciones).
+  setTimeout(() => abrirAvisoApp().catch(() => {}), 1500);
 }
 
 // ---------- tema claro u oscuro ----------
@@ -1924,6 +1927,7 @@ function pintarCuenta() {
       !u.tienePassword && h('p', { class: 'tenue' }, 'Tu cuenta usa Google para entrar. Si quieres entrar también con contraseña, cierra sesión y usa «¿Olvidaste tu contraseña?».'),
     ),
     seccionRecordatorios(),
+    seccionApp(),
     seccionGmail,
     seccionAvisosTelefono(),
   ];
@@ -2779,6 +2783,215 @@ function seccionRecordatorios() {
       : 'Para recibirlos, guarda arriba tu número de WhatsApp.'));
 }
 
+// ---------- app instalada y notificaciones push ----------
+// iPhone/iPad: la app se instala desde Safari («Compartir → Agregar a inicio») y, abierta desde ese icono
+// (iOS 16.4 o posterior), puede recibir notificaciones. Android y PC: el navegador ofrece «Instalar».
+
+const ua = navigator.userAgent;
+const esIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const esAndroid = /android/i.test(ua);
+const esSafariIOS = esIOS && !/crios|fxios|edgios|opios|gsa\//i.test(ua);
+const enModoApp = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const pushPosible = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+const guardado = {
+  leer(clave) { try { return localStorage.getItem(clave); } catch { return null; } },
+  poner(clave, valor) { try { localStorage.setItem(clave, valor); } catch { /* sin almacenamiento */ } },
+};
+
+function claveAplicacion(base64) {
+  const relleno = '='.repeat((4 - (base64.length % 4)) % 4);
+  const crudo = atob((base64 + relleno).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(crudo, (c) => c.charCodeAt(0));
+}
+
+async function suscripcionActual() {
+  if (!pushPosible()) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+// 'activo' | 'inactivo' | 'bloqueado' | 'instalar' (iPhone sin instalar) | 'no-disponible'
+async function estadoNotificaciones() {
+  if (esIOS && !enModoApp()) return 'instalar';
+  if (!pushPosible()) return 'no-disponible';
+  if (Notification.permission === 'denied') return 'bloqueado';
+  return (await suscripcionActual()) && Notification.permission === 'granted' ? 'activo' : 'inactivo';
+}
+
+const nombreDispositivo = () => (esIOS ? (/ipad/i.test(ua) ? 'iPad' : 'iPhone') : esAndroid ? 'Android' : /windows/i.test(ua) ? 'PC Windows' : /mac/i.test(ua) ? 'Mac' : 'Navegador') + (enModoApp() ? ' (app)' : '');
+
+async function activarNotificaciones() {
+  if (esIOS && !enModoApp()) throw new Error('En iPhone, primero instala la app («Compartir → Agregar a inicio») y ábrela desde su icono.');
+  if (!pushPosible()) throw new Error('Este navegador no admite notificaciones. Prueba con Chrome, Edge o Safari actualizados.');
+  const permiso = await Notification.requestPermission();
+  if (permiso !== 'granted') throw new Error(permiso === 'denied'
+    ? 'Las notificaciones están bloqueadas. Actívalas en los ajustes del navegador (o en Ajustes → Notificaciones → VIMOD Gastos en el iPhone).'
+    : 'No se dio permiso para las notificaciones.');
+  const reg = await navigator.serviceWorker.ready;
+  const { clave } = await api('/push/clave');
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: claveAplicacion(clave) });
+  await api('/push/suscribir', { method: 'POST', body: { suscripcion: sub.toJSON(), dispositivo: nombreDispositivo() } });
+  guardado.poner('push-activado', '1');
+}
+
+async function desactivarNotificaciones() {
+  const sub = await suscripcionActual();
+  if (sub) {
+    await api('/push/suscribir', { method: 'DELETE', body: { endpoint: sub.endpoint } }).catch(() => {});
+    await sub.unsubscribe().catch(() => {});
+  }
+}
+
+// Icono de «Compartir» de Safari, para que los pasos se reconozcan.
+const iconoCompartir = () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'icono');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>';
+  return svg;
+};
+const iconoAgregar = () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'icono');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/>';
+  return svg;
+};
+
+function pasosInstalar(plataforma) {
+  const paso = (n, ...texto) => h('li', null, h('span', { class: 'paso-n' }, String(n)), h('span', null, ...texto));
+  if (plataforma === 'ios') {
+    return h('ol', { class: 'pasos' },
+      !esSafariIOS && paso(0, h('b', null, 'Abre esta página en Safari'), ' (en otros navegadores del iPhone no siempre aparece la opción).'),
+      paso(1, 'Toca ', h('span', { class: 'tecla' }, iconoCompartir(), 'Compartir'), ' en la barra de Safari (abajo, o arriba en iPad).'),
+      paso(2, 'Baja y elige ', h('span', { class: 'tecla' }, iconoAgregar(), 'Agregar a inicio'), '. Luego toca ', h('b', null, 'Agregar'), '.'),
+      paso(3, 'Abre ', h('b', null, 'VIMOD Gastos'), ' desde el icono de tu pantalla de inicio.'),
+      paso(4, 'Dentro de la app, toca ', h('b', null, 'Activar notificaciones'), ' y permite los avisos (iOS 16.4 o posterior).'));
+  }
+  if (plataforma === 'android') {
+    return h('ol', { class: 'pasos' },
+      paso(1, 'En Chrome, toca el menú ', h('b', null, '⋮'), ' (arriba a la derecha).'),
+      paso(2, 'Elige ', h('b', null, 'Instalar app'), ' o ', h('b', null, 'Agregar a pantalla principal'), '.'),
+      paso(3, 'Abre la app desde su icono y activa las notificaciones.'));
+  }
+  return h('ol', { class: 'pasos' },
+    paso(1, 'En Chrome o Edge, pulsa el icono ', h('b', null, 'Instalar'), ' de la barra de direcciones (o el menú ⋮ → «Instalar VIMOD Gastos»).'),
+    paso(2, 'La app se abre en su propia ventana y queda en el menú Inicio o en el escritorio.'),
+    paso(3, 'Activa las notificaciones para recibir los avisos aunque la tengas minimizada.'));
+}
+
+// Ventana de bienvenida: instalar la app y activar las notificaciones. Se muestra una sola vez
+// (y, ya instalada, una vez más para pedir las notificaciones si faltan).
+async function abrirAvisoApp({ forzar = false } = {}) {
+  const instalada = enModoApp();
+  const estadoPush = await estadoNotificaciones();
+  let plataforma = esIOS ? 'ios' : esAndroid ? 'android' : 'pc';
+  const cerrar = (dlg) => dlg.close();
+
+  const contenido = () => {
+    const botonNotificar = h('button', { type: 'button', class: 'primario ancho', onclick: async (ev) => {
+      ev.target.disabled = true;
+      try {
+        await activarNotificaciones();
+        await api('/push/prueba', { method: 'POST' }).catch(() => {});
+        avisar('Notificaciones activadas en este dispositivo');
+        $('#dlg-extra').close();
+        if (estado.vista === 'cuenta') render();
+      } catch (err) {
+        avisar(err.message);
+        ev.target.disabled = false;
+      }
+    } }, icono('campana'), 'Activar notificaciones');
+
+    if (instalada) {
+      return [
+        h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=3', alt: '', width: 64, height: 64 }),
+          h('div', null, h('h2', null, '¡Ya tienes la app!'), h('p', { class: 'tenue' }, 'Activa las notificaciones para no perderte nada.'))),
+        h('ul', { class: 'ventajas' },
+          h('li', null, icono('correo'), 'Cada gasto o ingreso que llegue por correo, Yape o el banco, al momento'),
+          h('li', null, icono('reloj'), 'Recordatorios de tus pagos antes de que venzan'),
+          h('li', null, icono('check'), 'Sin abrir la app: llegan a la pantalla de bloqueo')),
+        estadoPush === 'bloqueado'
+          ? h('p', { class: 'aviso-bloqueo' }, esIOS ? 'Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → VIMOD Gastos.' : 'Las notificaciones están bloqueadas en este navegador. Permítelas desde el candado de la barra de direcciones.')
+          : estadoPush !== 'activo' && botonNotificar,
+        h('div', { class: 'acciones' }, h('button', { type: 'button', onclick: (ev) => cerrar(ev.target.closest('dialog')) }, estadoPush === 'activo' ? 'Cerrar' : 'Ahora no')),
+      ];
+    }
+    const pestana = (id, texto) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(plataforma === id), onclick: () => { plataforma = id; pintar(); } }, texto);
+    return [
+      h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/icon-192.png?v=3', alt: '', width: 64, height: 64 }),
+        h('div', null, h('h2', null, 'Instala VIMOD Gastos'), h('p', { class: 'tenue' }, 'Úsala como una app: desde tu pantalla de inicio, a pantalla completa y con notificaciones.'))),
+      h('ul', { class: 'ventajas' },
+        h('li', null, icono('campana'), 'Notificaciones de cada gasto que llegue por correo o del banco, también los que no ves en tu bandeja'),
+        h('li', null, icono('reloj'), 'Recordatorios de pago antes del vencimiento'),
+        h('li', null, icono('movil'), 'Se abre al instante, sin barra del navegador, y funciona aunque la conexión sea lenta')),
+      avisoInstalacion && !esIOS && h('button', { type: 'button', class: 'primario ancho', onclick: async () => {
+        await avisoInstalacion.prompt();
+        avisoInstalacion = null;
+        $('#dlg-extra').close();
+      } }, icono('descargar'), 'Instalar ahora'),
+      h('div', { class: 'segmentos n3 pestanas-app', role: 'tablist' }, pestana('ios', 'iPhone / iPad'), pestana('android', 'Android'), pestana('pc', 'PC / Mac')),
+      pasosInstalar(plataforma),
+      !esIOS && estadoPush === 'inactivo' && botonNotificar,
+      h('div', { class: 'acciones' },
+        h('button', { type: 'button', onclick: (ev) => cerrar(ev.target.closest('dialog')) }, 'Ahora no'),
+        h('button', { type: 'button', class: 'primario', onclick: (ev) => cerrar(ev.target.closest('dialog')) }, 'Entendido')),
+    ];
+  };
+  const pintar = () => ventana(h('div', { class: 'aviso-app' }, contenido()), { ancho: 'dlg-app' });
+
+  if (!forzar) {
+    // Una sola vez: el aviso de instalar y, ya dentro de la app instalada, el de las notificaciones.
+    const clave = instalada ? 'aviso-app-notificaciones-v1' : 'aviso-app-instalar-v1';
+    if (guardado.leer(clave) || (instalada && estadoPush !== 'inactivo')) return;
+    guardado.poner(clave, '1');
+  }
+  pintar();
+}
+
+// En «Mi cuenta»: estado de la app y de las notificaciones en este dispositivo.
+function seccionApp() {
+  const caja = h('section', { class: 'panel' },
+    h('header', null, h('h3', null, icono('movil'), ' App y notificaciones en este dispositivo')),
+    h('p', { class: 'tenue' }, 'Comprobando…'));
+  estadoNotificaciones().then((estadoPush) => {
+    const textos = {
+      activo: '✅ Las notificaciones están activadas en este dispositivo: te aviso de cada movimiento que llegue solo (correo, Yape, banco) y de tus pagos por vencer.',
+      inactivo: 'Las notificaciones están desactivadas en este dispositivo.',
+      bloqueado: esIOS ? 'Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → VIMOD Gastos.' : 'Las notificaciones están bloqueadas en este navegador. Permítelas desde el candado de la barra de direcciones.',
+      instalar: 'En iPhone las notificaciones solo funcionan con la app instalada: Safari → Compartir → «Agregar a inicio», y ábrela desde ese icono.',
+      'no-disponible': 'Este navegador no admite notificaciones. Prueba con Chrome, Edge o Safari actualizados.',
+    };
+    const accion = (texto, clase, fn) => h('button', { type: 'button', class: clase, onclick: () => intentar(async () => { await fn(); render(); }) }, texto);
+    caja.replaceChildren(
+      caja.firstChild,
+      h('p', null, enModoApp() ? 'Estás usando la app instalada.' : 'Estás usando la app desde el navegador.'),
+      h('p', { class: estadoPush === 'activo' ? '' : 'tenue' }, textos[estadoPush]),
+      h('div', { class: 'botones-fila' },
+        estadoPush === 'inactivo' && accion('Activar notificaciones', 'primario', async () => { await activarNotificaciones(); avisar('Notificaciones activadas'); }),
+        estadoPush === 'activo' && accion('Enviar una de prueba', 'primario', async () => { await api('/push/prueba', { method: 'POST' }); avisar('Notificación enviada'); }),
+        estadoPush === 'activo' && accion('Desactivar', '', async () => { await desactivarNotificaciones(); avisar('Notificaciones desactivadas en este dispositivo'); }),
+        !enModoApp() && h('button', { type: 'button', onclick: () => abrirAvisoApp({ forzar: true }) }, 'Cómo instalar la app')));
+  });
+  return caja;
+}
+
+// Al abrir la app desde una notificación (o con ?vista= / ?seccion=), se va a esa parte.
+function aplicarDestinoDeUrl() {
+  const p = new URLSearchParams(location.search);
+  const vista = p.get('vista');
+  const seccion = p.get('seccion');
+  if (vista && VISTAS[vista]) estado.vista = vista;
+  if (seccion && ['calendario', 'pendientes', 'movimientos', 'analisis'].includes(seccion)) {
+    estado.vista = 'mes';
+    estado.seccion.mes = seccion;
+  }
+}
+
 // ---------- render ----------
 
 const VISTAS = {
@@ -2868,12 +3081,14 @@ window.addEventListener('beforeinstallprompt', (ev) => {
   $('#instalar').hidden = false;
 });
 $('#instalar').addEventListener('click', async () => {
-  $('#instalar').hidden = true;
   $('#menu').close();
-  await avisoInstalacion?.prompt();
+  if (!avisoInstalacion) return abrirAvisoApp({ forzar: true });
+  await avisoInstalacion.prompt();
   avisoInstalacion = null;
 });
 window.addEventListener('appinstalled', () => ($('#instalar').hidden = true));
+// «Instalar app» siempre a mano en el menú mientras no se use instalada (en iPhone explica los pasos).
+if (!enModoApp()) $('#instalar').hidden = false;
 
 // ---------- arranque ----------
 
