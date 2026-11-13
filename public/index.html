@@ -104,24 +104,27 @@
       <button type="button" data-vista="asistente"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>Asistente IA</span></button>
       <button type="button" data-vista="informe"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg><span>Informe PDF</span></button>
       <button type="button" data-vista="compartir"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4"/></svg><span>Compartir</span></button>
-      <p class="cajon-grupo">Cuenta</p>
+      <p class="cajon-grupo">Configuración</p>
       <button type="button" data-vista="cuenta"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Mi cuenta</span></button>
       <button type="button" data-vista="admin" id="pestana-admin" hidden><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/></svg><span>Admin</span></button>
+      <button type="button" id="cambiar-tema"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><span>Modo oscuro</span></button>
+      <button type="button" id="instalar" hidden><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Instalar app</span></button>
     </nav>
 
-    <label>Libro
-      <select id="libro"></select>
-    </label>
-    <label>Moneda del libro
-      <select id="moneda"></select>
-    </label>
-    <button id="nuevo-libro" type="button" class="ancho">+ Nuevo libro</button>
+    <!-- Libro activo: elegirlo, crear otro y su moneda, todo junto -->
+    <section class="cajon-libro" aria-label="Libro">
+      <p class="cajon-grupo">Libro</p>
+      <div class="libro-fila">
+        <select id="libro" aria-label="Libro"></select>
+        <button id="nuevo-libro" type="button" class="cuadrado" aria-label="Nuevo libro" title="Nuevo libro">+</button>
+      </div>
+      <label class="moneda-fila">Moneda
+        <select id="moneda"></select>
+      </label>
+    </section>
 
     <div class="cajon-pie">
-      <button id="cambiar-tema" type="button" class="ancho">Modo oscuro</button>
-      <button id="ver-tutorial" type="button" class="ancho">Registrar Yape desde iPhone (tutorial)</button>
-      <button id="instalar" type="button" class="ancho" hidden>Instalar app</button>
-      <button id="salir" type="button" class="ancho">Cerrar sesión</button>
+      <button id="salir" type="button" class="cajon-salir"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h11"/></svg><span>Cerrar sesión</span></button>
     </div>
   </dialog>
 

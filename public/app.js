@@ -254,7 +254,7 @@ async function entrar(usuario) {
 
 function aplicarTema(tema) {
   document.documentElement.dataset.tema = tema;
-  $('#cambiar-tema').textContent = tema === 'claro' ? 'Modo oscuro' : 'Modo claro';
+  $('#cambiar-tema span').textContent = tema === 'claro' ? 'Modo oscuro' : 'Modo claro';
   $('meta[name=theme-color]').content = tema === 'claro' ? '#eef0e8' : '#12150e';
 }
 
@@ -1097,10 +1097,14 @@ function listaPorDia(movimientos, editar, textoVacio) {
 const cargarMes = () => api(`/libros/${estado.libroId}/mes?mes=${estado.mes}&hasta=${sumarDias(hoy(), 30)}`);
 
 // Rejilla del mes: punto rojo si ese día hay un pago sin hacer, punto gris si hay otros movimientos.
+// 805 → «805», 1250 → «1.3k»: lo gastado en un día, corto para que quepa en la casilla del calendario.
+const montoCorto = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '')}k` : String(Math.round(n)));
+
 function calendario(movimientos) {
   const porDia = new Map();
   for (const m of movimientos) {
-    const dia = porDia.get(m.fecha) ?? { pendiente: false, otros: false, correo: false };
+    const dia = porDia.get(m.fecha) ?? { pendiente: false, otros: false, correo: false, gasto: 0 };
+    if (m.tipo === 'gasto') dia.gasto += m.monto;
     if (m.tipo === 'gasto' && !m.pagado) dia.pendiente = true;
     else if (m.desdeCorreo) dia.correo = true;
     else dia.otros = true;
@@ -1135,6 +1139,7 @@ function calendario(movimientos) {
         },
       },
         String(d),
+        info?.gasto > 0 && h('small', { class: 'dia-gasto' }, montoCorto(info.gasto)),
         h('span', { class: 'puntos' },
           info?.pendiente && h('span', { class: 'punto rojo' }),
           info?.otros && h('span', { class: 'punto' }),
@@ -1189,9 +1194,14 @@ function pintarMes({ actual, proximo, pendientes }) {
           estado.dia
             ? [
                 h('header', null,
-                  h('h3', null, fechaTexto(estado.dia, { weekday: 'long', day: 'numeric', month: 'long' })),
+                  h('h3', { class: 'capital' }, fechaTexto(estado.dia, { weekday: 'long', day: 'numeric', month: 'long' })),
                   h('span', { class: 'espacio' }),
                   h('button', { type: 'button', class: 'mini', onclick: verDia(null) }, `Ver todo ${mesCorto}`)),
+                // Cuánto se gastó y se recibió ese día.
+                h('div', { class: 'resumen-dia' },
+                  h('div', { class: 'resumen-dia-dato gasto' }, h('small', null, 'Gastaste'), h('b', null, dinero(delDia.filter((m) => m.tipo === 'gasto').reduce((s, m) => s + m.monto, 0)))),
+                  h('div', { class: 'resumen-dia-dato ingreso' }, h('small', null, 'Recibiste'), h('b', null, dinero(delDia.filter((m) => m.tipo === 'ingreso').reduce((s, m) => s + m.monto, 0)))),
+                  h('div', { class: 'resumen-dia-dato' }, h('small', null, 'Movimientos'), h('b', null, String(delDia.length)))),
                 filtroMedios(delDia),
                 h('div', { class: 'lista-desliza' }, listaMovimientos(delDia.filter(pasaFiltroMedio), editar, 'No hay movimientos este día con ese filtro.')),
                 editar && h('div', { class: 'pie-panel' },
@@ -2996,7 +3006,7 @@ function seccionApp() {
         estadoPush === 'inactivo' && accion('Activar', 'primario', async () => { await activarNotificaciones(); avisar('Notificaciones activadas'); }),
         estadoPush === 'activo' && accion('Probar', 'primario', async () => { await api('/push/prueba', { method: 'POST' }); avisar('Notificación enviada'); }),
         estadoPush === 'activo' && accion('Desactivar', '', async () => { await desactivarNotificaciones(); avisar('Notificaciones desactivadas'); }),
-        !enModoApp() && h('button', { type: 'button', onclick: () => abrirAvisoApp({ forzar: true }) }, 'Instalar app')));
+        !enModoApp() && h('button', { type: 'button', onclick: () => abrirAvisoApp({ forzar: true }) }, 'Cómo instalar')));
   });
   return caja;
 }
@@ -3225,10 +3235,6 @@ window.addEventListener('beforeinstallprompt', (ev) => {
   ev.preventDefault();
   avisoInstalacion = ev;
   $('#instalar').hidden = false;
-});
-$('#ver-tutorial').addEventListener('click', () => {
-  $('#menu').close();
-  abrirTutorialAtajo();
 });
 $('#instalar').addEventListener('click', async () => {
   $('#menu').close();

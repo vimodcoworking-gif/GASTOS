@@ -1656,3 +1656,35 @@ html { scroll-behavior: auto; }
    pase exactamente por el centro de cada barra en cualquier tamaño de pantalla. */
 .heroe .heroe-barras, .cabecera-mes .heroe .heroe-barras { column-gap: 0; gap: 0; }
 .heroe .heroe-pista { width: 62%; max-width: 46px; }
+
+/* ---------- Menú: libro compacto y cerrar sesión ---------- */
+.cajon-libro { display: grid; gap: .45rem; padding: 0 .1rem; }
+.cajon-libro .cajon-grupo { margin: .4rem .5rem .1rem; }
+.libro-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem; }
+.libro-fila select { min-height: 44px; }
+.libro-fila .cuadrado { width: 44px; height: 44px; min-height: 44px; font-size: 1.3rem; font-weight: 700; }
+.moneda-fila { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .6rem; margin: 0; font-size: .8rem; color: var(--t-tenue); }
+.moneda-fila select { margin: 0; min-height: 40px; font-size: .9rem; }
+.cajon-pie { margin-top: auto; padding-top: .9rem; border-top: 1px solid var(--t-linea); }
+.cajon-salir { display: flex; align-items: center; gap: .75rem; width: 100%; min-height: 46px; padding: .45rem .7rem; border: 0; border-radius: 12px; background: none; color: var(--rojo); font-weight: 700; font-size: .95rem; text-align: left; }
+.cajon-salir .icono { width: 20px; height: 20px; }
+.cajon-salir:hover { background: color-mix(in srgb, var(--rojo) 10%, transparent); }
+.cajon-nav { margin-bottom: .6rem; padding-bottom: .6rem; }
+
+/* ---------- Calendario: lo gastado cada día y resumen del día elegido ---------- */
+.dia { position: relative; }
+.dia-gasto { display: block; margin-top: .05rem; font-size: .62rem; font-weight: 700; line-height: 1; color: var(--tono-gasto); font-variant-numeric: tabular-nums; }
+.dia.elegido .dia-gasto { color: inherit; opacity: .85; }
+.resumen-dia { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; margin: 0 0 .7rem; }
+.resumen-dia-dato { display: grid; gap: .1rem; min-width: 0; padding: .5rem .7rem; border-radius: 14px; background: var(--t-elev); }
+.resumen-dia-dato small { font-size: .72rem; color: var(--t-tenue); font-weight: 600; }
+.resumen-dia-dato b { font-family: var(--gruesa); font-size: 1rem; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resumen-dia-dato.gasto b { color: var(--tono-gasto); }
+.resumen-dia-dato.ingreso b { color: var(--tono-ingreso); }
+.panel-dia > .resumen-dia { flex: none; }
+@media (max-width: 400px) {
+  .resumen-dia { gap: .35rem; }
+  .resumen-dia-dato { padding: .45rem .5rem; }
+  .resumen-dia-dato b { font-size: .88rem; }
+  .dia-gasto { font-size: .55rem; }
+}
