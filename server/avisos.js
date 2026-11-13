@@ -3,7 +3,8 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { createHash, randomBytes } from 'node:crypto';
 import { config } from './config.js';
-import { Usuario, CorreoVisto, Movimiento } from './models.js';
+import { Usuario, CorreoVisto, Movimiento, AvisoRecibido } from './models.js';
+import { archivoDeFormulario, ErrorImagen } from './imagen.js';
 import { estadoBd } from './db.js';
 import { requiereSesion } from './auth.js';
 import { comprobarLicencia } from './licencias.js';
@@ -22,7 +23,9 @@ rutasAvisos.use(cookieParser());
 rutasAvisos.use(express.json({ limit: MAX }));
 rutasAvisos.use(express.urlencoded({ extended: false, limit: '100kb' }));
 rutasAvisos.use(express.text({ type: 'text/*', limit: '100kb' }));
-rutasAvisos.use(express.raw({ type: ['image/*', 'application/pdf', 'application/octet-stream'], limit: MAX }));
+// Todo lo que no sea JSON, texto o formulario simple llega como archivo (imagen, PDF, multipart o sin tipo):
+// el atajo de iPhone no siempre indica el tipo de la captura.
+rutasAvisos.use(express.raw({ type: (req) => !req.is(['application/json', 'text/*', 'application/x-www-form-urlencoded']), limit: MAX }));
 
 const urlBase = (req) => config.urlPublica || `${req.protocol}://${req.get('host')}`;
 const enlaceDe = (req, token) => `${urlBase(req)}/api/avisos/${token}`;
@@ -44,6 +47,12 @@ rutasAvisos.post('/enlace', requiereSesion, async (req, res) => {
 rutasAvisos.delete('/enlace', requiereSesion, async (req, res) => {
   await Usuario.updateOne({ _id: req.usuario.id }, { $unset: { tokenAvisos: 1 } });
   res.json({ enlace: null });
+});
+
+// Últimos avisos recibidos y qué se hizo con cada uno (para «Mi cuenta»).
+rutasAvisos.get('/historial', requiereSesion, async (req, res) => {
+  const lista = await AvisoRecibido.find({ usuario: req.usuario.id }).sort({ cuando: -1 }).limit(15).lean();
+  res.json({ avisos: lista.map((a) => ({ cuando: a.cuando, origen: a.origen, resultado: a.resultado, registrados: a.registrados ?? 0, ok: Boolean(a.ok) })) });
 });
 
 // ---------- recepción de avisos ----------
@@ -82,50 +91,66 @@ rutasAvisos.get('/:token', limite, async (req, res) => {
   res.type('html').send(pagina('✅ Tu enlace funciona', `<p>Este es el enlace de avisos de <b>${usuario.nombre.replace(/[<>&"]/g, '')}</b>. No hace falta abrirlo: pégalo en <b>MacroDroid</b> (Android) o en el atajo del <b>iPhone</b>, que le enviarán cada aviso de Yape, Plin o del banco, o la captura de la constancia.</p><p>Los pasos están en la app, en <b>Mi cuenta → Yape, Plin y avisos del teléfono</b>.</p>`));
 });
 
+// Respuesta para el atajo o MacroDroid: siempre con «mensaje» (lo que enseña la notificación del atajo),
+// también cuando algo falla, y queda anotada en el historial de la persona.
+async function responderAviso(res, usuario, { estado = 200, ok, mensaje, origen, inicio }) {
+  const limpio = String(mensaje ?? '').replace(/\*/g, '').trim();
+  let registrados = 0;
+  if (usuario) {
+    registrados = inicio ? await Movimiento.countDocuments({ creadoPor: usuario._id, createdAt: { $gte: inicio } }).catch(() => 0) : 0;
+    AvisoRecibido.create({ usuario: usuario._id, origen, resultado: limpio.split('\n')[0].slice(0, 200), registrados, ok }).catch(() => {});
+  }
+  return res.status(estado).json({ ok, mensaje: limpio, registrados, ...(!ok && estado >= 400 && { error: limpio }) });
+}
+
 rutasAvisos.post('/:token', limite, async (req, res) => {
   const inicio = new Date();
   const token = String(req.params.token);
-  if (!/^[0-9a-f]{36}$/.test(token)) return res.status(404).json({ error: 'Enlace no válido' });
+  if (!/^[0-9a-f]{36}$/.test(token)) return res.status(404).json({ ok: false, mensaje: 'Enlace no válido. Cópialo otra vez desde Mi cuenta.', error: 'Enlace no válido' });
   const usuario = await Usuario.findOne({ tokenAvisos: token });
-  if (!usuario) return res.status(404).json({ error: 'Enlace no válido o cambiado. Cópialo otra vez desde «Mi cuenta».' });
+  if (!usuario) return res.status(404).json({ ok: false, mensaje: 'Enlace no válido o cambiado. Cópialo otra vez desde Mi cuenta.', error: 'Enlace no válido' });
   const licencia = await comprobarLicencia(usuario);
-  if (!licencia.ok) return res.status(403).json({ error: licencia.motivo });
+  if (!licencia.ok) return responderAviso(res, usuario, { estado: 403, ok: false, mensaje: licencia.motivo, origen: 'aviso' });
 
-  // Captura o PDF (p. ej. el atajo del iPhone al compartir la constancia de Yape).
-  const binario = Buffer.isBuffer(req.body) && req.body.length ? req.body
+  // Captura o PDF (el atajo del iPhone). Puede llegar como archivo directo, en un formulario o en base64.
+  let binario = Buffer.isBuffer(req.body) && req.body.length ? req.body
     : typeof req.body?.imagen === 'string' ? Buffer.from(req.body.imagen.replace(/^data:[^,]+,/, ''), 'base64') : null;
+  if (binario && req.is('multipart/form-data')) binario = archivoDeFormulario(binario, req.get('content-type'))?.datos ?? null;
+  if (binario && binario.length < 64) binario = null;
   if (binario) {
-    const tipo = req.is('application/pdf') || binario.subarray(0, 4).toString() === '%PDF' ? 'pdf' : 'imagen';
-    const mime = tipo === 'pdf' ? 'application/pdf' : /^image\/(jpeg|png|webp|gif)/.exec(req.get('content-type') ?? '')?.[0] ?? (binario[0] === 0x89 ? 'image/png' : 'image/jpeg');
-    if (!(await iaDisponible()).disponible) return res.status(400).json({ error: 'Para leer capturas hace falta tener activada la IA (Admin → IA).' });
+    const esPdf = binario.subarray(0, 4).toString() === '%PDF';
+    const origen = esPdf ? 'PDF' : 'Captura';
+    if (!(await iaDisponible()).disponible) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'Para leer capturas hace falta activar la IA (Admin → IA).', origen });
     const libro = libroActivo(usuario, await librosDe(usuario));
-    if (!libro) return res.status(400).json({ error: 'No tienes ningún libro.' });
-    const entrada = tipo === 'pdf' ? { pdf: { base64: binario.toString('base64'), texto: '' } } : { imagen: { base64: binario.toString('base64'), mime } };
+    if (!libro) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'No tienes ningún libro.', origen });
+    // El formato real se mira en los bytes (el atajo puede mandar la captura sin tipo o con otro).
+    const entrada = esPdf ? { pdf: { base64: binario.toString('base64'), texto: '' } } : { imagen: { base64: binario.toString('base64'), mime: 'image/png' } };
     try {
       const lectura = await leerComprobante(entrada, { hoy: hoyLocal(), moneda: libro.moneda, titular: usuario.nombre });
-      if (!lectura?.movimientos.length) return res.json({ ok: false, mensaje: lectura?.nota || 'No encontré ningún pago en la captura.' });
+      if (!lectura?.movimientos.length) return responderAviso(res, usuario, { ok: false, mensaje: lectura?.nota || 'No encontré pagos en la captura. Abre «Mostrar movimientos» en Yape antes de enviarla.', origen });
       const mensaje = await registrarVarios(usuario, lectura.movimientos, { origen: 'desde tu captura' });
       // Si todo ya estaba registrado (la misma lista enviada otra vez), no se avisa: la respuesta lo dice.
       if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
-      return res.json({ ok: true, mensaje: mensaje.replace(/\*/g, '') });
+      return responderAviso(res, usuario, { ok: true, mensaje, origen, inicio });
     } catch (err) {
       console.error('Aviso (captura):', err.message);
-      return res.status(502).json({ error: 'No se pudo leer la captura. Inténtalo de nuevo.' });
+      const motivo = err instanceof ErrorImagen ? err.message : `No se pudo leer la captura (${String(err.message).slice(0, 120)}). Inténtalo de nuevo.`;
+      return responderAviso(res, usuario, { estado: err instanceof ErrorImagen ? 400 : 502, ok: false, mensaje: motivo, origen });
     }
   }
 
   // Notificación en texto.
   const { titulo, texto, app } = textoDelAviso(req);
   const completo = `${titulo} ${texto}`.trim();
-  if (!completo) return res.status(400).json({ error: 'El aviso llegó vacío. Revisa que la app envíe el texto de la notificación.' });
-  if (completo.length > 2000) return res.status(400).json({ error: 'El aviso es demasiado largo.' });
+  if (!completo) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'El aviso llegó vacío. En el atajo, el cuerpo de la solicitud debe ser «Archivo» con la captura de pantalla.', origen: 'Vacío' });
+  if (completo.length > 2000) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'El aviso es demasiado largo.', origen: 'Texto' });
 
   // La misma notificación puede llegar dos veces seguidas (al actualizarse en el teléfono): solo cuenta la primera.
   // Pasados unos minutos, el mismo texto sí es otro aviso («¡Te yapearon S/ 5!» dos veces en el día).
   const tramo = Math.floor(Date.now() / (3 * 60_000));
   const huella = createHash('sha256').update(`${usuario.id}|${tramo}|${completo}`).digest('hex').slice(0, 32);
   const nueva = await CorreoVisto.updateOne({ _id: `aviso:${huella}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
-  if (!nueva.upsertedCount) return res.json({ ok: false, mensaje: 'Ese aviso ya se había recibido.' });
+  if (!nueva.upsertedCount) return responderAviso(res, usuario, { ok: false, mensaje: 'Ese aviso ya se había recibido.', origen: app || 'Notificación' });
 
   let movimiento = leerAvisoDePago(completo, { app });
   if (!movimiento && /\d/.test(completo) && (await iaDisponible()).disponible) {
@@ -134,9 +159,9 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
     const lectura = libro && await leerComprobante({ texto: `${app ? `App: ${app}\n` : ''}${completo}` }, { hoy: hoyLocal(), moneda: libro.moneda, titular: usuario.nombre }).catch(() => null);
     [movimiento] = lectura?.movimientos ?? [];
   }
-  if (!movimiento) return res.json({ ok: false, mensaje: 'No es un aviso de pago: no se registró nada.' });
+  if (!movimiento) return responderAviso(res, usuario, { ok: false, mensaje: 'No es un aviso de pago: no se registró nada.', origen: app || 'Notificación' });
 
   const mensaje = await registrarVarios(usuario, [{ ...movimiento, fecha: movimiento.fecha ?? hoyLocal(), pistas: `${app} ${completo}` }], { origen: `desde ${app || 'tu teléfono'}`, repetidos: 'reciente' });
   if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
-  res.json({ ok: mensaje.startsWith('✅'), mensaje: mensaje.replace(/\*/g, '') });
+  return responderAviso(res, usuario, { ok: mensaje.startsWith('✅'), mensaje, origen: app || 'Notificación', inicio });
 });

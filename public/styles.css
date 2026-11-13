@@ -1688,3 +1688,13 @@ html { scroll-behavior: auto; }
   .resumen-dia-dato b { font-size: .88rem; }
   .dia-gasto { font-size: .55rem; }
 }
+
+/* Últimos envíos del teléfono */
+.historial-avisos { display: grid; gap: .45rem; }
+.historial-cabecera { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.historial-avisos ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.historial-avisos li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .6rem; align-items: start; padding: .55rem .7rem; border-radius: 12px; background: var(--t-elev); font-size: .85rem; }
+.historial-avisos li > span:last-child { display: grid; gap: .1rem; min-width: 0; overflow-wrap: anywhere; }
+.historial-icono { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 800; font-size: .75rem; }
+.historial-avisos li.ok .historial-icono { background: color-mix(in srgb, var(--lima) 40%, transparent); color: var(--t-tinta); }
+.historial-avisos li.falla .historial-icono { background: color-mix(in srgb, var(--rojo) 20%, transparent); color: var(--rojo); }

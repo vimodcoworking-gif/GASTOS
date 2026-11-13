@@ -1,3 +1,4 @@
+import { imagenParaIa } from './imagen.js';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from './config.js';
@@ -559,6 +560,11 @@ async function modelosConVision(clave) {
 export async function leerComprobante(archivo, { hoy, moneda, titular = '', mensaje = '' }) {
   const ajustes = await leerAjustes();
   if (!ajustes.activa || !ajustes.clave) return null;
+  // Fotos y capturas: se reducen y comprimen a lo que acepta cada proveedor (NVIDIA rechaza las grandes).
+  if (archivo.imagen) {
+    const preparada = await imagenParaIa(Buffer.from(archivo.imagen.base64, 'base64'), ajustes.proveedor === 'claude' ? 'claude' : 'nvidia');
+    archivo = { ...archivo, imagen: { base64: preparada.base64, mime: preparada.mime } };
+  }
   const encabezado = `<titular>${titular}</titular>\n<hoy>${hoy}</hoy>\n<moneda_del_libro>${moneda}</moneda_del_libro>${mensaje ? `\n<mensaje_de_la_persona>${mensaje.slice(0, 500)}</mensaje_de_la_persona>` : ''}`;
   const textoDelArchivo = archivo.texto ?? archivo.pdf?.texto ?? '';
 

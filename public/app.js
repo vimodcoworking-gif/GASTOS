@@ -1981,9 +1981,21 @@ function seccionAvisosTelefono() {
         ));
   };
   api('/avisos/enlace').then(({ enlace }) => pintar(enlace)).catch(() => zona.replaceChildren(h('p', { class: 'tenue' }, 'No se pudo cargar tu enlace. Recarga la página.')));
+  // Últimos envíos del teléfono y qué pasó con cada uno: así se ve si el atajo funciona.
+  const historial = h('div', { class: 'historial-avisos' });
+  const cargarHistorial = () => api('/avisos/historial').then(({ avisos }) => historial.replaceChildren(
+    h('div', { class: 'historial-cabecera' }, h('b', null, 'Últimos envíos'), h('button', { type: 'button', class: 'mini', onclick: cargarHistorial }, 'Actualizar')),
+    avisos.length
+      ? h('ul', null, avisos.map((a) => h('li', { class: a.ok ? 'ok' : 'falla' },
+          h('span', { class: 'historial-icono', 'aria-hidden': 'true' }, a.ok ? '✓' : '!'),
+          h('span', null, h('small', { class: 'tenue' }, `${new Date(a.cuando).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · ${a.origen}${a.registrados ? ` · ${a.registrados} registrado${a.registrados === 1 ? '' : 's'}` : ''}`), h('span', null, a.resultado)))))
+      : h('p', { class: 'tenue nota' }, 'Todavía no llegó nada a tu enlace. Prueba el atajo y pulsa «Actualizar».'),
+  )).catch(() => {});
+  cargarHistorial();
   return h('section', { class: 'panel cuenta-tarjeta ancha' },
     cabeceraCuenta('movil', 'Yape, Plin y avisos del teléfono', 'Registra los yapes que no llegan por correo, sin duplicar.'),
     zona,
+    historial,
   );
 }
 

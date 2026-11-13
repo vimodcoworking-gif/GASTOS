@@ -227,3 +227,15 @@ const suscripcionPushSchema = new Schema(
   { timestamps: true },
 );
 export const SuscripcionPush = model('SuscripcionPush', suscripcionPushSchema);
+
+// Últimos avisos que llegaron al enlace personal (atajo del iPhone, MacroDroid…) y qué pasó con cada uno,
+// para ver en «Mi cuenta» si funciona. Se borran solos a los 7 días.
+const avisoRecibidoSchema = new Schema({
+  usuario: { type: ObjectId, required: true, index: true },
+  origen: String,
+  resultado: String,
+  registrados: Number,
+  ok: Boolean,
+  cuando: { type: Date, default: Date.now, expires: 7 * 24 * 3600 },
+}, { versionKey: false });
+export const AvisoRecibido = model('AvisoRecibido', avisoRecibidoSchema);
