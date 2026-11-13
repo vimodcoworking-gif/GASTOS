@@ -120,6 +120,11 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
   if (binario) {
     const esPdf = binario.subarray(0, 4).toString() === '%PDF';
     const origen = esPdf ? 'PDF' : 'Captura';
+    // La misma captura enviada otra vez (la automatización «al cerrar Yape» manda la última captura aunque
+    // no haya una nueva): se contesta al momento, sin volver a leerla con la IA.
+    const huellaArchivo = createHash('sha256').update(usuario.id).update(binario).digest('hex').slice(0, 40);
+    const yaVista = await CorreoVisto.exists({ _id: `captura:${huellaArchivo}` });
+    if (yaVista) return responderAviso(res, usuario, { ok: true, mensaje: 'Esa captura ya se había registrado. Haz una nueva después de yapear.', origen: 'Captura repetida' });
     if (!(await iaDisponible()).disponible) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'Para leer capturas hace falta activar la IA (Admin → IA).', origen });
     const libro = libroActivo(usuario, await librosDe(usuario));
     if (!libro) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'No tienes ningún libro.', origen });
@@ -129,6 +134,7 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
       const lectura = await leerComprobante(entrada, { hoy: hoyLocal(), moneda: libro.moneda, titular: usuario.nombre });
       if (!lectura?.movimientos.length) return responderAviso(res, usuario, { ok: false, mensaje: lectura?.nota || 'No encontré pagos en la captura. Abre «Mostrar movimientos» en Yape antes de enviarla.', origen });
       const mensaje = await registrarVarios(usuario, lectura.movimientos, { origen: 'desde tu captura' });
+      await CorreoVisto.updateOne({ _id: `captura:${huellaArchivo}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true }).catch(() => {});
       // Si todo ya estaba registrado (la misma lista enviada otra vez), no se avisa: la respuesta lo dice.
       if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
       return responderAviso(res, usuario, { ok: true, mensaje, origen, inicio });

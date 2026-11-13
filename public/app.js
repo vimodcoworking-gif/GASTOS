@@ -3118,8 +3118,16 @@ async function abrirTutorialAtajo() {
         h('div', { class: 'ajustes-opcion' }, h('span', null, 'Registrar Yape'), h('b', null, '✓'))),
     },
     {
+      titulo: '6. (Recomendado) Que se envíe solo al cerrar Yape',
+      texto: 'Así no tienes que acordarte: después de yapear, toma una captura de la constancia (o de «Movimientos») y cierra Yape. En Atajos → Automatización → «+» → App → Yape → «Se cierra» → «Ejecutar inmediatamente». Acciones: «Obtener las últimas capturas de pantalla» (1) y «Obtener contenido de URL» con tu enlace, POST, Archivo → Capturas de pantalla. Si no hay captura nueva, no se repite nada.',
+      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+        h('div', { class: 'ajustes-ruta' }, ['Automatización', 'App', 'Yape', 'Se cierra', 'Ejecutar inmediatamente'].map((t, i) => h('span', null, i ? '›' : '', h('b', null, t)))),
+        accionAtajo('#3987e5', '🖼️', 'Obtener las últimas capturas de pantalla', ['Cantidad', '1']),
+        accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['URL', 'tu enlace'], ['Método', 'POST'], ['Archivo', 'Capturas de pantalla'])),
+    },
+    {
       titulo: '¡Listo! Pruébalo',
-      texto: 'Abre Yape → «Mostrar movimientos» y toca dos veces la parte de atrás del iPhone. En unos segundos te llega la notificación. Si mandas la misma lista otra vez, no se repite ningún pago.',
+      texto: 'Después de yapear o recibir un yape: toca dos veces la parte de atrás del iPhone en la constancia o en «Movimientos» (o, con la automatización, haz una captura y cierra Yape). En unos segundos te llega la notificación. Revisa en Mi cuenta → «Últimos envíos» qué llegó. Nada se repite.',
       dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(),
         h('div', { class: 'noti-mini' }, h('b', null, 'Registrar Yape'), h('span', null, '✅ 3 movimientos registrados · Total gastos: S/ 15.00'))),
     },
