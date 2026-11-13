@@ -3107,10 +3107,10 @@ async function abrirTutorialAtajo() {
   pintar();
 }
 
-// Una sola vez, en iPhone o iPad (si ese día no se mostró ya el aviso de instalar la app).
+// Una sola vez en cada dispositivo (si ese día no se mostró ya el aviso de instalar la app).
 function tutorialAtajoUnaVez() {
-  if (!esIOS || guardado.leer('tutorial-atajo-v1')) return;
-  guardado.poner('tutorial-atajo-v1', '1');
+  if (guardado.leer('tutorial-atajo-v2')) return;
+  guardado.poner('tutorial-atajo-v2', '1');
   abrirTutorialAtajo();
 }
 
@@ -3201,6 +3201,10 @@ window.addEventListener('beforeinstallprompt', (ev) => {
   ev.preventDefault();
   avisoInstalacion = ev;
   $('#instalar').hidden = false;
+});
+$('#ver-tutorial').addEventListener('click', () => {
+  $('#menu').close();
+  abrirTutorialAtajo();
 });
 $('#instalar').addEventListener('click', async () => {
   $('#menu').close();
