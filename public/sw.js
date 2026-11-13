@@ -1,6 +1,6 @@
 // Cambia la versión al publicar cambios para que se descarte la caché anterior.
-const CACHE = 'nfta-gastos-v60';
-const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-duolab.png', '/logo-duolab-blanco.png', '/icons/icon-192.png', '/icons/icon-512.png'];
+const CACHE = 'nfta-gastos-v61';
+const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-duolab.png', '/logo-duolab-blanco.png', '/icons/app-duolab-192.png', '/icons/app-duolab-512.png'];
 // Si la red tarda más que esto (servidor dormido), se enseña la copia guardada.
 const ESPERA_RED_MS = 4000;
 
