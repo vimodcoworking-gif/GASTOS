@@ -48,6 +48,7 @@ function h(etiqueta, props, ...hijos) {
 }
 
 async function api(ruta, { method = 'GET', body } = {}) {
+  if (method !== 'GET') ultimaAccionPropia = Date.now();
   const res = await fetch(`/api${ruta}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : {},
@@ -231,6 +232,7 @@ $('#form-auth').addEventListener('submit', async (ev) => {
 });
 
 $('#salir').addEventListener('click', async () => {
+  dejarDeEscuchar();
   await api('/auth/logout', { method: 'POST' }).catch(() => {});
   mostrarAcceso();
 });
@@ -245,6 +247,7 @@ async function entrar(usuario) {
   await cargarLibros();
   aplicarDestinoDeUrl();
   render();
+  escucharCambios();
   // Una sola vez: invitación a instalar la app (o, ya instalada, a activar las notificaciones).
   // Si no hubo nada que mostrar, en iPhone se enseña (una vez) cómo registrar los yapes con el atajo.
   setTimeout(() => abrirAvisoApp().then((mostrado) => { if (!mostrado) tutorialAtajoUnaVez(); }).catch(() => {}), 1500);
@@ -3356,6 +3359,7 @@ HTMLDialogElement.prototype.showModal = function showModal() {
   abrirVentanaOriginal.call(this);
   history.pushState({ ...estadoDeNavegacion(), dialogo: true }, '');
   this.addEventListener('close', () => {
+    if (refrescoPendiente) setTimeout(() => refrescarDatos(0), 50);
     if (cierrePorHistorial) {
       cierrePorHistorial = false;
       return;
@@ -3464,3 +3468,60 @@ function irAtras() {
   document.addEventListener('touchend', terminar, { passive: true });
   document.addEventListener('touchcancel', terminar, { passive: true });
 })();
+
+
+// ---------- actualización en tiempo real ----------
+// El servidor avisa (Server-Sent Events) cuando cambian los movimientos del libro: un correo, el atajo del
+// iPhone, WhatsApp u otra persona. La app vuelve a pedir los datos y se repinta sola, sin recargar.
+// «var»: se usan antes de que se lea esta parte del archivo (la app arranca antes).
+var fuenteEventos = null; // eslint-disable-line no-var
+var refrescoPendiente = false; // eslint-disable-line no-var
+var ultimaAccionPropia = 0; // eslint-disable-line no-var
+var ocultaDesde = 0; // eslint-disable-line no-var
+
+function escucharCambios() {
+  if (!('EventSource' in window) || (fuenteEventos && fuenteEventos.readyState !== 2)) return;
+  fuenteEventos = new EventSource('/api/eventos');
+  fuenteEventos.addEventListener('cambio', (ev) => {
+    let datos = {};
+    try {
+      datos = JSON.parse(ev.data);
+    } catch {
+      return;
+    }
+    if (datos.libro !== estado.libroId) return;
+    // Cambio hecho desde esta misma app hace un momento: ya se pintó.
+    if (Date.now() - ultimaAccionPropia < 4000) return;
+    refrescarDatos(datos.nuevos ?? 0);
+  });
+  // EventSource se reconecta solo si se corta la conexión.
+}
+
+function dejarDeEscuchar() {
+  fuenteEventos?.close();
+  fuenteEventos = null;
+}
+
+async function refrescarDatos(nuevos) {
+  datosRecordados.clear();
+  // Con una ventana abierta o escribiendo en un campo, se espera para no borrar lo que se está haciendo.
+  if (document.querySelector('dialog[open]') || document.activeElement?.matches?.('input, select, textarea')) {
+    refrescoPendiente = true;
+    return;
+  }
+  refrescoPendiente = false;
+  if (!estado.usuario) return;
+  await render();
+  if (nuevos > 0) avisar(nuevos === 1 ? '🔔 Nuevo movimiento registrado' : `🔔 ${nuevos} movimientos nuevos registrados`);
+}
+
+// Al volver a la app (desde otra app o con el teléfono bloqueado) se ponen al día los datos.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    ocultaDesde = Date.now();
+    return;
+  }
+  if (!estado.usuario) return;
+  escucharCambios();
+  if (ocultaDesde && Date.now() - ocultaDesde > 15_000) refrescarDatos(0);
+});

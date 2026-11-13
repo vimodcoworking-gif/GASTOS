@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { avisarCambio } from './eventos.js';
 
 const { Schema, model } = mongoose;
 const ObjectId = Schema.Types.ObjectId;
@@ -144,6 +145,20 @@ const movimientoSchema = new Schema(
 // Índices: el principal (libro + fecha) para todo; los demás solo incluyen los movimientos que tienen
 // ese dato (índices parciales), así ocupan poco aunque haya muchos clientes.
 movimientoSchema.index({ libro: 1, fecha: 1 });
+// Cada cambio en los movimientos se avisa al momento a la app abierta de las personas del libro.
+movimientoSchema.pre('save', function marcarNuevo() { this.$locals.eraNuevo = this.isNew; });
+movimientoSchema.post('save', (doc) => avisarCambio(doc.libro, { nuevos: doc.$locals?.eraNuevo ? 1 : 0 }));
+movimientoSchema.post('insertMany', (docs) => {
+  for (const libro of new Set((docs ?? []).map((d) => String(d.libro)))) avisarCambio(libro, { nuevos: docs.filter((d) => String(d.libro) === libro).length });
+});
+movimientoSchema.post('deleteOne', { document: true, query: false }, (doc) => avisarCambio(doc.libro));
+for (const operacion of ['updateOne', 'updateMany', 'deleteMany', 'findOneAndUpdate', 'deleteOne']) {
+  movimientoSchema.post(operacion, { query: true, document: false }, function avisarConsulta() {
+    const libro = this.getFilter?.()?.libro;
+    if (libro && typeof libro !== 'object') avisarCambio(libro);
+    else if (libro?._id || (libro && /^[0-9a-f]{24}$/i.test(String(libro)))) avisarCambio(String(libro._id ?? libro));
+  });
+}
 movimientoSchema.index({ fecha: 1 }, { name: 'pendientes_por_fecha', partialFilterExpression: { pagado: false } });
 movimientoSchema.index({ libro: 1, huella: 1 }, { name: 'huella', partialFilterExpression: { huella: { $type: 'string' } } });
 movimientoSchema.index({ libro: 1, serie: 1 }, { name: 'serie', partialFilterExpression: { serie: { $type: 'objectId' } } });

@@ -16,6 +16,7 @@ import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
 import { iniciarRecordatorios } from './recordatorios.js';
 import { rutasPush, prepararPush } from './push.js';
+import { rutasEventos } from './eventos.js';
 import { compactarUnaVez, iniciarMantenimiento } from './mantenimiento.js';
 import { separarRegistrosUnidos, completarMedios, corregirMediosBilletera, corregirYapeosEnviados } from './bot.js';
 import { Ajuste } from './models.js';
@@ -44,6 +45,7 @@ app.use('/api/auth/google', rutasGoogle);
 app.use('/api/auth', rutasAuth);
 app.use('/api/admin', requiereSesion, requiereAdmin, rutasAdmin);
 app.use('/api/push', requiereSesion, rutasPush);
+app.use('/api/eventos', requiereSesion, rutasEventos);
 app.use('/api', requiereSesion, rutasApi);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 app.use(express.static(publico, {
