@@ -5,6 +5,8 @@ import { Usuario, Libro, Movimiento } from './models.js';
 import { ErrorHttp, texto } from './errores.js';
 import rateLimit from 'express-rate-limit';
 import { generarInforme } from './informe.js';
+import { montarExtras } from './extras.js';
+import { recordatorioDePrueba } from './recordatorios.js';
 import { informePeriodo, conversar, ejecutarAcciones, registrarVarios, hoyLocal } from './bot.js';
 import { iaDisponible, leerComprobante, explicarError } from './ia.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
@@ -120,11 +122,23 @@ const libroPublico = (libro, usuarioId) => ({
   nombre: libro.nombre,
   moneda: libro.moneda,
   rol: rolEn(libro, usuarioId),
+  categorias: (libro.categorias ?? []).map((c) => ({ nombre: c.nombre, tipo: c.tipo, color: c.color ?? null, presupuesto: c.presupuesto ?? null })),
 });
 
 export const rutasApi = Router();
 
 // Por dónde se puede enviar un estado de cuenta ahora mismo, y los datos de contacto de quien pregunta.
+// Manda ahora un recordatorio de prueba al WhatsApp de la persona.
+rutasApi.post('/recordatorios/prueba', async (req, res) => {
+  const usuario = await Usuario.findById(req.usuario.id);
+  try {
+    await recordatorioDePrueba(usuario);
+  } catch (err) {
+    throw new ErrorHttp(400, err.message);
+  }
+  res.json({ ok: true });
+});
+
 rutasApi.get('/canales', async (req, res) => {
   const usuario = await Usuario.findById(req.usuario.id).select('email whatsapp');
   res.json({ correo: correoDisponible(), whatsapp: whatsappConectado(), miCorreo: usuario.email, miWhatsapp: usuario.whatsapp ?? '' });
@@ -144,6 +158,7 @@ rutasApi.get('/libros', async (req, res) => {
       moneda: l.moneda,
       rol: rolEn({ propietario: l.propietario._id, miembros: l.miembros }, uid),
       propietario: l.propietario.nombre,
+      categorias: (l.categorias ?? []).map((c) => ({ nombre: c.nombre, tipo: c.tipo, color: c.color ?? null, presupuesto: c.presupuesto ?? null })),
     })),
   });
 });
@@ -158,6 +173,8 @@ rutasApi.post('/libros', async (req, res) => {
 });
 
 const libro = Router({ mergeParams: true });
+// Metas de ahorro y categorías.
+montarExtras(libro, { puedeEditar });
 rutasApi.use('/libros/:libroId', cargarLibro, libro);
 
 libro.patch('/', soloPropietario, async (req, res) => {
@@ -233,6 +250,8 @@ const medioDe = (m) => (m.medio || m.entidad ? { medio: m.medio ?? null, entidad
 
 const movPublico = (m) => ({
   id: String(m._id),
+  // Días antes del vencimiento para el recordatorio por WhatsApp (null = el ajuste de la persona; -1 = ninguno).
+  recordar: m.recordar ?? null,
   tipo: m.tipo,
   descripcion: m.descripcion,
   categoria: m.categoria,
@@ -273,6 +292,12 @@ function leerMovimiento(cuerpo, parcial = false) {
   if (cuerpo.pagado !== undefined) {
     datos.pagado = cuerpo.pagado === true;
     datos.fechaPago = datos.pagado ? new Date() : null;
+  }
+  // Recordatorio por WhatsApp: -1 (ninguno) a 7 días antes; vacío o null = el ajuste de la persona.
+  if (cuerpo.recordar !== undefined) {
+    const dias = cuerpo.recordar === null || cuerpo.recordar === '' ? null : Number(cuerpo.recordar);
+    if (dias !== null && (!Number.isInteger(dias) || dias < -1 || dias > 7)) throw new ErrorHttp(400, 'Recordatorio inválido');
+    datos.recordar = dias ?? undefined;
   }
   // Medio de pago y entidad: vacíos quitan el dato.
   if (cuerpo.medio !== undefined || cuerpo.entidad !== undefined) {
@@ -353,6 +378,8 @@ libro.patch('/movimientos/:id', puedeEditar, async (req, res) => {
     mov.moneda = undefined;
     mov.montoOriginal = undefined;
   }
+  // Otra fecha u otro aviso: el recordatorio vuelve a mandarse cuando toque.
+  if ((cambios.fecha && cambios.fecha.getTime() !== mov.fecha.getTime()) || ('recordar' in cambios && cambios.recordar !== mov.recordar)) mov.recordado = undefined;
   Object.assign(mov, cambios);
 
   let creados = 0;
@@ -368,6 +395,7 @@ libro.patch('/movimientos/:id', puedeEditar, async (req, res) => {
     const base = {
       libro: mov.libro, tipo: mov.tipo, descripcion: mov.descripcion, categoria: mov.categoria,
       monto: mov.monto, fecha: mov.fecha, serie: mov.serie, creadoPor: req.usuario.id, medio: mov.medio, entidad: mov.entidad,
+      ...(mov.recordar !== undefined && { recordar: mov.recordar }),
     };
     creados = (await Movimiento.insertMany(copiasFuturas(base, repeticion))).length;
   }

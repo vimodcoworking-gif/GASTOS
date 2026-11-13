@@ -26,7 +26,7 @@ const estado = {
   // Periodo elegido en «Compartir» para enviar el estado de cuenta.
   envio: { periodo: 'mes', desde: `${hoy().slice(0, 7)}-01`, hasta: hoy() },
   // Sección visible dentro de cada vista (los botones que evitan desplazarse).
-  seccion: { mes: 'calendario', anio: 'grafica', admin: 'almacenamiento' },
+  seccion: { mes: 'calendario', anio: 'grafica', admin: 'almacenamiento', categorias: 'gasto' },
 };
 
 // ---------- utilidades ----------
@@ -525,7 +525,17 @@ function pintarTipoMovimiento() {
   const form = $('#form-mov');
   const tipo = form.tipo.value;
   $('#mov-pagado-texto').textContent = tipo === 'gasto' ? 'Ya está pagado' : 'Ya está recibido';
-  $('#categorias').replaceChildren(...CATEGORIAS[tipo].map((c) => h('option', { value: c })));
+  const propias = (libroActual()?.categorias ?? []).filter((c) => c.tipo === tipo).map((c) => c.nombre);
+  $('#categorias').replaceChildren(...[...new Set([...propias, ...CATEGORIAS[tipo]])].map((c) => h('option', { value: c })));
+  pintarRecordar();
+}
+
+// El recordatorio por WhatsApp solo tiene sentido en un gasto que todavía no se pagó.
+function pintarRecordar() {
+  const form = $('#form-mov');
+  const dias = estado.usuario?.recordatorio?.dias ?? 2;
+  form.recordar.options[0].textContent = dias > 0 ? `Según mi ajuste (${dias === 1 ? '1 día' : `${dias} días`} antes)` : 'Según mi ajuste (solo el mismo día)';
+  $('#campo-recordar').hidden = form.tipo.value !== 'gasto' || form.pagado.checked;
 }
 
 // Sin movimiento abre el alta; «fecha» propone un día concreto (el elegido en el calendario).
@@ -547,6 +557,7 @@ function abrirMovimiento(mov = null, fecha = null, tipo = null) {
     form.pagado.checked = mov.pagado;
     form.medio.value = mov.medio ?? '';
     form.entidad.value = mov.entidad ?? '';
+    form.recordar.value = mov.recordar ?? '';
   } else {
     // Por defecto: el día pedido, hoy si estamos en el mes actual, o el primer día del mes visible.
     form.fecha.value = fecha ?? (hoy().startsWith(estado.mes) ? hoy() : `${estado.mes}-01`);
@@ -595,6 +606,7 @@ $('#mov-eliminar').addEventListener('click', () => {
 
 $('#form-mov').addEventListener('change', (ev) => {
   if (ev.target.name === 'tipo') pintarTipoMovimiento();
+  if (ev.target.name === 'pagado' || ev.target.name === 'fecha') pintarRecordar();
 });
 $('#form-mov').addEventListener('input', (ev) => {
   if (['repetir', 'veces', 'fecha'].includes(ev.target.name)) pintarRepeticion();
@@ -612,6 +624,7 @@ $('#form-mov').addEventListener('submit', async (ev) => {
     pagado: form.pagado.checked,
     medio: form.medio.value,
     entidad: form.entidad.value,
+    recordar: form.recordar.value,
   };
   if (form.repetir.value !== 'no') {
     body.repetir = form.repetir.value;
@@ -692,6 +705,16 @@ const TRAZOS_ICONO = {
   descargar: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
   deshacer: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  lapiz: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  campana: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  alcancia: '<path d="M5 11a7 6 0 0 1 12-3.5h2.5l-1 3a6 6 0 0 1 1.5 2.5H21v3h-1.5a7 7 0 0 1-2.5 2.5V21h-3v-1.6a8 8 0 0 1-4 0V21H7v-2.4A6.5 6.5 0 0 1 5 11z"/><path d="M15 11h.01"/><path d="M9.5 7.5h3"/>',
+  meta: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
+  avion: '<path d="M21 15.5 13.5 11V5a1.5 1.5 0 0 0-3 0v6L3 15.5V17l7.5-2.2V19l-2 1.5V22l3.5-1 3.5 1v-1.5l-2-1.5v-4.2L21 17z"/>',
+  casa: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  auto: '<path d="M5 16V12l2-5h10l2 5v4"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="16.5" r="1"/><circle cx="16.5" cy="16.5" r="1"/>',
+  estudio: '<path d="M2 9 12 4l10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/><path d="M22 9v6"/>',
+  regalo: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9"/><path d="M12 8v13"/><path d="M12 8S10.5 3 8 4.5 9.5 8 12 8zm0 0s1.5-5 4-3.5S14.5 8 12 8z"/>',
+  salud: '<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z"/>',
   imagen: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.8"/><path d="m21 15-4.5-4.5L6 21"/>',
 };
 
@@ -780,7 +803,8 @@ function filaMovimiento(m, editar) {
     h('span', { class: 'cuerpo' },
       h('strong', null, m.descripcion,
         m.enSerie && h('span', { class: 'marca', title: 'Se repite' }, icono('repetir', 'Se repite')),
-        m.desdeCorreo && h('span', { class: 'marca', title: 'Registrado desde tu correo de Gmail' }, icono('correo', 'Desde tu correo'))),
+        m.desdeCorreo && h('span', { class: 'marca', title: 'Registrado desde tu correo de Gmail' }, icono('correo', 'Desde tu correo')),
+        !m.pagado && m.tipo === 'gasto' && m.recordar !== -1 && h('span', { class: 'marca campana', title: 'Te lo recordaré por WhatsApp' }, icono('campana', 'Con recordatorio'))),
       h('small', null, `${fechaCorta(m.fecha)} · ${m.categoria} `),
       chipMedio(m),
       chipEstado(m),
@@ -1212,7 +1236,8 @@ function pintarMes({ actual, proximo, pendientes }) {
     h('section', { class: 'heroe' },
       h('div', { class: 'heroe-nav' },
         h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(moverMes(estado.mes, -1)), 'aria-label': 'Mes anterior' }, icono('flecha-izq')),
-        h('h2', { class: 'capital' }, nombreMes(estado.mes)),
+        h('div', { class: 'mes-pildora' }, icono('calendario'), h('h2', { class: 'capital', title: nombreMes(estado.mes) },
+          h('span', { class: 'mes-largo' }, nombreMes(estado.mes)), h('span', { class: 'mes-corto' }, nombreMes(estado.mes, { month: 'short', year: 'numeric' })))),
         h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(siguiente), 'aria-label': 'Mes siguiente' }, icono('flecha')),
         h('span', { class: 'espacio' }),
         estado.mes !== mesActual && h('button', { type: 'button', class: 'pildora-suave', onclick: () => irAMes(mesActual) }, 'Hoy'),
@@ -1234,9 +1259,10 @@ function pintarMes({ actual, proximo, pendientes }) {
               Math.max(...semana.map((d) => d.total)) > 0 ? fechaTexto(semana.reduce((a, d) => (d.total > a.total ? d : a)).fecha, { weekday: 'long', day: 'numeric' }) : '—'))),
         ),
         h('div', { class: 'heroe-barras', role: 'img', 'aria-label': `Gastos de los últimos 7 días: ${semana.map((d) => `${fechaCorta(d.fecha)} ${dinero(d.total)}`).join(', ')}` },
-          semana.map((d) => h('div', { class: `heroe-dia ${d.fecha === hoy() ? 'hoy' : ''}`, title: `${fechaTexto(d.fecha, { weekday: 'long', day: 'numeric', month: 'short' })}: ${dinero(d.total)}` },
+          semana.map((d) => h('div', { class: `heroe-dia ${d.fecha === hoy() ? 'hoy' : ''} ${d.total > 0 && d.total === mayorSemana ? 'maximo' : ''}`, title: `${fechaTexto(d.fecha, { weekday: 'long', day: 'numeric', month: 'short' })}: ${dinero(d.total)}` },
             h('div', { class: 'heroe-pista' }, h('div', { class: 'heroe-barra', style: `height:${Math.max((d.total / mayorSemana) * 100, d.total ? 6 : 2)}%` })),
             h('small', null, fechaTexto(d.fecha, { weekday: 'narrow' })))),
+          lineaSemana(semana, mayorSemana),
         ),
       ),
       editar && h('div', { class: 'heroe-acciones' },
@@ -1255,8 +1281,8 @@ function pintarMes({ actual, proximo, pendientes }) {
       tarjeta('Balance', dinero(t.balance),
         t.ingresos > 0 ? `Gastas el ${Math.round((t.gastos / t.ingresos) * 100)} % de lo que entra` : t.gastos > 0 ? 'Sin ingresos este mes' : 'Ingresos menos gastos',
         t.balance < 0 ? 'balance-negativo' : '', { icono: 'balanza', tono: 'balance' }),
-      tarjeta('Falta por pagar', dinero(t.gastosPendientes), sinPagar.filter((m) => m.tipo === 'gasto').length ? `${sinPagar.filter((m) => m.tipo === 'gasto').length} pagos pendientes este mes` : 'Nada pendiente este mes',
-        'clara', { icono: 'reloj', tono: 'pendiente' }),
+      conInsignia(tarjeta('Falta por pagar', dinero(t.gastosPendientes), sinPagar.filter((m) => m.tipo === 'gasto').length ? `${sinPagar.filter((m) => m.tipo === 'gasto').length} pagos pendientes este mes` : 'Nada pendiente este mes',
+        'clara', { icono: 'reloj', tono: 'pendiente' }), sinPagar.filter((m) => m.tipo === 'gasto').length),
     ),
     ),
 
@@ -1897,6 +1923,7 @@ function pintarCuenta() {
       h('p', { class: 'tenue' }, 'Escribe el número con el código de país (51 para Perú). Si lo dejas vacío, el bot no te responderá.'),
       !u.tienePassword && h('p', { class: 'tenue' }, 'Tu cuenta usa Google para entrar. Si quieres entrar también con contraseña, cierra sesión y usa «¿Olvidaste tu contraseña?».'),
     ),
+    seccionRecordatorios(),
     seccionGmail,
     seccionAvisosTelefono(),
   ];
@@ -2387,6 +2414,371 @@ function pintarAdmin(datos) {
   ];
 }
 
+// ---------- tarjeta principal del mes: línea de la gráfica e insignia ----------
+
+// Línea suave (curva de Catmull-Rom pasada a Bézier) por lo alto de las 7 barras, con un punto en el día de más gasto.
+function lineaSemana(semana, mayor) {
+  const alto = semana.map((d) => Math.max((d.total / mayor) * 100, d.total ? 6 : 2));
+  const suave = alto.map((v, i) => (alto[i - 1] ?? v) * 0.25 + v * 0.5 + (alto[i + 1] ?? v) * 0.25);
+  const puntos = suave.map((v, i) => [((i + 0.5) / semana.length) * 100, 100 - Math.min(96, v * 0.9 + 6)]);
+  let camino = `M${puntos[0][0]},${puntos[0][1]}`;
+  for (let i = 0; i < puntos.length - 1; i += 1) {
+    const [p0, p1, p2, p3] = [puntos[i - 1] ?? puntos[i], puntos[i], puntos[i + 1], puntos[i + 2] ?? puntos[i + 1]];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    camino += ` C${c1[0].toFixed(2)},${Math.min(100, c1[1]).toFixed(2)} ${c2[0].toFixed(2)},${Math.min(100, c2[1]).toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('class', 'heroe-linea');
+  svg.setAttribute('aria-hidden', 'true');
+  // Solo números calculados aquí: nada de texto de los usuarios.
+  svg.innerHTML = `<path d="${camino}" class="heroe-linea-brillo"/><path d="${camino}" class="heroe-linea-trazo"/>`;
+  const max = semana.findIndex((d) => d.total > 0 && d.total === mayor);
+  return h('div', { class: 'heroe-linea-caja', 'aria-hidden': 'true' },
+    svg,
+    max >= 0 && h('span', { class: 'heroe-punto', style: `left:${puntos[max][0]}%;top:${puntos[max][1]}%` }));
+}
+
+function conInsignia(el, pendientes) {
+  el.classList.add('con-insignia');
+  el.append(h('span', { class: `insignia ${pendientes ? 'hay' : 'ok'}`, 'aria-hidden': 'true' },
+    h('span', { class: 'insignia-fondo' }),
+    h('span', { class: 'insignia-frente' }, pendientes ? h('b', null, String(pendientes)) : icono('check'))));
+  return el;
+}
+
+// ---------- ventanas sencillas (metas, aportes, categorías) ----------
+
+function ventana(nodos, { ancho = '' } = {}) {
+  let dlg = $('#dlg-extra');
+  if (!dlg) {
+    dlg = h('dialog', { id: 'dlg-extra', class: 'dlg-extra' });
+    dlg.addEventListener('close', () => dlg.replaceChildren());
+    document.body.append(dlg);
+  }
+  dlg.className = `dlg-extra ${ancho}`;
+  dlg.replaceChildren(...[nodos].flat(Infinity).filter(Boolean));
+  if (!dlg.open) dlg.showModal();
+  return dlg;
+}
+
+const COLORES = ['#9bd62f', '#3987e5', '#e0662f', '#e5484d', '#8b5cf6', '#14b8a6', '#f2a516', '#e5489b', '#64748b'];
+
+function selectorColor(nombre, elegido) {
+  return h('fieldset', { class: 'colores' },
+    h('legend', null, 'Color'),
+    COLORES.map((c, i) => h('label', { class: 'color', style: `--c:${c}`, title: c },
+      h('input', { type: 'radio', name: nombre, value: c, checked: elegido ? elegido.toLowerCase() === c : i === 0 }),
+      h('span', { 'aria-hidden': 'true' }))));
+}
+
+// ---------- metas de ahorro ----------
+
+const ICONOS_META = [['meta', 'Meta'], ['avion', 'Viaje'], ['casa', 'Casa'], ['auto', 'Auto'], ['estudio', 'Estudios'], ['regalo', 'Regalo'], ['salud', 'Salud'], ['alcancia', 'Ahorro']];
+
+const cargarMetas = () => api(`/libros/${estado.libroId}/metas`);
+
+// Meses que quedan hasta la fecha límite (como mínimo 1).
+function mesesHasta(fecha) {
+  const [a, m] = fecha.split('-').map(Number);
+  const [ha, hm] = hoy().split('-').map(Number);
+  return Math.max(1, (a - ha) * 12 + (m - hm));
+}
+
+function anilloProgreso(fraccion, color) {
+  const r = 26;
+  const largo = 2 * Math.PI * r;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 64 64');
+  svg.setAttribute('class', 'anillo');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = `<circle cx="32" cy="32" r="${r}" class="anillo-pista"/><circle cx="32" cy="32" r="${r}" class="anillo-valor" style="stroke:${color};stroke-dasharray:${largo};stroke-dashoffset:${largo * (1 - Math.min(1, Math.max(0, fraccion)))}"/>`;
+  return h('div', { class: 'anillo-caja' }, svg, h('span', null, `${Math.round(Math.min(1, fraccion) * 100)}%`));
+}
+
+function pintarMetas({ metas }) {
+  const editar = puedeEditar();
+  const total = metas.reduce((s, m) => s + m.ahorrado, 0);
+  const objetivo = metas.reduce((s, m) => s + m.objetivo, 0);
+  const cumplidas = metas.filter((m) => m.completada).length;
+
+  const tarjetaMeta = (m) => {
+    const color = m.color ?? COLORES[0];
+    const falta = Math.max(0, m.objetivo - m.ahorrado);
+    const porMes = m.fechaLimite && falta > 0 && m.fechaLimite >= hoy() ? falta / mesesHasta(m.fechaLimite) : null;
+    const vencida = m.fechaLimite && m.fechaLimite < hoy() && !m.completada;
+    return h('article', { class: `meta-tarjeta ${m.completada ? 'cumplida' : ''}`, style: `--c:${color}` },
+      h('div', { class: 'meta-cabecera' },
+        h('span', { class: 'icono-caja meta-icono' }, icono(m.icono ?? 'meta')),
+        h('div', { class: 'meta-titulo' },
+          h('h3', null, m.nombre),
+          h('small', { class: vencida ? 'negativo' : 'tenue' },
+            m.completada ? '¡Meta cumplida!' : m.fechaLimite ? `${vencida ? 'Venció' : 'Para'} el ${fechaTexto(m.fechaLimite, { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Sin fecha límite')),
+        editar && h('button', { type: 'button', class: 'circulo pequeno', title: 'Editar meta', 'aria-label': `Editar la meta ${m.nombre}`, onclick: () => abrirMeta(m) }, icono('lapiz')),
+      ),
+      h('div', { class: 'meta-cuerpo' },
+        anilloProgreso(m.ahorrado / m.objetivo, color),
+        h('div', { class: 'meta-cifras' },
+          h('div', { class: 'meta-ahorrado' }, dinero(m.ahorrado)),
+          h('small', { class: 'tenue' }, `de ${dinero(m.objetivo)}`),
+          h('div', { class: 'meta-falta' }, m.completada ? 'Has llegado al objetivo' : `Faltan ${dinero(falta)}`),
+          porMes && h('small', { class: 'tenue' }, `Ahorra ${dinero(porMes)} al mes para llegar a tiempo`))),
+      h('div', { class: 'progreso meta-barra' }, h('span', { style: `width:${Math.min(100, (m.ahorrado / m.objetivo) * 100)}%;background:${color}` })),
+      editar && h('div', { class: 'meta-acciones' },
+        h('button', { type: 'button', class: 'primario', onclick: () => abrirAporte(m, 1) }, icono('entrada'), 'Aportar'),
+        h('button', { type: 'button', disabled: m.ahorrado <= 0, onclick: () => abrirAporte(m, -1) }, icono('salida'), 'Retirar')),
+      m.aportes.length > 0 && h('details', { class: 'meta-historial' },
+        h('summary', null, `Historial (${m.aportes.length})`),
+        h('ul', null, m.aportes.slice(0, 10).map((a) => h('li', null,
+          h('span', null, fechaCorta(a.fecha), a.nota && h('small', { class: 'tenue' }, ` · ${a.nota}`)),
+          h('b', { class: a.monto < 0 ? 'negativo' : 'positivo' }, `${a.monto < 0 ? '−' : '+'}${dinero(Math.abs(a.monto))}`),
+          editar && h('button', { type: 'button', class: 'mini', 'aria-label': 'Quitar este aporte', title: a.conMovimiento ? 'Quitar (también borra su movimiento)' : 'Quitar', onclick: () => quitarAporte(m, a) }, '✕'))))),
+    );
+  };
+
+  return [
+    h('div', { class: 'periodo' },
+      h('h2', { class: 'izquierda' }, 'Metas de ahorro'),
+      h('span', { class: 'espacio' }),
+      editar && h('button', { type: 'button', class: 'primario', onclick: () => abrirMeta(null) }, '+ Nueva meta')),
+    metas.length > 0 && h('div', { class: 'tarjetas tres' },
+      tarjeta('Total ahorrado', dinero(total), `${objetivo > 0 ? Math.round((total / objetivo) * 100) : 0} % de todas tus metas`, '', { icono: 'alcancia', tono: 'balance', progreso: objetivo > 0 ? total / objetivo : 0 }),
+      tarjeta('Te falta', dinero(Math.max(0, objetivo - total)), `Objetivo total: ${dinero(objetivo)}`, '', { icono: 'meta', tono: 'gasto' }),
+      tarjeta('Metas cumplidas', `${cumplidas} de ${metas.length}`, cumplidas === metas.length ? '¡Todas cumplidas!' : 'Sigue así', 'clara', { icono: 'check', tono: 'pendiente' })),
+    metas.length
+      ? h('div', { class: 'metas-grid' }, metas.map(tarjetaMeta))
+      : h('section', { class: 'panel vacio-grande' },
+        h('span', { class: 'icono-caja grande' }, icono('alcancia')),
+        h('h3', null, 'Todavía no tienes metas de ahorro'),
+        h('p', { class: 'tenue' }, 'Crea una meta (un viaje, un fondo de emergencia, una laptop…), ponle un objetivo y una fecha, y ve sumando lo que ahorras. Te diremos cuánto apartar cada mes para llegar.'),
+        editar && h('button', { type: 'button', class: 'primario', onclick: () => abrirMeta(null) }, '+ Crear mi primera meta')),
+  ];
+}
+
+function abrirMeta(meta) {
+  const guardar = (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    const body = {
+      nombre: f.nombre.value,
+      objetivo: Number(f.objetivo.value),
+      fechaLimite: f.fechaLimite.value || null,
+      color: f.color.value,
+      icono: f.icono.value,
+      ...(!meta && Number(f.inicial.value) > 0 && { inicial: Number(f.inicial.value) }),
+    };
+    intentar(async () => {
+      await api(`/libros/${estado.libroId}/metas${meta ? `/${meta.id}` : ''}`, { method: meta ? 'PATCH' : 'POST', body });
+      $('#dlg-extra').close();
+      avisar(meta ? 'Meta actualizada' : 'Meta creada');
+      render();
+    });
+  };
+  const borrar = () => {
+    if (!confirm(`¿Eliminar la meta «${meta.nombre}»? Los gastos de ahorro que registraste se quedan en el libro.`)) return;
+    intentar(async () => {
+      await api(`/libros/${estado.libroId}/metas/${meta.id}`, { method: 'DELETE' });
+      $('#dlg-extra').close();
+      avisar('Meta eliminada');
+      render();
+    });
+  };
+  ventana(h('form', { onsubmit: guardar },
+    h('h2', null, meta ? 'Editar meta' : 'Nueva meta de ahorro'),
+    h('label', null, '¿Para qué ahorras?', h('input', { name: 'nombre', maxLength: 60, required: true, placeholder: 'Viaje a Cusco, fondo de emergencia…', value: meta?.nombre ?? '' })),
+    h('div', { class: 'fila' },
+      h('label', null, 'Objetivo', h('input', { name: 'objetivo', type: 'number', step: '0.01', min: '0.01', inputMode: 'decimal', required: true, value: meta?.objetivo ?? '' })),
+      meta
+        ? h('label', null, 'Fecha límite (opcional)', h('input', { name: 'fechaLimite', type: 'date', value: meta?.fechaLimite ?? '' }))
+        : h('label', null, 'Ya tengo ahorrado', h('input', { name: 'inicial', type: 'number', step: '0.01', min: '0', inputMode: 'decimal', placeholder: '0' }))),
+    !meta && h('label', null, 'Fecha límite (opcional)', h('input', { name: 'fechaLimite', type: 'date', min: hoy() })),
+    h('fieldset', { class: 'iconos-meta' },
+      h('legend', null, 'Icono'),
+      ICONOS_META.map(([nombre, texto], i) => h('label', { title: texto },
+        h('input', { type: 'radio', name: 'icono', value: nombre, checked: meta?.icono ? meta.icono === nombre : i === 0 }),
+        h('span', null, icono(nombre), h('small', null, texto))))),
+    selectorColor('color', meta?.color),
+    h('div', { class: 'acciones' },
+      meta && h('button', { type: 'button', class: 'peligro al-inicio', onclick: borrar }, 'Eliminar'),
+      h('button', { type: 'button', onclick: () => $('#dlg-extra').close() }, 'Cancelar'),
+      h('button', { class: 'primario' }, meta ? 'Guardar' : 'Crear meta')),
+  ));
+}
+
+function abrirAporte(meta, signo) {
+  const retiro = signo < 0;
+  const guardar = (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    intentar(async () => {
+      const { meta: nueva } = await api(`/libros/${estado.libroId}/metas/${meta.id}/aportes`, {
+        method: 'POST',
+        body: { monto: signo * Number(f.monto.value), nota: f.nota.value, fecha: f.fecha.value, registrar: f.registrar.checked },
+      });
+      $('#dlg-extra').close();
+      datosRecordados.clear();
+      avisar(nueva.completada && !meta.completada ? `¡Cumpliste la meta «${meta.nombre}»! 🎉` : retiro ? 'Retiro anotado' : 'Aporte anotado');
+      render();
+    });
+  };
+  ventana(h('form', { onsubmit: guardar },
+    h('h2', null, retiro ? `Retirar de «${meta.nombre}»` : `Aportar a «${meta.nombre}»`),
+    h('p', { class: 'tenue' }, `Llevas ${dinero(meta.ahorrado)} de ${dinero(meta.objetivo)}.`),
+    h('div', { class: 'fila' },
+      h('label', null, 'Monto', h('input', { name: 'monto', type: 'number', step: '0.01', min: '0.01', ...(retiro && { max: meta.ahorrado }), inputMode: 'decimal', required: true, autofocus: true })),
+      h('label', null, 'Fecha', h('input', { name: 'fecha', type: 'date', value: hoy(), max: hoy(), required: true }))),
+    h('label', null, 'Nota (opcional)', h('input', { name: 'nota', maxLength: 80, placeholder: retiro ? 'Para qué lo usaste' : 'Quincena, propina…' })),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'registrar', checked: !retiro }),
+      h('span', null, retiro ? 'Registrarlo como ingreso en el libro (vuelve a tu balance)' : 'Registrarlo como gasto en el libro (categoría «Ahorro»), para que salga del balance del mes')),
+    h('div', { class: 'acciones' },
+      h('button', { type: 'button', onclick: () => $('#dlg-extra').close() }, 'Cancelar'),
+      h('button', { class: 'primario' }, retiro ? 'Retirar' : 'Aportar')),
+  ));
+}
+
+function quitarAporte(meta, aporte) {
+  if (!confirm(`¿Quitar el ${aporte.monto < 0 ? 'retiro' : 'aporte'} de ${dinero(Math.abs(aporte.monto))}?${aporte.conMovimiento ? ' También se borra el movimiento que se registró en el libro.' : ''}`)) return;
+  intentar(async () => {
+    await api(`/libros/${estado.libroId}/metas/${meta.id}/aportes/${aporte.id}`, { method: 'DELETE' });
+    datosRecordados.clear();
+    render();
+  });
+}
+
+// ---------- categorías ----------
+
+const cargarCategorias = () => api(`/libros/${estado.libroId}/categorias?mes=${estado.mes}`);
+
+function pintarCategorias({ categorias }) {
+  const editar = puedeEditar();
+  const tipo = estado.seccion.categorias ?? 'gasto';
+  const lista = categorias.filter((c) => c.tipo === tipo);
+  const total = lista.reduce((s, c) => s + c.totalMes, 0);
+  const conPresupuesto = lista.filter((c) => c.presupuesto);
+  const presupuesto = conPresupuesto.reduce((s, c) => s + c.presupuesto, 0);
+  const excedidas = conPresupuesto.filter((c) => c.totalMes > c.presupuesto);
+  const mayor = Math.max(1, ...lista.map((c) => c.totalMes));
+  const mesActual = hoy().slice(0, 7);
+
+  const fila = (c, i) => {
+    const color = c.color ?? COLORES[(i + 1) % COLORES.length];
+    const uso = c.presupuesto ? c.totalMes / c.presupuesto : null;
+    const estadoPres = uso === null ? null : uso > 1 ? 'excedido' : uso >= 0.8 ? 'cerca' : 'bien';
+    return h('li', { class: 'categoria-fila', style: `--c:${color}` },
+      h('button', { type: 'button', class: 'categoria-abrir', disabled: !editar, onclick: () => abrirCategoria(c), title: editar ? 'Editar categoría' : '' },
+        h('span', { class: 'categoria-punto', 'aria-hidden': 'true' }, c.nombre.slice(0, 1).toUpperCase()),
+        h('span', { class: 'categoria-texto' },
+          h('strong', null, c.nombre),
+          h('small', { class: 'tenue' }, c.cuantosMes ? `${c.cuantosMes} ${c.cuantosMes === 1 ? 'movimiento' : 'movimientos'} este mes` : 'Sin movimientos este mes'),
+          h('span', { class: 'progreso' }, h('span', { style: `width:${Math.min(100, uso !== null ? uso * 100 : (c.totalMes / mayor) * 100)}%` }))),
+        h('span', { class: 'categoria-monto' },
+          h('b', null, dinero(c.totalMes)),
+          c.presupuesto
+            ? h('small', { class: `pres-${estadoPres}` }, estadoPres === 'excedido' ? `Te pasaste ${dinero(c.totalMes - c.presupuesto)}` : `de ${dinero(c.presupuesto)}`)
+            : h('small', { class: 'tenue' }, total > 0 ? `${Math.round((c.totalMes / total) * 100)} %` : ''))));
+  };
+
+  return [
+    h('div', { class: 'periodo' },
+      h('button', { type: 'button', class: 'circulo', 'aria-label': 'Mes anterior', onclick: () => { estado.mes = moverMes(estado.mes, -1); render(); } }, icono('flecha-izq')),
+      h('div', { class: 'titulo-doble' }, h('small', null, 'Categorías'), h('h2', { class: 'capital' }, nombreMes(estado.mes))),
+      h('button', { type: 'button', class: 'circulo', 'aria-label': 'Mes siguiente', onclick: () => { estado.mes = moverMes(estado.mes, 1); render(); } }, icono('flecha')),
+      h('span', { class: 'espacio' }),
+      estado.mes !== mesActual && h('button', { type: 'button', class: 'pildora-suave', onclick: () => { estado.mes = mesActual; render(); } }, 'Hoy'),
+      editar && h('button', { type: 'button', class: 'primario boton-nueva', 'aria-label': 'Nueva categoría', onclick: () => abrirCategoria(null, tipo) }, '+', h('span', { class: 'texto-largo' }, ' Nueva'))),
+    segmentos('categorias', [['gasto', 'Gastos'], ['ingreso', 'Ingresos']]),
+    h('div', { class: 'tarjetas tres' },
+      tarjeta(tipo === 'gasto' ? 'Gastado este mes' : 'Recibido este mes', dinero(total), `${lista.filter((c) => c.totalMes > 0).length} categorías con movimientos`, '', { icono: tipo === 'gasto' ? 'salida' : 'entrada', tono: tipo }),
+      tarjeta('Presupuesto del mes', presupuesto ? dinero(presupuesto) : 'Sin definir',
+        presupuesto ? `Te queda ${dinero(Math.max(0, presupuesto - conPresupuesto.reduce((s, c) => s + c.totalMes, 0)))}` : 'Toca una categoría para ponerle un límite', '', { icono: 'meta', tono: 'balance', ...(presupuesto && { progreso: Math.min(1, conPresupuesto.reduce((s, c) => s + c.totalMes, 0) / presupuesto) }) }),
+      tarjeta('Sobre el presupuesto', String(excedidas.length), excedidas.length ? excedidas.map((c) => c.nombre).slice(0, 3).join(', ') : 'Todo dentro del límite', 'clara', { icono: 'reloj', tono: 'pendiente' })),
+    h('section', { class: 'panel' },
+      lista.length
+        ? h('ul', { class: 'lista-categorias' }, lista.map(fila))
+        : h('p', { class: 'vacio' }, tipo === 'gasto' ? 'Aún no hay categorías de gastos. Crea una o registra un gasto con su categoría.' : 'Aún no hay categorías de ingresos.'),
+      editar && lista.length > 0 && h('p', { class: 'tenue nota-categorias' }, 'Toca una categoría para cambiarle el nombre, el color o ponerle un presupuesto mensual. Si la renombras, sus movimientos pasan al nuevo nombre.')),
+  ];
+}
+
+function abrirCategoria(cat, tipoNuevo = 'gasto') {
+  const tipo = cat?.tipo ?? tipoNuevo;
+  const guardar = (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    intentar(async () => {
+      const { movidos } = await api(`/libros/${estado.libroId}/categorias`, {
+        method: 'PUT',
+        body: { nombre: f.nombre.value, tipo, color: f.color.value, presupuesto: f.presupuesto?.value ? Number(f.presupuesto.value) : null, ...(cat && { antes: cat.nombre }) },
+      });
+      await cargarLibros();
+      $('#dlg-extra').close();
+      datosRecordados.clear();
+      avisar(movidos ? `Categoría guardada · ${movidos} movimientos actualizados` : 'Categoría guardada');
+      render();
+    });
+  };
+  const borrar = () => {
+    if (!confirm(`¿Quitar la categoría «${cat.nombre}»? Sus movimientos pasan a «General».`)) return;
+    intentar(async () => {
+      const { movidos } = await api(`/libros/${estado.libroId}/categorias`, { method: 'DELETE', body: { nombre: cat.nombre, tipo } });
+      await cargarLibros();
+      $('#dlg-extra').close();
+      datosRecordados.clear();
+      avisar(movidos ? `Categoría quitada · ${movidos} movimientos pasaron a General` : 'Categoría quitada');
+      render();
+    });
+  };
+  ventana(h('form', { onsubmit: guardar },
+    h('h2', null, cat ? 'Editar categoría' : `Nueva categoría de ${tipo === 'gasto' ? 'gastos' : 'ingresos'}`),
+    h('label', null, 'Nombre', h('input', { name: 'nombre', maxLength: 40, required: true, value: cat?.nombre ?? '', placeholder: tipo === 'gasto' ? 'Comida, Transporte, Mascotas…' : 'Sueldo, Ventas…' })),
+    tipo === 'gasto' && h('label', null, 'Presupuesto mensual (opcional)',
+      h('input', { name: 'presupuesto', type: 'number', step: '0.01', min: '0', inputMode: 'decimal', placeholder: 'Sin límite', value: cat?.presupuesto ?? '' })),
+    selectorColor('color', cat?.color),
+    cat && h('p', { class: 'tenue' }, `${cat.movimientos} movimientos en total con esta categoría.`),
+    h('div', { class: 'acciones' },
+      cat && cat.nombre !== 'General' && h('button', { type: 'button', class: 'peligro al-inicio', onclick: borrar }, 'Quitar'),
+      h('button', { type: 'button', onclick: () => $('#dlg-extra').close() }, 'Cancelar'),
+      h('button', { class: 'primario' }, 'Guardar')),
+  ));
+}
+
+// ---------- recordatorios por WhatsApp (en «Mi cuenta») ----------
+
+function seccionRecordatorios() {
+  const u = estado.usuario;
+  const r = u.recordatorio ?? { dias: 2, mismoDia: true };
+  const guardar = (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    intentar(async () => {
+      const { usuario } = await api('/auth/yo', { method: 'PATCH', body: { recordatorio: { dias: Number(f.dias.value), mismoDia: f.mismoDia.checked } } });
+      estado.usuario = usuario;
+      avisar('Recordatorios guardados');
+      render();
+    });
+  };
+  const probar = () => intentar(async () => {
+    await api('/recordatorios/prueba', { method: 'POST' });
+    avisar('Te envié un recordatorio de prueba por WhatsApp');
+  });
+  return h('section', { class: 'panel' },
+    h('header', null, h('h3', null, icono('campana'), ' Recordatorios de pago por WhatsApp')),
+    h('p', null, 'Te escribo por WhatsApp antes de que venza cada pago pendiente (luz, alquiler, tarjeta…), con el monto y la fecha. Cuando lo marques como pagado, dejo de recordártelo.'),
+    h('form', { class: 'form-linea', onsubmit: guardar },
+      h('label', null, 'Avisarme',
+        h('select', { name: 'dias' },
+          [[0, 'No avisar antes'], [1, '1 día antes'], [2, '2 días antes'], [3, '3 días antes'], [5, '5 días antes'], [7, '1 semana antes']]
+            .map(([v, t]) => h('option', { value: v, selected: r.dias === v }, t)))),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'mismoDia', checked: r.mismoDia }), h('span', null, 'y también el mismo día')),
+      h('button', { class: 'primario' }, 'Guardar'),
+      h('button', { type: 'button', disabled: !u.whatsapp, onclick: probar }, 'Enviarme una prueba')),
+    h('p', { class: 'tenue' }, u.whatsapp
+      ? 'Los avisos se mandan de 8:00 a 21:00. En cada pago puedes cambiar cuándo avisar (al crearlo o editarlo, en «Recordarme por WhatsApp»).'
+      : 'Para recibirlos, guarda arriba tu número de WhatsApp.'));
+}
+
 // ---------- render ----------
 
 const VISTAS = {
@@ -2396,6 +2788,8 @@ const VISTAS = {
   compartir: { cargar: cargarCompartir, pintar: pintarCompartir },
   cuenta: { cargar: async () => null, pintar: pintarCuenta },
   asistente: { cargar: () => api('/ia/estado'), pintar: pintarAsistente },
+  metas: { cargar: cargarMetas, pintar: pintarMetas },
+  categorias: { cargar: cargarCategorias, pintar: pintarCategorias },
   admin: { cargar: cargarAdmin, pintar: pintarAdmin },
 };
 // Número de la última descarga de datos; una descarga más antigua que termine tarde se descarta.

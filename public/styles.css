@@ -1184,3 +1184,245 @@ button, a, label, select, summary { touch-action: manipulation; -webkit-tap-high
   .cabecera-mes > .tarjetas.tres.con-balance .tarjeta { padding: .65rem 1.1rem; gap: .05rem; }
   .cabecera-mes > .tarjetas.tres.con-balance .tarjeta .valor { font-size: clamp(1.15rem, 1.6vw, 1.4rem); }
 }
+
+/* =====================================================================
+   Diseño 2026: tarjeta principal oscura con brillo lima, gráfica con línea,
+   tarjetas claras con iconos de color y «Falta por pagar» oscura con insignia.
+   ===================================================================== */
+
+/* Ingresos en verde y gastos en coral (tarjetas, iconos y barras de progreso). */
+:root { --tono-ingreso: #9bd62f; --tono-gasto: #f0644f; }
+:root[data-tema="claro"] { --tono-ingreso: #5f9e12; --tono-gasto: #e5484d; }
+
+/* ---------- Tarjeta principal (siempre oscura, en los dos temas) ---------- */
+.heroe {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #f3f6ee;
+  --t-tinta: #f3f6ee;
+  --t-tenue: #a7ae9b;
+  --t-elev: rgba(255, 255, 255, .07);
+  --t-linea-f: rgba(255, 255, 255, .14);
+  --tinta: #f3f6ee;
+  --tenue: #a7ae9b;
+  --realce: rgba(255, 255, 255, .07);
+  background:
+    radial-gradient(90% 70% at 88% 105%, rgba(198, 244, 50, .20), transparent 60%),
+    radial-gradient(60% 50% at 0% 0%, rgba(255, 255, 255, .06), transparent 70%),
+    linear-gradient(160deg, #2b3026 0%, #191c14 55%, #12150e 100%);
+  border: 1px solid rgba(255, 255, 255, .07);
+  box-shadow: 0 24px 48px -24px rgba(10, 12, 8, .55), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+.heroe button.circulo { background: rgba(255, 255, 255, .08); color: #f3f6ee; box-shadow: none; border: 1px solid rgba(255, 255, 255, .08); }
+.heroe button.circulo:hover { background: rgba(255, 255, 255, .14); }
+.heroe .pildora-suave { background: rgba(255, 255, 255, .08); color: #f3f6ee; }
+.heroe-nav { gap: .45rem; }
+.mes-pildora { display: inline-flex; align-items: center; gap: .55rem; min-width: 0; padding: .5rem 1.05rem; border-radius: 999px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); }
+.mes-pildora .icono { width: 19px; height: 19px; flex: none; color: var(--lima); }
+.mes-pildora h2 { margin: 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.heroe .icono-caja.grande { border-radius: 18px; background: rgba(198, 244, 50, .13); color: var(--lima); border: 1px solid rgba(198, 244, 50, .28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+.heroe-nota.negativo .icono { color: #ff6b5b; }
+.heroe-nota.positivo .icono { color: var(--lima); }
+.heroe-resumen > div { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .06); }
+
+/* Gráfica: barras translúcidas, el día de más gasto en lima con brillo y una línea curva encima. */
+.heroe-barras { position: relative; column-gap: 0; }
+.heroe-dia small { line-height: 1rem; color: #a7ae9b; }
+.heroe-pista { width: 72%; justify-self: center; border-bottom-color: rgba(255, 255, 255, .12); }
+.heroe-barra { background: rgba(255, 255, 255, .13); opacity: 1; border-radius: 10px 10px 4px 4px; }
+.heroe-dia.hoy .heroe-barra { background: var(--lima); }
+.heroe-dia.maximo .heroe-barra {
+  background: linear-gradient(180deg, #d8fb55 0%, rgba(198, 244, 50, .55) 60%, rgba(198, 244, 50, .18) 100%);
+  box-shadow: 0 0 28px rgba(198, 244, 50, .45);
+}
+.heroe-dia.hoy small, .heroe-dia.maximo small { color: #f3f6ee; }
+.heroe-linea-caja { position: absolute; inset: 0 0 calc(1rem + .35rem) 0; pointer-events: none; }
+.heroe-linea { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.heroe-linea path { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.heroe-linea-trazo { stroke: var(--lima); stroke-width: 2.5; }
+.heroe-linea-brillo { stroke: rgba(198, 244, 50, .35); stroke-width: 9; filter: blur(5px); }
+.heroe-punto { position: absolute; width: 13px; height: 13px; border-radius: 50%; background: #e4ff7a; transform: translate(-50%, -50%); box-shadow: 0 0 0 5px rgba(198, 244, 50, .25), 0 0 18px rgba(198, 244, 50, .8); }
+
+/* Botones: «Gasto» lima con brillo e «Ingreso» oscuro con borde. */
+.heroe .pildora.lima { box-shadow: 0 12px 26px -12px rgba(198, 244, 50, .7); }
+.heroe .pildora.blanca, :root[data-tema="claro"] .heroe .pildora.blanca { background: rgba(255, 255, 255, .05); color: #f3f6ee; border: 1.5px solid rgba(255, 255, 255, .2); }
+.heroe .pildora.blanca:hover { background: rgba(255, 255, 255, .1); }
+.heroe .pildora.captura { color: #dfe5d6; border-color: rgba(255, 255, 255, .18); }
+
+/* ---------- Tarjetas de totales ---------- */
+:root[data-tema="claro"] .tarjeta:not(.clara) { box-shadow: 0 1px 2px rgba(20, 24, 16, .04), 0 12px 28px -12px rgba(20, 24, 16, .14); }
+.tono-ingreso .icono-caja, :root[data-tema="claro"] .tono-ingreso .icono-caja { background: color-mix(in srgb, var(--tono-ingreso) 18%, transparent); color: var(--tono-ingreso); }
+.tono-gasto .icono-caja, :root[data-tema="claro"] .tono-gasto .icono-caja { background: color-mix(in srgb, var(--tono-gasto) 16%, transparent); color: var(--tono-gasto); }
+.tono-ingreso .progreso span { background: linear-gradient(90deg, var(--tono-ingreso), color-mix(in srgb, var(--tono-ingreso) 70%, #fff)); }
+.tono-gasto .progreso span { background: linear-gradient(90deg, var(--tono-gasto), color-mix(in srgb, var(--tono-gasto) 75%, #fff)); }
+
+/* «Falta por pagar»: oscura como la principal, con el reloj en lima y una insignia de cristal a la derecha. */
+.tarjeta.clara, :root[data-tema="claro"] .tarjeta.clara {
+  --tinta: #f3f6ee; --tenue: #a7ae9b; --realce: rgba(255, 255, 255, .08);
+  color: #f3f6ee;
+  background: radial-gradient(70% 90% at 100% 50%, rgba(198, 244, 50, .12), transparent 65%), linear-gradient(160deg, #262b21, #14170f);
+  border: 1px solid rgba(255, 255, 255, .06);
+}
+.tarjeta.clara .icono-caja, :root[data-tema="claro"] .tarjeta.clara .icono-caja { background: rgba(198, 244, 50, .13); color: var(--lima); }
+.tarjeta.con-insignia { position: relative; padding-right: 6.2rem; overflow: hidden; }
+.insignia { position: absolute; right: 1.2rem; top: 50%; width: 62px; height: 62px; transform: translateY(-50%); }
+.insignia-fondo, .insignia-frente { position: absolute; inset: 0; border-radius: 18px; }
+.insignia-fondo { transform: rotate(14deg) translate(6px, 4px); background: rgba(198, 244, 50, .10); border: 1px solid rgba(198, 244, 50, .25); }
+.insignia-frente { display: grid; place-items: center; background: linear-gradient(145deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .03)); border: 1px solid rgba(198, 244, 50, .45); box-shadow: 0 0 24px rgba(198, 244, 50, .25), inset 0 1px 0 rgba(255, 255, 255, .15); backdrop-filter: blur(6px); }
+.insignia-frente .icono { width: 28px; height: 28px; color: #f3f6ee; padding: 4px; border-radius: 50%; border: 2px solid #f3f6ee; }
+.insignia-frente b { font-size: 1.4rem; color: var(--lima); }
+.insignia.hay .insignia-frente { border-color: rgba(255, 107, 91, .55); box-shadow: 0 0 24px rgba(255, 107, 91, .25); }
+.insignia.hay .insignia-frente b { color: #ff8f80; }
+@media (min-width: 1100px) {
+  .cabecera-mes .tarjeta.con-insignia { padding-right: 5.6rem; }
+  .cabecera-mes .insignia { width: 50px; height: 50px; }
+}
+
+/* ---------- Teléfono: proporciones de la referencia ---------- */
+@media (max-width: 640px) {
+  .heroe { border-radius: 30px; padding: 1rem 1rem 1.1rem; }
+  .mes-pildora { padding: .42rem .8rem; flex: 1; justify-content: center; }
+  .mes-pildora h2 { font-size: .95rem; }
+  .heroe-nav .espacio { display: none; }
+  .heroe-barras { height: 128px; }
+  .heroe .pildora { min-height: 54px; font-size: 1rem; }
+  .tarjeta.con-insignia { padding-right: 5.4rem; }
+  .insignia { width: 52px; height: 52px; right: 1rem; }
+}
+
+/* ---------- Marcas en las filas ---------- */
+.marca.campana .icono { color: var(--lima); }
+:root[data-tema="claro"] .marca.campana .icono { color: #5f9e12; }
+
+/* ---------- Ventanas de metas y categorías ---------- */
+.dlg-extra { width: min(520px, calc(100vw - 24px)); }
+.dlg-extra h2 { margin: 0 0 .6rem; }
+.dlg-extra form > * + * { margin-top: .7rem; }
+.dlg-extra .fila { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.dlg-extra fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.dlg-extra legend { padding: 0; margin-bottom: .35rem; font-size: .78rem; font-weight: 600; }
+.colores { display: flex; flex-wrap: wrap; gap: .45rem; }
+.colores .color { position: relative; margin: 0; cursor: pointer; }
+.colores .color input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.colores .color span { display: block; width: 34px; height: 34px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .08); transition: transform .12s ease; }
+.colores .color input:checked + span { box-shadow: 0 0 0 3px var(--t-sup), 0 0 0 5px var(--c); transform: scale(1.05); }
+.colores .color input:focus-visible + span { outline: 2px solid var(--t-tinta); outline-offset: 4px; }
+.iconos-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; }
+.iconos-meta label { position: relative; margin: 0; cursor: pointer; }
+.iconos-meta input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.iconos-meta span { display: grid; justify-items: center; gap: .2rem; padding: .55rem .3rem; border-radius: 14px; background: var(--t-elev); border: 1.5px solid transparent; }
+.iconos-meta span .icono { width: 22px; height: 22px; }
+.iconos-meta small { font-size: .7rem; font-weight: 600; }
+.iconos-meta input:checked + span { border-color: var(--lima); background: color-mix(in srgb, var(--lima) 18%, var(--t-elev)); }
+.iconos-meta input:focus-visible + span { outline: 2px solid var(--t-tinta); outline-offset: 2px; }
+.dlg-extra label.check { align-items: flex-start; }
+.dlg-extra label.check span { font-size: .85rem; }
+
+/* ---------- Metas de ahorro ---------- */
+.metas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: .85rem; }
+.meta-tarjeta { display: grid; gap: .9rem; padding: 1.1rem 1.15rem 1.15rem; border-radius: var(--radio); background: var(--t-sup); color: var(--t-tinta); box-shadow: var(--t-sombra); min-width: 0; }
+:root[data-tema="claro"] .meta-tarjeta { box-shadow: 0 1px 2px rgba(20, 24, 16, .04), 0 12px 28px -12px rgba(20, 24, 16, .14); }
+.meta-tarjeta.cumplida { background: radial-gradient(80% 80% at 100% 0%, color-mix(in srgb, var(--c) 18%, transparent), transparent 70%), var(--t-sup); }
+.meta-cabecera { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.meta-icono { width: 42px; height: 42px; border-radius: 14px; background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--c); }
+:root[data-tema="claro"] .meta-icono { color: color-mix(in srgb, var(--c) 75%, #000); }
+.meta-icono .icono { width: 22px; height: 22px; }
+.meta-titulo { flex: 1; min-width: 0; display: grid; }
+.meta-titulo h3 { margin: 0; font-size: 1.02rem; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta-titulo small { font-size: .76rem; }
+button.circulo.pequeno { width: 38px; height: 38px; min-height: 38px; }
+button.circulo.pequeno .icono { width: 17px; height: 17px; }
+.meta-cuerpo { display: flex; align-items: center; gap: 1rem; }
+.anillo-caja { position: relative; flex: none; width: 84px; height: 84px; }
+.anillo { width: 100%; height: 100%; transform: rotate(-90deg); }
+.anillo circle { fill: none; stroke-width: 7; }
+.anillo-pista { stroke: var(--t-elev); }
+.anillo-valor { stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+.anillo-caja > span { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--gruesa); font-weight: 800; font-size: 1rem; }
+.meta-cifras { display: grid; gap: .1rem; min-width: 0; }
+.meta-ahorrado { font-family: var(--gruesa); font-weight: 800; font-size: 1.45rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.meta-falta { margin-top: .25rem; font-weight: 700; font-size: .88rem; }
+.meta-barra { margin-top: 0; }
+.meta-acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.meta-acciones button { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 44px; border-radius: 999px; }
+.meta-acciones .icono { width: 16px; height: 16px; }
+.meta-historial summary { cursor: pointer; font-size: .82rem; font-weight: 700; color: var(--t-tenue); }
+.meta-historial ul { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .3rem; }
+.meta-historial li { display: flex; align-items: center; gap: .5rem; font-size: .84rem; padding: .3rem 0; border-bottom: 1px solid var(--t-linea); }
+.meta-historial li:last-child { border-bottom: 0; }
+.meta-historial li > span { flex: 1; min-width: 0; }
+.meta-historial .positivo { color: var(--tono-ingreso); }
+.meta-historial .negativo, small.negativo { color: var(--rojo); }
+.meta-historial button.mini { min-height: 30px; min-width: 30px; padding: 0 .5rem; }
+.vacio-grande { display: grid; justify-items: center; gap: .6rem; padding: 2.2rem 1.2rem; text-align: center; }
+.vacio-grande h3 { margin: .3rem 0 0; font-size: 1.15rem; }
+.vacio-grande p { max-width: 34rem; margin: 0; }
+.vacio-grande .icono-caja.grande { border-radius: 20px; background: color-mix(in srgb, var(--lima) 20%, transparent); color: var(--t-tinta); }
+
+/* ---------- Categorías y presupuestos ---------- */
+.lista-categorias { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
+.categoria-fila { border-bottom: 1px solid var(--t-linea); }
+.categoria-fila:last-child { border-bottom: 0; }
+.categoria-abrir { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .85rem; padding: .7rem .5rem; margin: 0 -.5rem; width: calc(100% + 1rem); border: 0; border-radius: 16px; background: none; text-align: left; font-weight: 400; color: inherit; }
+.categoria-abrir:not(:disabled):hover { background: var(--t-elev); }
+.categoria-abrir:disabled { opacity: 1; cursor: default; }
+.categoria-punto { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--c); font-weight: 800; }
+:root[data-tema="claro"] .categoria-punto { color: color-mix(in srgb, var(--c) 70%, #000); }
+.categoria-texto { display: grid; gap: .15rem; min-width: 0; }
+.categoria-texto strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.categoria-texto small { font-size: .76rem; }
+.categoria-texto .progreso { margin-top: .3rem; height: 6px; }
+.categoria-texto .progreso span { background: var(--c); }
+.categoria-monto { display: grid; justify-items: end; gap: .1rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.categoria-monto small { font-size: .74rem; }
+.pres-excedido { color: var(--rojo); font-weight: 700; }
+.pres-cerca { color: #d98a00; font-weight: 700; }
+.pres-bien { color: var(--t-tenue); }
+.nota-categorias { margin: .8rem 0 0; font-size: .82rem; }
+@media (max-width: 640px) {
+  .categoria-abrir { gap: .6rem; }
+  .categoria-punto { width: 36px; height: 36px; }
+  .meta-ahorrado { font-size: 1.3rem; }
+  .anillo-caja { width: 72px; height: 72px; }
+  .dlg-extra .fila { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Ajustes del diseño 2026 */
+:root[data-tema="claro"] .heroe button.circulo { background: rgba(255, 255, 255, .08); color: #f3f6ee; box-shadow: none; }
+.titulo-doble { display: grid; min-width: 0; line-height: 1.15; }
+.titulo-doble small { font-size: .72rem; font-weight: 700; color: var(--t-tenue); text-transform: uppercase; letter-spacing: .06em; }
+.titulo-doble h2 { margin: 0; font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Teléfono y tableta: el balance ya está en la tarjeta principal, así que su tarjeta se oculta
+   y «Falta por pagar» ocupa todo el ancho, como en el diseño de referencia. */
+@media (max-width: 1099px) {
+  .tarjetas.con-balance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tarjetas.con-balance .tono-balance { display: none; }
+  .tarjetas.tres.con-balance .tarjeta.clara { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .heroe-nav { gap: .35rem; }
+  .heroe-nav button.circulo { width: 40px; height: 40px; min-height: 40px; }
+  .mes-pildora { gap: .4rem; padding: .4rem .7rem; }
+  .mes-pildora .icono { width: 17px; height: 17px; }
+  .mes-pildora h2 { font-size: .92rem; }
+}
+
+@media (max-width: 640px) {
+  .periodo .boton-nueva { width: 44px; min-width: 44px; padding: 0; border-radius: 50%; font-size: 1.3rem; }
+}
+
+@media (min-width: 641px) and (max-width: 1099px) {
+  .heroe-barras { grid-template-columns: repeat(7, 40px); height: 130px; }
+}
+
+.mes-corto { display: none; }
+@media (max-width: 430px) {
+  .mes-pildora .mes-largo { display: none; }
+  .mes-pildora .mes-corto { display: inline; }
+}
+@media (max-width: 360px) {
+  .mes-pildora > .icono { display: none; }
+  .mes-pildora { padding: .4rem .55rem; }
+  .heroe-nav { gap: .25rem; }
+}

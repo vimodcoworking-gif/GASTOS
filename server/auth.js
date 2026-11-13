@@ -34,6 +34,7 @@ export const publico = async (u) => ({
   nombre: u.nombre,
   email: u.email,
   whatsapp: u.whatsapp ?? '',
+  recordatorio: { dias: u.recordatorio?.dias ?? 2, mismoDia: u.recordatorio?.mismoDia ?? true },
   esAdmin: await esAdmin(u),
   tienePassword: Boolean(u.passwordHash),
   google: Boolean(u.googleId),
@@ -263,6 +264,12 @@ rutasAuth.patch('/yo', requiereSesion, async (req, res) => {
     const whatsapp = leerWhatsapp(req.body.whatsapp);
     if (whatsapp) await whatsappLibre(whatsapp, usuario._id);
     usuario.whatsapp = whatsapp ?? undefined;
+  }
+  // { recordatorio: { dias: 0-7, mismoDia: bool } }
+  if (req.body.recordatorio !== undefined) {
+    const dias = Number(req.body.recordatorio?.dias);
+    if (!Number.isInteger(dias) || dias < 0 || dias > 7) throw new ErrorHttp(400, 'Elige de 0 a 7 días para el recordatorio');
+    usuario.recordatorio = { dias, mismoDia: req.body.recordatorio?.mismoDia !== false };
   }
   await usuario.save();
   res.json({ usuario: await publico(usuario) });

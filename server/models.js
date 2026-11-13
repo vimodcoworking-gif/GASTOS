@@ -57,6 +57,12 @@ const usuarioSchema = new Schema(
     whatsapp: { type: String, match: /^\d{10,15}$/ },
     // Enlace personal para que el teléfono reenvíe los avisos de Yape, Plin o del banco (y capturas).
     tokenAvisos: String,
+    // Recordatorios por WhatsApp de los pagos pendientes: cuántos días antes (0 = no avisar antes)
+    // y si se avisa también el mismo día del vencimiento.
+    recordatorio: {
+      dias: { type: Number, min: 0, max: 7, default: 2 },
+      mismoDia: { type: Boolean, default: true },
+    },
     // Libro sobre el que responde el bot; si falta, el primero del usuario.
     libroBot: { type: ObjectId, ref: 'Libro' },
     // Recuperación de contraseña: huella del código enviado, su caducidad y los intentos fallidos.
@@ -83,6 +89,16 @@ const libroSchema = new Schema(
         _id: false,
         usuario: { type: ObjectId, ref: 'Usuario', required: true },
         rol: { type: String, enum: ['lector', 'editor'], default: 'lector' },
+      },
+    ],
+    // Categorías propias del libro, con su color y un presupuesto mensual opcional.
+    categorias: [
+      {
+        _id: false,
+        nombre: { type: String, required: true, trim: true, maxlength: 40 },
+        tipo: { type: String, enum: ['gasto', 'ingreso'], default: 'gasto' },
+        color: { type: String, match: /^#[0-9a-f]{6}$/i },
+        presupuesto: { type: Number, min: 0 },
       },
     ],
   },
@@ -114,10 +130,15 @@ const movimientoSchema = new Schema(
     // Con qué se pagó o cobró, y la entidad (banco, billetera), si se sabe.
     medio: { type: String, enum: ['yape', 'plin', 'tarjeta', 'transferencia', 'efectivo', 'otro'] },
     entidad: { type: String, trim: true, maxlength: 40 },
+    // Recordatorio por WhatsApp: días antes del vencimiento (-1 = sin recordatorio; sin valor = el ajuste
+    // de la persona). «recordado» guarda qué avisos ya se mandaron («2026-11-20:3»), para no repetirlos.
+    recordar: { type: Number, min: -1, max: 7 },
+    recordado: { type: [String], default: undefined },
   },
   { timestamps: true },
 );
 movimientoSchema.index({ libro: 1, fecha: 1 });
+movimientoSchema.index({ pagado: 1, fecha: 1 });
 movimientoSchema.index({ libro: 1, serie: 1 });
 movimientoSchema.index({ correoId: 1 }, { sparse: true });
 
@@ -164,3 +185,26 @@ export const SesionWa = model('SesionWa', sesionWaSchema);
 export const Usuario = model('Usuario', usuarioSchema);
 export const Libro = model('Libro', libroSchema);
 export const Movimiento = model('Movimiento', movimientoSchema);
+
+// Metas de ahorro de un libro: cuánto se quiere juntar, para cuándo, y los aportes (o retiros, en negativo).
+const metaSchema = new Schema(
+  {
+    libro: { type: ObjectId, ref: 'Libro', required: true, index: true },
+    nombre: { type: String, required: true, trim: true, maxlength: 60 },
+    objetivo: { type: Number, required: true, min: 0.01 },
+    fechaLimite: Date,
+    color: { type: String, match: /^#[0-9a-f]{6}$/i },
+    icono: { type: String, maxlength: 20 },
+    aportes: [
+      {
+        monto: { type: Number, required: true },
+        fecha: { type: Date, default: Date.now },
+        nota: { type: String, trim: true, maxlength: 80 },
+        movimiento: { type: ObjectId, ref: 'Movimiento' },
+      },
+    ],
+    creadoPor: { type: ObjectId, ref: 'Usuario' },
+  },
+  { timestamps: true },
+);
+export const Meta = model('Meta', metaSchema);

@@ -14,6 +14,7 @@ import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
 import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail } from './google.js';
 import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
+import { iniciarRecordatorios } from './recordatorios.js';
 import { separarRegistrosUnidos, completarMedios, corregirMediosBilletera, corregirYapeosEnviados } from './bot.js';
 import { Ajuste } from './models.js';
 
@@ -71,6 +72,8 @@ conectar()
       .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados));
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
+    // Recordatorios por WhatsApp de los pagos que vencen pronto.
+    iniciarRecordatorios();
     return reanudarWhatsapp();
   })
   .catch((err) => console.error('No se pudo reanudar WhatsApp:', err.message));
