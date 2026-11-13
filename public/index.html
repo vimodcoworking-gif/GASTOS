@@ -95,15 +95,18 @@
     <p id="usuario" class="cajon-usuario"></p>
 
     <nav class="cajon-nav" id="pestanas" aria-label="Secciones">
-      <button type="button" data-vista="mes">Mes</button>
-      <button type="button" data-vista="metas">Metas de ahorro</button>
-      <button type="button" data-vista="categorias">Categorías y presupuestos</button>
-      <button type="button" data-vista="asistente">Asistente IA</button>
-      <button type="button" data-vista="anio">Año</button>
-      <button type="button" data-vista="informe">Informe PDF</button>
-      <button type="button" data-vista="compartir">Compartir</button>
-      <button type="button" data-vista="cuenta">Mi cuenta</button>
-      <button type="button" data-vista="admin" id="pestana-admin" hidden>Admin</button>
+      <p class="cajon-grupo">Mis finanzas</p>
+      <button type="button" data-vista="mes"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg><span>Mes</span></button>
+      <button type="button" data-vista="anio"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Año</span></button>
+      <button type="button" data-vista="categorias"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Categorías y presupuestos</span></button>
+      <button type="button" data-vista="metas"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg><span>Metas de ahorro</span></button>
+      <p class="cajon-grupo">Herramientas</p>
+      <button type="button" data-vista="asistente"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>Asistente IA</span></button>
+      <button type="button" data-vista="informe"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg><span>Informe PDF</span></button>
+      <button type="button" data-vista="compartir"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4"/></svg><span>Compartir</span></button>
+      <p class="cajon-grupo">Cuenta</p>
+      <button type="button" data-vista="cuenta"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Mi cuenta</span></button>
+      <button type="button" data-vista="admin" id="pestana-admin" hidden><svg class="icono" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/></svg><span>Admin</span></button>
     </nav>
 
     <label>Libro

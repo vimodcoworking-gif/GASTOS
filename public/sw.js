@@ -1,8 +1,6 @@
 // Cambia la versión al publicar cambios para que se descarte la caché anterior.
-const CACHE = 'nfta-gastos-v62';
+const CACHE = 'nfta-gastos-v63';
 const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-duolab.png', '/logo-duolab-blanco.png', '/icons/app-duolab-192.png', '/icons/app-duolab-512.png'];
-// Si la red tarda más que esto (servidor dormido), se enseña la copia guardada.
-const ESPERA_RED_MS = 4000;
 
 self.addEventListener('install', (ev) => {
   ev.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
@@ -26,7 +24,8 @@ self.addEventListener('fetch', (ev) => {
   // La página se guarda siempre como «/», aunque llegue con parámetros (?google=…).
   const clave = ev.request.mode === 'navigate' ? '/' : ev.request;
 
-  // Interfaz: primero la red, para ver siempre la última versión; sin red o si tarda, la copia guardada.
+  // Interfaz: se enseña al instante la copia guardada y se actualiza por detrás (la versión nueva entra
+  // al volver a abrir). Cada publicación cambia CACHE, así que la app completa se renueva junta.
   ev.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const deRed = fetch(ev.request).then((res) => {
@@ -35,8 +34,8 @@ self.addEventListener('fetch', (ev) => {
       });
       const guardado = await cache.match(clave);
       if (!guardado) return deRed;
-      const tarde = new Promise((resolver) => setTimeout(() => resolver(guardado), ESPERA_RED_MS));
-      return Promise.race([deRed.catch(() => guardado), tarde]);
+      ev.waitUntil(deRed.catch(() => {}));
+      return guardado;
     }),
   );
 });

@@ -1585,3 +1585,69 @@ button.circulo.pequeno .icono { width: 17px; height: 17px; }
   #titulo-libro { display: none; }
   .barra { gap: .5rem; }
 }
+
+/* =========================================================
+   Aviso flotante (toast): tarjeta oscura y compacta, nunca ovalada
+   ========================================================= */
+.aviso {
+  left: 50%; right: auto;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: max-content;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: .75rem 1rem;
+  border: 0;
+  border-radius: 16px;
+  background: #1b1f17;
+  color: #f3f6ee;
+  font-size: .9rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .5);
+  border-left: 4px solid var(--lima);
+}
+@media (max-width: 900px) {
+  /* Encima de la barra de navegación inferior. */
+  .aviso { bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+
+/* =========================================================
+   Menú lateral: recto (sin curvas), por grupos, con iconos
+   ========================================================= */
+dialog.cajon, :root[data-tema="claro"] dialog.cajon { border-radius: 0; width: min(320px, 86vw); padding: 1rem .9rem; padding-top: calc(1rem + env(safe-area-inset-top)); }
+.cajon-nav { gap: .15rem; }
+.cajon-grupo { margin: .9rem .6rem .3rem; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--t-tenue); }
+.cajon-grupo:first-child { margin-top: .2rem; }
+.cajon-nav button {
+  display: flex; align-items: center; gap: .75rem;
+  min-height: 46px; padding: .45rem .7rem;
+  border-radius: 12px;
+  font-family: var(--normal); font-weight: 600; font-size: .95rem;
+  text-transform: none; letter-spacing: 0;
+}
+.cajon-nav button .icono { width: 20px; height: 20px; flex: none; color: var(--t-tenue); }
+.cajon-nav button[aria-current="page"] .icono { color: currentColor; }
+.cajon-nav button:not([aria-current="page"]):hover { background: var(--t-elev); }
+
+/* =========================================================
+   Rendimiento: menos efectos caros al desplazar y respuesta inmediata al tocar
+   ========================================================= */
+/* La barra superior ya no desenfoca lo que pasa por debajo (era lo más pesado al desplazar). */
+.barra { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--t-fondo); }
+dialog::backdrop { backdrop-filter: none; }
+.insignia-frente, .noti-mini { backdrop-filter: none; }
+/* El brillo de la línea de la gráfica sin filtro de desenfoque. */
+.heroe-linea-brillo { filter: none; stroke: rgba(198, 244, 50, .18); stroke-width: 10; }
+.heroe-linea-trazo { stroke-width: 3; }
+/* Respuesta al tocar: un leve hundimiento, sin esperas. */
+button, .pildora, a.boton-enlace { transition: transform .08s ease, background-color .12s ease, opacity .12s ease; }
+button:active:not(:disabled), .pildora:active { transform: scale(.97); }
+.tarjeta { transition: none; }
+/* Desplazamiento suave y sin rebotes encadenados. */
+html { scroll-behavior: auto; }
+.lista-desliza, .lista-captura, dialog { -webkit-overflow-scrolling: touch; }
+/* Las secciones largas fuera de pantalla no se dibujan hasta que se acercan (listas y paneles de Mi cuenta). */
+.cuenta-grid > .panel, .metas-grid > .meta-tarjeta { content-visibility: auto; contain-intrinsic-size: auto 260px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

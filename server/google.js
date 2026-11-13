@@ -733,7 +733,7 @@ export async function iniciarEscaneo(usuario, desdeTexto, hastaTexto, { cuenta: 
   const donde = todas.length > 1
     ? ` en ${libres.length === 1 ? libres[0].datos.email : `tus ${libres.length} correos (${libres.map((c) => c.datos.email).join(', ')})`}`
     : '';
-  return `📧 Empecé a revisar ${periodo}${donde}, en tandas de ${POR_TANDA} avisos de compras, pagos e ingresos. ${todo ? 'Si tienes muchos correos puede tardar bastante (incluso horas); ' : 'Puede tardar varios minutos; '}${usuario.whatsapp && whatsappConectado() ? 'te aviso por WhatsApp cuando termine' : 'verás el avance en «Mi cuenta»'}. Puedes seguir usando la app mientras tanto.`;
+  return `📧 Revisando tus correos ${todo ? 'de todo tu Gmail' : periodo.replace(/^del /, 'del ')}${donde}. ${usuario.whatsapp && whatsappConectado() ? 'Te aviso al terminar.' : 'Verás el avance aquí.'}`;
 }
 
 // Arranca en segundo plano el escaneo de una cuenta; vuelve en cuanto queda guardado su estado inicial.
