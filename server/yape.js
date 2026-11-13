@@ -23,14 +23,16 @@ export function mismaPersona(recortado, completo) {
 }
 
 // Valor de un campo del correo: lo que sigue a la etiqueta hasta la siguiente etiqueta conocida.
-const ETIQUETAS = 'Yapero|Tu n[uú]mero de celular|Fecha y Hora de la operaci[oó]n|Celular del Beneficiario|Nombre del Beneficiario|Destino|N[uú]mero de operaci[oó]n|Nro\\.? de operaci[oó]n|C[oó]digo de seguridad|Monto de yapeo|Mensaje|Agente|Comercio|$';
-const campo = (texto, etiqueta) => new RegExp(`${etiqueta}\\s*:?\\s*(.+?)\\s*(?=(?:${ETIQUETAS}))`, 'i').exec(texto)?.[1]?.trim() ?? '';
+const ETIQUETAS = 'Yapero|Tu n[uú]mero de celular|Fecha y Hora de la operaci[oó]n|Celular del Beneficiario|Nombre del Beneficiario|Destino|N[uú]mero de operaci[oó]n|N[º°o]\\.? de operaci[oó]n|Nro\\.? de operaci[oó]n|C[oó]digo de seguridad|Monto de yapeo|Mensaje|Agente|Comercio|\\*|$';
+// Solo el nombre: sin el texto que el correo pone detrás (número de operación, avisos de seguridad).
+const campo = (texto, etiqueta) => (new RegExp(`${etiqueta}\\s*:?\\s*(.+?)\\s*(?=(?:${ETIQUETAS}))`, 'i').exec(texto)?.[1] ?? '')
+  .replace(/\s*(N[º°o]|Nro|N[uú]mero)\.?\s+de\s+operaci.*$/i, '').trim().slice(0, 40);
 
 /**
  * Lee un correo de Yape. Devuelve los datos del movimiento visto desde la persona de la cuenta («nombre»)
  * o null si no es un correo de Yape con esos campos.
  */
-export function leerCorreoYape(correo, nombre) {
+export function leerCorreoYape(correo, nombre, whatsapp = '') {
   const todo = `${correo.asunto}\n${correo.texto}`.replace(/\s+/g, ' ');
   if (!/yape/i.test(`${correo.remitente} ${correo.asunto} ${todo.slice(0, 400)}`)) return null;
   const importe = /Monto(?: de(?:l)? yapeo| yapeado| del pago)?\s*\*?\s*S\/\.?\s*([\d.,]+)/i.exec(todo) ?? /S\/\.?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)/.exec(todo);
@@ -38,9 +40,12 @@ export function leerCorreoYape(correo, nombre) {
   const monto = Number(importe[1].replace(/,/g, ''));
   if (!(monto > 0)) return null;
 
-  const yapero = campo(todo, 'Yapero') || /Hola,?\s+([^!¡]{2,40})!/i.exec(todo)?.[1]?.trim() || '';
+  // «¡Hola, X!» es la persona del buzón, la que yapeó (el correo solo le llega a quien envía).
+  const saludo = /Hola,?\s+([^!¡]{2,40})!/i.exec(todo)?.[1]?.trim() ?? '';
+  const yapero = saludo || campo(todo, 'Yapero');
   const beneficiario = campo(todo, 'Nombre del Beneficiario');
   const cel3 = /Celular del Beneficiario\s*:?\s*[X*\d\s]*?(\d{3})(?!\d)/i.exec(todo)?.[1] ?? '';
+  const celPropio3 = /Tu n[uú]mero de celular\s*:?\s*[X*\d\s]*?(\d{3})(?!\d)/i.exec(todo)?.[1] ?? '';
   const enviado = /acabas de yapear|yapeaste|enviaste un yape|yapeo exitoso/i.test(todo);
   const recibido = /te yapearon|recibiste un yape|te han yapeado|te ha yapeado/i.test(todo);
   if (!enviado && !recibido && !beneficiario) return null;
@@ -56,10 +61,16 @@ export function leerCorreoYape(correo, nombre) {
     hora = `${String(h).padStart(2, '0')}:${fh[5]}`;
   }
 
-  // ¿Quién es quién? Si el beneficiario es la persona de la cuenta, el dinero entra (aunque el correo
-  // sea del que yapeó, p. ej. un Gmail ajeno vinculado); si no, sale.
-  const esIngreso = (beneficiario && mismaPersona(beneficiario, nombre)) || (recibido && !enviado);
-  const otro = esIngreso ? yapero : (beneficiario || (cel3 ? `***${cel3}` : ''));
+  // ¿Quién es quién? Primero por el celular (lo más fiable: Yape a veces pone otro nombre en «Beneficiario»):
+  // si el WhatsApp de la cuenta termina como el celular del beneficiario, el dinero entra; si termina como
+  // «Tu número de celular», sale. Si no se sabe, por los nombres.
+  const mio3 = String(whatsapp ?? '').slice(-3);
+  const esIngreso = mio3 && cel3 && mio3 === cel3 ? true
+    : mio3 && celPropio3 && mio3 === celPropio3 ? false
+      : (beneficiario && mismaPersona(beneficiario, nombre) && !mismaPersona(yapero, nombre)) || (recibido && !enviado);
+  // El beneficiario solo se nombra si no es la misma persona que yapeó (Yape a veces repite el nombre).
+  const nombreBeneficiario = beneficiario && !mismaPersona(beneficiario, yapero) ? beneficiario : '';
+  const otro = esIngreso ? yapero : (nombreBeneficiario || (cel3 ? `***${cel3}` : ''));
   return {
     tipo: esIngreso ? 'ingreso' : 'gasto',
     monto,
@@ -71,7 +82,7 @@ export function leerCorreoYape(correo, nombre) {
     pagado: true,
     huella: huellaDe({ fecha, hora, tipo: esIngreso ? 'ingreso' : 'gasto', monto }),
     decidido: true,
-    yape: { yapero, beneficiario, cel3 },
+    yape: { yapero, beneficiario: nombreBeneficiario, cel3, celPropio3 },
   };
 }
 
@@ -81,10 +92,11 @@ export function leerCorreoYape(correo, nombre) {
  */
 export async function registrarAlBeneficiario(remitente, datos) {
   const { beneficiario, cel3, yapero } = datos.yape ?? {};
-  if (datos.tipo !== 'gasto' || !beneficiario || !/^\d{3}$/.test(cel3 ?? '')) return;
+  if (datos.tipo !== 'gasto' || !/^\d{3}$/.test(cel3 ?? '')) return;
   try {
     const candidatos = await Usuario.find({ _id: { $ne: remitente._id }, whatsapp: new RegExp(`${cel3}$`) }).limit(20);
-    const elegidos = candidatos.filter((u) => mismaPersona(beneficiario, u.nombre));
+    // Una sola persona con ese final de celular: es ella. Si hay varias, desempata el nombre (si lo hay).
+    const elegidos = candidatos.length === 1 ? candidatos : candidatos.filter((u) => beneficiario && mismaPersona(beneficiario, u.nombre));
     if (elegidos.length !== 1) return; // ninguno, o dudoso: mejor no registrar a quien no es
     const persona = elegidos[0];
     const quien = yapero || remitente.nombre;

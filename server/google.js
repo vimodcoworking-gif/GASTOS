@@ -447,9 +447,9 @@ export function direccionDeBilletera(texto) {
 const dias = (a, b) => Math.abs(new Date(`${a}T00:00:00Z`) - new Date(`${b}T00:00:00Z`)) / 86400000;
 
 // Convierte lo que dijo la IA (o el filtro sin IA) en datos para registrar, o null si no es un gasto.
-async function interpretar(correo, monedaLibro, titular, nombre = '') {
+async function interpretar(correo, monedaLibro, titular, nombre = '', whatsapp = '') {
   // Correos de Yape: se leen campo por campo (más rápido y sin errores de quién pagó a quién).
-  const deYape = leerCorreoYape(correo, nombre);
+  const deYape = leerCorreoYape(correo, nombre, whatsapp);
   if (deYape) return deYape;
   let gasto = await leerGastoDeCorreo(correo, titular);
   const esGasto = (g) => g?.tipo === 'gasto' || g?.esGasto === true;
@@ -576,7 +576,7 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
   }
   const correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`, autorizacion));
   // Si la IA falla, el correo no se marca como visto y se vuelve a intentar en la próxima revisión.
-  const datos = await interpretar(correo, libro.moneda, titularDe(usuario), usuario.nombre);
+  const datos = await interpretar(correo, libro.moneda, titularDe(usuario), usuario.nombre, usuario.whatsapp);
   await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
   resultado.revisados += 1;
   let decision = 'No es un gasto ni un ingreso';
@@ -953,7 +953,7 @@ export async function corregirYapesDeCorreo() {
         try {
           const autorizacion = { headers: { Authorization: `Bearer ${await accesoGmail(usuario, cuenta)}` } };
           const correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${mov.correoId}?format=full`, autorizacion));
-          const datos = leerCorreoYape(correo, usuario.nombre);
+          const datos = leerCorreoYape(correo, usuario.nombre, usuario.whatsapp);
           if (datos && (datos.tipo !== mov.tipo || datos.descripcion !== mov.descripcion)) {
             Object.assign(mov, { tipo: datos.tipo, descripcion: datos.descripcion, ...(datos.huella && { huella: datos.huella }) });
             await mov.save();

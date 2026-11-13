@@ -76,7 +76,7 @@ conectar()
       .then(() => corregirUnaVez('correccion:medios-yape-plin', corregirMediosBilletera))
       .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados))
       .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez))
-      .then(() => corregirUnaVez('correccion:yapes-correo-v1', corregirYapesDeCorreo));
+      .then(() => corregirUnaVez('correccion:yapes-correo-v2', corregirYapesDeCorreo));
     iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
