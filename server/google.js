@@ -590,7 +590,7 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
     }
   }
   await CorreoRevisado.updateOne({ _id: `${usuario.id}:${id}` }, {
-    $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, registrado, cuenta: cuenta.clave, buzon: cuenta.datos.email, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 400), cuando: new Date() },
+    $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, registrado, cuenta: cuenta.clave, buzon: cuenta.datos.email, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 250), cuando: new Date() },
   }, { upsert: true }).catch(() => {});
 }
 

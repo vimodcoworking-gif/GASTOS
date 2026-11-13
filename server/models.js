@@ -121,9 +121,9 @@ const movimientoSchema = new Schema(
     // Fecha del movimiento o de vencimiento, siempre a medianoche UTC.
     fecha: { type: Date, required: true },
     pagado: { type: Boolean, default: false },
-    fechaPago: { type: Date, default: null },
+    fechaPago: Date,
     // Movimientos creados juntos con "repetir cada mes" comparten la misma serie.
-    serie: { type: ObjectId, default: null },
+    serie: { type: ObjectId },
     creadoPor: { type: ObjectId, ref: 'Usuario' },
     // Id del correo de Gmail del que salió, si se registró solo a partir de un correo.
     correoId: String,
@@ -138,13 +138,16 @@ const movimientoSchema = new Schema(
     huella: String,
     recordado: { type: [String], default: undefined },
   },
-  { timestamps: true },
+  // Solo la fecha de creación (la usan los avisos para no repetir); «updatedAt» ocupaba sitio sin uso.
+  { timestamps: { createdAt: true, updatedAt: false }, versionKey: false },
 );
+// Índices: el principal (libro + fecha) para todo; los demás solo incluyen los movimientos que tienen
+// ese dato (índices parciales), así ocupan poco aunque haya muchos clientes.
 movimientoSchema.index({ libro: 1, fecha: 1 });
-movimientoSchema.index({ pagado: 1, fecha: 1 });
-movimientoSchema.index({ libro: 1, huella: 1 }, { sparse: true });
-movimientoSchema.index({ libro: 1, serie: 1 });
-movimientoSchema.index({ correoId: 1 }, { sparse: true });
+movimientoSchema.index({ fecha: 1 }, { name: 'pendientes_por_fecha', partialFilterExpression: { pagado: false } });
+movimientoSchema.index({ libro: 1, huella: 1 }, { name: 'huella', partialFilterExpression: { huella: { $type: 'string' } } });
+movimientoSchema.index({ libro: 1, serie: 1 }, { name: 'serie', partialFilterExpression: { serie: { $type: 'objectId' } } });
+movimientoSchema.index({ correoId: 1 }, { name: 'correo', partialFilterExpression: { correoId: { $type: 'string' } } });
 
 // Ajustes del administrador (IA, bot), uno por clave.
 const ajusteSchema = new Schema({ _id: String, valor: Schema.Types.Mixed }, { timestamps: true });
@@ -153,8 +156,8 @@ const ajusteSchema = new Schema({ _id: String, valor: Schema.Types.Mixed }, { ti
 const sesionWaSchema = new Schema({ _id: String, datos: String });
 
 // Correos de Gmail ya revisados (fueran gasto o no), para no leerlos ni registrarlos dos veces.
-// Se borran solos a los 60 días.
-const correoVistoSchema = new Schema({ _id: String, visto: { type: Date, default: Date.now, expires: 60 * 24 * 3600 } });
+// Se borran solos a los 45 días.
+const correoVistoSchema = new Schema({ _id: String, visto: { type: Date, default: Date.now, expires: 45 * 24 * 3600 } });
 
 export const CorreoVisto = model('CorreoVisto', correoVistoSchema);
 
@@ -176,12 +179,12 @@ const correoRevisadoSchema = new Schema({
 export const CorreoRevisado = model('CorreoRevisado', correoRevisadoSchema);
 
 // Mensajes de WhatsApp del bot y los movimientos que confirman: al responder a uno se corrigen esos.
-// Se borran solos a los 180 días.
+// Se borran solos a los 45 días.
 const mensajeBotSchema = new Schema({
   _id: String,
   usuario: ObjectId,
   movimientos: [ObjectId],
-  cuando: { type: Date, default: Date.now, expires: 180 * 24 * 3600 },
+  cuando: { type: Date, default: Date.now, expires: 45 * 24 * 3600 },
 });
 export const MensajeBot = model('MensajeBot', mensajeBotSchema);
 export const Ajuste = model('Ajuste', ajusteSchema);

@@ -262,7 +262,7 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
     monto,
     fecha,
     pagado,
-    fechaPago: pagado ? new Date() : null,
+    fechaPago: pagado ? new Date() : undefined,
     creadoPor: usuario._id,
     ...(medio && { medio }),
     ...(entidad && { entidad }),
@@ -404,7 +404,7 @@ export async function editarMovimiento(usuario, id, cambios = {}) {
   }
   if (typeof cambios.pagado === 'boolean') {
     mov.pagado = cambios.pagado;
-    mov.fechaPago = cambios.pagado ? (mov.fechaPago ?? new Date()) : null;
+    mov.fechaPago = cambios.pagado ? (mov.fechaPago ?? new Date()) : undefined;
     hecho.push(cambios.pagado ? 'marcado como pagado' : 'marcado como pendiente');
   }
   if (!hecho.length) return 'No vi qué querías cambiar. Dime, por ejemplo: «era ingreso», «son 30», «fue ayer», «categoría comida» o «anúlalo».';

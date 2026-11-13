@@ -1,3 +1,4 @@
+import { tamanos } from './mantenimiento.js';
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { config } from './config.js';
@@ -40,12 +41,13 @@ rutasAdmin.get('/almacenamiento', async (req, res) => {
   await mongoose.connection.db.admin().ping();
   const latenciaMs = Math.round(performance.now() - inicio);
 
-  const [{ bases, completo }, usuarios, libros, movimientos, statsMov] = await Promise.all([
+  const [{ bases, completo }, usuarios, libros, movimientos, statsMov, colecciones] = await Promise.all([
     usoDelCluster(),
     Usuario.countDocuments(),
     Libro.countDocuments(),
     Movimiento.countDocuments(),
     mongoose.connection.db.command({ collStats: Movimiento.collection.name }).catch(() => null),
+    tamanos().catch(() => []),
   ]);
 
   const limite = config.almacenamientoMb * 1024 * 1024;
@@ -65,6 +67,10 @@ rutasAdmin.get('/almacenamiento', async (req, res) => {
     latenciaMs,
     bases: bases.sort((a, b) => b.bytes - a.bytes),
     totales: { usuarios, libros, movimientos },
+    // Qué ocupa cada colección de esta app (datos guardados + índices).
+    colecciones,
+    // Espacio medio por cliente, para calcular cuántos más caben.
+    porUsuario: usuarios ? Math.round(usado / usuarios) : 0,
   });
 });
 

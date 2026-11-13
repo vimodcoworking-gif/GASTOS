@@ -16,6 +16,7 @@ import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
 import { iniciarRecordatorios } from './recordatorios.js';
 import { rutasPush, prepararPush } from './push.js';
+import { compactarUnaVez, iniciarMantenimiento } from './mantenimiento.js';
 import { separarRegistrosUnidos, completarMedios, corregirMediosBilletera, corregirYapeosEnviados } from './bot.js';
 import { Ajuste } from './models.js';
 
@@ -71,7 +72,9 @@ conectar()
     // Correcciones de datos que se hacen una sola vez (quedan anotadas en Ajuste).
     corregirUnaVez('correccion:registros-unidos', separarRegistrosUnidos).then(() => corregirUnaVez('correccion:medios-de-pago-2', completarMedios))
       .then(() => corregirUnaVez('correccion:medios-yape-plin', corregirMediosBilletera))
-      .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados));
+      .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados))
+      .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez));
+    iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
     // Recordatorios por WhatsApp de los pagos que vencen pronto.

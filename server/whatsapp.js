@@ -133,6 +133,8 @@ export async function conectarWhatsapp() {
     markOnlineOnConnect: false,
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false,
+    // Grupos, estados y canales no se leen: así no se guardan sus claves de cifrado en la base.
+    shouldIgnoreJid: (jid) => isJidGroup(jid) || isJidBroadcast(jid) || isJidNewsletter(jid),
   });
   const actual = socket;
 

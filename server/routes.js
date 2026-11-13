@@ -76,7 +76,7 @@ function copiasFuturas(base, repeticion) {
     ...base,
     fecha: SALTOS[repeticion.cada](base.fecha, i + 1),
     pagado: false,
-    fechaPago: null,
+    fechaPago: undefined,
   }));
 }
 
@@ -291,7 +291,7 @@ function leerMovimiento(cuerpo, parcial = false) {
   if (viene('fecha')) datos.fecha = leerFecha(cuerpo.fecha);
   if (cuerpo.pagado !== undefined) {
     datos.pagado = cuerpo.pagado === true;
-    datos.fechaPago = datos.pagado ? new Date() : null;
+    datos.fechaPago = datos.pagado ? new Date() : undefined;
   }
   // Recordatorio por WhatsApp: -1 (ninguno) a 7 días antes; vacío o null = el ajuste de la persona.
   if (cuerpo.recordar !== undefined) {
