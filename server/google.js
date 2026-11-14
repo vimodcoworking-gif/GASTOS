@@ -398,6 +398,44 @@ function gastoSinIa(correo) {
   return { tipo: 'gasto', ...leerImporte(importe[1], importe[2]), descripcion: `${quien ? `${quien}: ` : ''}${correo.asunto}`, categoria: 'Otros', fecha: correo.fecha };
 }
 
+// Remitentes de bancos, billeteras y pasarelas de pago: sus avisos con un importe casi siempre son movimientos.
+const FINANCIERO = /bcp|viabcp|interbank|bbva|scotiabank|bancodelanacion|bn\.com\.pe|mibanco|pichincha|banbif|falabella|ripley|yape|plin|izipay|niubiz|culqi|mercadopago|paypal|caja|banco|bank|tarjeta|visa|mastercard|diners|amex|agora|tunki|lukita|bim\b/i;
+// Asuntos que hablan de dinero pero no son un movimiento hecho.
+const NO_ES_MOVIMIENTO = /estado de cuenta|pago m[ií]nimo|vence|vencimiento|recordatorio|oferta|promo|descuento|cup[oó]n|sorteo|gana|c[oó]digo|clave|token|contrase[ñn]a|inicio de sesi[oó]n|acceso|dispositivo|bienvenid|encuesta|pr[eé]stamo|aprobad|preaprobad|cuota|campa[ñn]a|newsletter|actualiza|t[eé]rminos|cambio de|tipo de cambio/i;
+
+/**
+ * Respaldo sin IA: un aviso de un banco o billetera con importe y una palabra de operación se registra
+ * aunque la IA lo haya descartado o no haya respondido bien. Ingreso si habla de dinero recibido.
+ */
+export function avisoFinancieroSinIa(correo) {
+  if (!FINANCIERO.test(`${correo.remitente} ${correo.asunto}`)) return null;
+  if (NO_ES_MOVIMIENTO.test(correo.asunto)) return null;
+  const todo = `${correo.asunto}\n${correo.texto}`;
+  const inicio = todo.slice(0, 900);
+  if (!/(consumo|consumiste|compra|compraste|pago|pagaste|cargo|transferencia|transferiste|abono|abonamos|dep[oó]sito|depositaron|recibiste|yape|plin|retiro|operaci[oó]n|constancia|env[ií]o|enviaste)/i.test(inicio)) return null;
+  const importe = new RegExp(`${SIMBOLO}\\s?${NUMERO}`, 'i').exec(inicio) ?? new RegExp(`${SIMBOLO}\\s?${NUMERO}`, 'i').exec(todo);
+  if (!importe) return null;
+  const { monto, moneda } = leerImporte(importe[1], importe[2]);
+  if (!(monto > 0)) return null;
+  const ingreso = /(recibiste|te (?:yapearon|plinearon|transfirieron|depositaron|enviaron)|abono|abonamos|dep[oó]sito (?:a|en) tu|haberes|sueldo|remuneraci[oó]n|devoluci[oó]n|reembolso|extorno)/i.test(inicio);
+  // Comercio o persona: «en COMERCIO», «a NOMBRE», «de NOMBRE»; si no, el asunto.
+  // (sin importes como «S/ 1,200» y sin la coletilla «con tu tarjeta», «por Plin»…)
+  const quien = (ingreso ? /\b(?:de|desde)\s+(?!S\/|US\$|\d)([A-ZÁÉÍÓÚÑ][^.\n,]{2,40})/ : /\b(?:en|a)\s+(?!S\/|US\$|tu\b|su\b)([A-ZÁÉÍÓÚÑ0-9*][^.\n,]{2,40})/)
+    .exec(inicio.replace(/\s+/g, ' '))?.[1]
+    ?.replace(/\s+(?:con|por|en)\s+(?:tu|su|la|el)\b.*$/i, '').replace(/\s+(?:con|por)\s+.*$/i, '').replace(/\s+en tu cuenta.*$/i, '').trim();
+  // «JUAN PEREZ te envió…»: la persona va delante.
+  const remitentePago = /^([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ ]{2,40}?)\s+te\s+(?:envi[oó]|yape[oó]|pline[oó]|transfiri[oó])/m.exec(correo.texto.trim())?.[1];
+  const banco = correo.remitente.replace(/<.*>/, '').replace(/"/g, '').replace(/notificaciones?|alertas?|no-?reply/ig, '').trim();
+  return {
+    tipo: ingreso ? 'ingreso' : 'gasto',
+    monto,
+    moneda,
+    descripcion: ((ingreso && remitentePago) || quien || correo.asunto || banco || (ingreso ? 'Ingreso' : 'Gasto')).slice(0, 80),
+    categoria: ingreso ? 'Transferencias' : 'Otros',
+    fecha: correo.fecha,
+  };
+}
+
 const SIMBOLO = '(S\\/\\.?|PEN|US\\$|USD|\\$|€|EUR)';
 const NUMERO = '(\\d{1,3}(?:[.,]\\d{3})*(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)\\b';
 
@@ -461,6 +499,8 @@ async function interpretar(correo, monedaLibro, titular, nombre = '', whatsapp =
     if (aviso) gasto = { ...aviso, fecha: correo.fecha };
   }
   gasto ??= gastoSinIa(correo);
+  // La IA lo descartó (o respondió algo ilegible) pero es un aviso de banco o billetera con importe: respaldo sin IA.
+  if (!esGasto(gasto) && gasto?.tipo !== 'ingreso') gasto = avisoFinancieroSinIa(correo) ?? gasto;
   // «esGasto» es el formato anterior de la respuesta; se sigue aceptando.
   let tipo = gasto?.tipo === 'ingreso' ? 'ingreso' : esGasto(gasto) ? 'gasto' : null;
   if (!tipo) return null;
@@ -559,9 +599,12 @@ async function yaRegistrado(libro, datos) {
     return await Movimiento.findOne({ libro: libro._id, huella: datos.huella }).select('descripcion fecha').lean()
       ?? Movimiento.findOne({ libro: libro._id, tipo: datos.tipo, monto: Math.round(datos.monto * 100) / 100, huella: { $exists: false }, correoId: { $exists: false }, fecha: { $gte: new Date(fecha), $lt: new Date(fecha + DIA) } }).select('descripcion fecha').lean();
   }
+  // Solo cuenta como el mismo un movimiento anotado por otro camino (a mano, WhatsApp, captura): otro correo
+  // con el mismo monto es otra operación (dos cargos de S/ 2 el mismo día son dos).
   return Movimiento.findOne({
     libro: libro._id,
     tipo: datos.tipo,
+    correoId: { $exists: false },
     ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: Math.round(datos.monto * 100) / 100 }),
     fecha: { $gte: new Date(fecha - DIA), $lte: new Date(fecha + DIA) },
   }).select('descripcion fecha').lean();
@@ -942,7 +985,7 @@ export function pararRevisionGmail() {
  * Una vez: vuelve a leer, con el lector de correos de Yape, los yapes registrados desde el correo en las
  * últimas 2 semanas y corrige los que quedaron al revés (p. ej. un ingreso anotado como «Yapeo a…»).
  */
-export async function corregirYapesDeCorreo({ soloPendientes = false } = {}) {
+export async function corregirYapesDeCorreo({ soloPendientes = false, dias = 30, q = 'from:yape' } = {}) {
   let corregidos = 0;
   const desde = new Date(Date.now() - 14 * 86400000);
   const usuarios = await Usuario.find({ $or: [{ 'gmail.token': { $exists: true } }, { 'gmailExtra.0': { $exists: true } }] }).limit(500);
@@ -970,7 +1013,7 @@ export async function corregirYapesDeCorreo({ soloPendientes = false } = {}) {
     for (const cuenta of cuentasDe(usuario)) {
       try {
         const { libro, autorizacion } = await prepararLectura(usuario, cuenta);
-        const lista = await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${new URLSearchParams({ q: 'from:yape newer_than:30d', maxResults: '100' })}`, autorizacion);
+        const lista = await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${new URLSearchParams({ q: `${q} newer_than:${dias}d`, maxResults: '200' })}`, autorizacion);
         const resultado = { revisados: 0, registrados: 0, duplicados: 0 };
         for (const { id } of lista.messages ?? []) {
           if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) continue;
@@ -984,3 +1027,6 @@ export async function corregirYapesDeCorreo({ soloPendientes = false } = {}) {
   }
   return corregidos;
 }
+
+/** Avisos de bancos y billeteras de los últimos días que no se registraron: se vuelven a leer (con respaldo sin IA). */
+export const recuperarAvisosRecientes = (dias = 7) => corregirYapesDeCorreo({ soloPendientes: true, dias, q: FILTRO });

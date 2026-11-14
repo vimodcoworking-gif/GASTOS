@@ -11,7 +11,7 @@ import { rutasAdmin } from './admin.js';
 import { rutasApi } from './routes.js';
 import { manejarErrores } from './errores.js';
 import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
-import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail, corregirYapesDeCorreo } from './google.js';
+import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail, corregirYapesDeCorreo, recuperarAvisosRecientes } from './google.js';
 import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
 import { iniciarRecordatorios } from './recordatorios.js';
@@ -24,6 +24,7 @@ import { Ajuste } from './models.js';
 const publico = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 const app = express();
+const arranque = new Date().toISOString();
 app.disable('x-powered-by');
 // En el hosting la app va detrás de un proxy: sin esto el límite de intentos vería a todos con la misma IP.
 if (config.produccion) app.set('trust proxy', 1);
@@ -41,6 +42,7 @@ app.use('/api', (req, res, next) => {
   if (estadoBd.lista) return next();
   res.status(503).json({ error: `Sin conexión con la base de datos. ${estadoBd.causa}` });
 });
+app.get('/api/version', (req, res) => res.json({ version: (process.env.RENDER_GIT_COMMIT ?? 'local').slice(0, 7), desde: arranque }));
 app.use('/api/auth/google', rutasGoogle);
 app.use('/api/auth', rutasAuth);
 app.use('/api/admin', requiereSesion, requiereAdmin, rutasAdmin);
@@ -76,12 +78,13 @@ conectar()
       .then(() => corregirUnaVez('correccion:medios-yape-plin', corregirMediosBilletera))
       .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados))
       .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez))
-      .then(() => corregirUnaVez('correccion:yapes-correo-v3', corregirYapesDeCorreo));
+      .then(() => corregirUnaVez('correccion:yapes-correo-v3', corregirYapesDeCorreo))
+      .then(() => corregirUnaVez('correccion:avisos-recientes-v1', () => recuperarAvisosRecientes(10)));
     iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
     // Cada 6 horas se recuperan los correos de Yape que no llegaron a registrarse.
-    setInterval(() => corregirYapesDeCorreo({ soloPendientes: true }).catch((err) => console.error('Yapes pendientes:', err.message)), 6 * 3600_000);
+    setInterval(() => recuperarAvisosRecientes(3).catch((err) => console.error('Avisos pendientes:', err.message)), 6 * 3600_000);
     // Recordatorios por WhatsApp de los pagos que vencen pronto.
     iniciarRecordatorios();
     prepararPush();
