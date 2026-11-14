@@ -20,11 +20,13 @@ flowchart LR
 - Cada persona vincula uno o varios Gmail (hasta 5) en **Mi cuenta → Gastos desde tu Gmail**. Solo se pide permiso de lectura.
 - Se revisa **cada 3 minutos** (variable `GMAIL_MINUTOS`), también con la app cerrada. Mientras hay un Gmail activo, el servidor se mantiene despierto en Render.
 - Solo se abren correos de remitentes financieros y con palabras de pago (filtro `FILTRO` en `server/google.js`).
-- Cada correo se lee así, en este orden:
-  1. **Correos de Yape** («Acabas de yapear»): lector exacto sin IA (`server/yape.js`). Toma monto, quién yapeó, beneficiario, fecha y hora.
-  2. **IA** (Claude o NVIDIA, según Admin → IA): decide si es gasto, ingreso o nada, con monto, comercio, categoría y medio.
-  3. **Reglas sin IA** para avisos inequívocos: consumo con tarjeta («Realizaste un consumo de S/ X en …») y avisos de Yape/Plin («Yapeaste», «te envió un pago»).
-  4. **Respaldo estricto sin IA** (`avisoFinancieroSinIa`): solo si la IA lo descartó y el correo es de un banco o billetera, dice una operación explícita («Realizaste un consumo», «Yapeaste», «Recibiste un abono», «te plinearon»…) y el monto es de hasta S/ 3,000. Nunca registra compras o traslados de deuda, pagos de tarjeta, préstamos ni transferencias entre cuentas propias.
+- Cada correo se lee así, en este orden (los lectores fijos van primero: registran aunque la IA esté caída o se equivoque):
+  1. **Correos de Yape** («Acabas de yapear»): lector exacto (`server/yape.js`). Toma monto, quién yapeó, beneficiario, fecha y hora.
+  2. **Consumo con tarjeta** («Realizaste un consumo de S/ X en …»), de cualquier monto.
+  3. **Avisos de Yape y Plin** («Yapeaste», «te envió un pago», «te plinearon»).
+  4. **Avisos de banco o billetera con una operación explícita** (`avisoFinancieroSinIa`): «Realizaste un pago», «Transferiste», «Recibiste un abono»…, hasta S/ 3,000. Nunca registra compras o traslados de deuda, pagos de tarjeta, préstamos ni transferencias entre cuentas propias.
+  5. **IA** (Claude o NVIDIA, según Admin → IA) para todo lo demás. Si la IA falla, el correo no se marca como revisado y se reintenta en la siguiente vuelta.
+- **Diagnóstico de hoy** (Mi cuenta → Gmail): avisos de pago de las últimas 24 horas en cada Gmail y qué pasó con cada uno (registrado, descartado con su motivo, pendiente), con «Volver a revisar»; además el estado de la IA, del bot de WhatsApp y del último envío del teléfono.
 - **Escaneo de correos anteriores**: en Mi cuenta se puede escanear el último mes, 3, 6, 12, 24 meses, todo el correo o unas fechas. Avanza por tandas de 100 avisos.
 - **Correos revisados**: en Mi cuenta se ve qué se hizo con cada aviso de la última semana y se puede **Volver a revisar** uno que no se registró.
 

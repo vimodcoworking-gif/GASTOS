@@ -20,6 +20,7 @@
 
 ## Dónde mirar
 
+- **Mi cuenta → Gmail → Diagnóstico de hoy**: el primer lugar a mirar; avisos de las últimas 24 horas, qué pasó con cada uno, IA, bot y teléfono.
 - **Mi cuenta → Últimos envíos**: todo lo que llegó del teléfono (7 días).
 - **Mi cuenta → Gmail → Ver correos revisados**: qué se decidió con cada correo (8 días).
 - **Render → Logs**: errores del servidor (`Aviso (captura)`, `Recordatorio a…`, `Push:`, `Corrección «…»`).
