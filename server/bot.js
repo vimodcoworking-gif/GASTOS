@@ -668,6 +668,13 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
     }
     ids.push(ultimoRegistrado.get(usuario.id)?.id);
     hechos.push({ tipo, linea: confirmacion.split('\n')[1], monto: datos.monto });
+    // Yape o Plin a otra persona que usa la app: se le registra el ingreso (solo si su nombre coincide).
+    if (tipo === 'gasto' && !datos.moneda && (/^(?:yape|plin)$/.test(datos.medio ?? '') || /yape|plin/i.test(String(datos.descripcion ?? '')))) {
+      import('./yape.js').then(({ registrarAlBeneficiario, beneficiarioDeDescripcion }) => {
+        const { beneficiario, cel3 } = beneficiarioDeDescripcion(datos.descripcion);
+        return registrarAlBeneficiario(usuario, { tipo, monto: datos.monto, fecha, hora: original.hora, huella, yape: { beneficiario, cel3, yapero: usuario.nombre } }, { exigirNombre: true });
+      }).catch((err) => console.error('Ingreso al beneficiario:', err.message));
+    }
   }
   if (ids.length > 1) ultimoRegistrado.set(usuario.id, { ids: ids.filter(Boolean), cuando: Date.now() });
 
@@ -964,8 +971,12 @@ const AVISOS_DE_PAGO = [
   { tipo: 'ingreso', patron: new RegExp(`(?:^|[!:]\\s*|\\.\\s+)([^!:\\n]{2,60}?)\\s+te\\s+(?:envi[oó]|yape[oó]|pline[oó]|pag[oó]|transfiri[oó]|deposit[oó])\\s+(?:un\\s+(?:pago|yape|plin|dinero)\\s+)?(?:de|por)\\s+${IMPORTE}`, 'i'), quien: 1, simbolo: 2, numero: 3 },
   // «¡Te yapearon S/ 25!», «Te plinearon S/ 10 de MARIA»
   { tipo: 'ingreso', patron: new RegExp(`te\\s+(?:yapearon|plinearon|transfirieron|depositaron|pagaron)\\s+${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
-  // «Recibiste un yape de S/ 25 de JUAN», «Recibiste S/ 10 de MARIA»
-  { tipo: 'ingreso', patron: new RegExp(`recibiste\\s+(?:un\\s+(?:yape|plin|pago|dep[oó]sito|abono|transferencia)\\s+(?:de|por)\\s+)?${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Recibiste un yape de S/ 25 de JUAN», «Recibiste S/ 10 de MARIA», «Recibiste un yapeo / plineo de S/ 5»
+  { tipo: 'ingreso', patron: new RegExp(`recibiste\\s+(?:un[ao]?\\s+(?:yape|yapeo|plin|plineo|pago|dep[oó]sito|abono|transferencia)\\s+(?:de|por)\\s+)?${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Abono recibido S/ 50 de JUAN», «Transferencia recibida por S/ 120», «Depósito recibido de S/ 30»
+  { tipo: 'ingreso', patron: new RegExp(`(?:abono|transferencia|dep[oó]sito|yapeo|plin)\\s+recibid[oa]\\s*:?\\s*(?:de|por)?\\s*${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Te abonamos S/ 100», «Te han depositado S/ 80», «Te han transferido S/ 40 de MARIA»
+  { tipo: 'ingreso', patron: new RegExp(`te\\s+(?:han\\s+)?(?:abonamos|abonado|depositado|transferido|enviado)\\s+${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
   // «Yapeaste S/ 25 a NILSON GON», «¡Yapeaste! S/ 25 Nilson Gon*», «Plineaste S/ 10 a…», «Enviaste S/ 50 a…»
   { tipo: 'gasto', patron: new RegExp(`(?:yapeaste|plineaste|enviaste|transferiste|pagaste)[!¡]?\\s+(?:un\\s+(?:yape|plin|pago)\\s+(?:de|por)\\s+)?${IMPORTE}(?:\\s+(?:(?:a|para)\\s+)?([A-Za-zÁÉÍÓÚÑáéíóúñ][^.!\\n]{1,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
 ];

@@ -44,6 +44,15 @@ Por eso **cada cuenta debe tener su WhatsApp guardado** en Mi cuenta.
 
 Cuando el correo de Yape se registra como gasto en la cuenta de quien pagó, la app busca al beneficiario entre los usuarios por los 3 últimos dígitos de su WhatsApp (y el nombre si hay varios). Si hay exactamente uno, le registra el **ingreso** y le avisa por notificación («💜 X te yapeó S/ Y») y WhatsApp. Si hay duda, no registra nada.
 
+También funciona cuando quien paga registra su Yape o Plin **por captura, atajo, WhatsApp o aviso del teléfono**: en ese caso se exige que el **nombre** del beneficiario («Franko Val*») coincida con un único usuario (y los 3 dígitos del celular si se ven). Un nombre ambiguo o solo un número enmascarado no registran nada.
+
+### Pagos que te hacen (ingresos)
+
+- **Correos de banco:** «Recibiste un abono», «Abono recibido», «Transferencia recibida», «Te han depositado», «Te plinearon», «Recibiste un yapeo»… se registran como ingreso sin IA, de cualquier monto.
+- **Notificaciones del teléfono (Android/MacroDroid):** «JUAN te envió un pago por S/ 25», «¡Te yapearon S/ 3.50!» → ingreso.
+- **Capturas de Yape:** las filas con «+ S/» (en verde) son ingresos.
+- **Yape no envía correo a quien recibe:** sin teléfono ni captura, un Yape recibido solo se registra si quien paga usa DUOLAB.
+
 ## 2. Enlace personal del teléfono (`/api/avisos/<token>`)
 
 Cada persona crea su enlace en **Mi cuenta → Yape, Plin y avisos del teléfono**. No debe compartirse: con él se registran movimientos en su cuenta.

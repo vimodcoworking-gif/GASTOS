@@ -454,7 +454,7 @@ const NO_ES_MOVIMIENTO = /estado de cuenta|pago m[ií]nimo|vence|vencimiento|rec
  * aunque la IA lo haya descartado o no haya respondido bien. Ingreso si habla de dinero recibido.
  */
 // Frases que dicen sin duda que se hizo una operación (no basta con que el correo hable de pagos).
-const OPERACION_EXPLICITA = /(realizaste (?:un |una )?(?:consumo|compra|pago|yapeo|plineo|transferencia|retiro)|compraste|pagaste|transferiste|yapeaste|plineaste|enviaste (?:un |una )?(?:yape|plin|transferencia|dinero)|recibiste (?:un |una )?(?:abono|dep[oó]sito|yape|plin|transferencia|pago)|te (?:yapearon|plinearon|transfirieron|depositaron|enviaron)|(?:consumo|compra|pago) (?:aprobad[ao]|realizad[ao]|exitos[ao]))/i;
+const OPERACION_EXPLICITA = /(realizaste (?:un |una )?(?:consumo|compra|pago|yapeo|plineo|transferencia|retiro)|compraste|pagaste|transferiste|yapeaste|plineaste|enviaste (?:un |una )?(?:yape|plin|transferencia|dinero)|recibiste (?:un |una )?(?:abono|dep[oó]sito|yape|yapeo|plin|plineo|transferencia|pago)|te (?:yapearon|plinearon|transfirieron|depositaron|enviaron|abonamos)|te han (?:abonado|depositado|transferido|enviado)|(?:abono|transferencia|dep[oó]sito) recibid[oa]|(?:consumo|compra|pago) (?:aprobad[ao]|realizad[ao]|exitos[ao]))/i;
 // Movimientos de deuda, pagos de la propia tarjeta o entre cuentas propias: nunca se registran solos.
 const NUNCA_SIN_IA = /compra de deuda|traslado de (?:saldo|deuda)|consolidaci[oó]n|pago (?:de|a) (?:tu |su )?tarjeta|pago de (?:tu |su )?(?:cuota|pr[eé]stamo|cr[eé]dito|deuda)|desembolso|efectivo preferente|disposici[oó]n de efectivo|entre (?:tus|mis|sus) cuentas|cuentas? propias?|ampliaci[oó]n de l[ií]nea|l[ií]nea de cr[eé]dito/i;
 // Un importe alto sin confirmación de la IA es demasiado arriesgado: lo decide la IA.
@@ -471,7 +471,7 @@ export function avisoFinancieroSinIa(correo) {
   if (!importe) return null;
   const { monto, moneda } = leerImporte(importe[1], importe[2]);
   if (!(monto > 0) || monto > MAXIMO_SIN_IA) return null;
-  const ingreso = /(recibiste|te (?:yapearon|plinearon|transfirieron|depositaron|enviaron)|abono|abonamos|dep[oó]sito (?:a|en) tu|haberes|sueldo|remuneraci[oó]n|devoluci[oó]n|reembolso|extorno)/i.test(inicio);
+  const ingreso = /(recibiste|recibid[oa]|te (?:yapearon|plinearon|transfirieron|depositaron|enviaron|abonamos)|te han (?:abonado|depositado|transferido|enviado)|abono|abonamos|dep[oó]sito (?:a|en) tu|haberes|sueldo|remuneraci[oó]n|devoluci[oó]n|reembolso|extorno)/i.test(inicio);
   // Comercio o persona: «en COMERCIO», «a NOMBRE», «de NOMBRE»; si no, el asunto.
   // (sin importes como «S/ 1,200» y sin la coletilla «con tu tarjeta», «por Plin»…)
   const quien = (ingreso ? /\b(?:de|desde)\s+(?!S\/|US\$|\d)([A-ZÁÉÍÓÚÑ][^.\n,]{2,40})/ : /\b(?:en|a)\s+(?!S\/|US\$|tu\b|su\b)([A-ZÁÉÍÓÚÑ0-9*][^.\n,]{2,40})/)

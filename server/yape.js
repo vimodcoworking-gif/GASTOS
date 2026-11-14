@@ -90,13 +90,21 @@ export function leerCorreoYape(correo, nombre, whatsapp = '') {
  * Yape de una persona de la app a otra: si el beneficiario también usa la app (mismo nombre y su WhatsApp
  * termina en los 3 dígitos del celular del beneficiario), se le registra el ingreso y se le avisa.
  */
-export async function registrarAlBeneficiario(remitente, datos) {
+export async function registrarAlBeneficiario(remitente, datos, { exigirNombre = false } = {}) {
   const { beneficiario, cel3, yapero } = datos.yape ?? {};
-  if (datos.tipo !== 'gasto' || !/^\d{3}$/.test(cel3 ?? '')) return;
+  const conCelular = /^\d{3}$/.test(cel3 ?? '');
+  if (datos.tipo !== 'gasto' || (!conCelular && !beneficiario)) return;
+  // Desde una captura (sin correo) se exige que el nombre coincida: el celular solo se ve a veces.
+  if (exigirNombre && !beneficiario) return;
   try {
-    const candidatos = await Usuario.find({ _id: { $ne: remitente._id }, whatsapp: new RegExp(`${cel3}$`) }).limit(20);
-    // Una sola persona con ese final de celular: es ella. Si hay varias, desempata el nombre (si lo hay).
-    const elegidos = candidatos.length === 1 ? candidatos : candidatos.filter((u) => beneficiario && mismaPersona(beneficiario, u.nombre));
+    const primerNombre = normal(beneficiario).split(' ')[0];
+    const candidatos = conCelular
+      ? await Usuario.find({ _id: { $ne: remitente._id }, whatsapp: new RegExp(`${cel3}$`) }).limit(20)
+      : await Usuario.find({ _id: { $ne: remitente._id }, nombre: new RegExp(`^${primerNombre.replace(/[^a-z0-9ñ]/gi, '')}`, 'i') }).limit(50);
+    const porNombre = candidatos.filter((u) => beneficiario && mismaPersona(beneficiario, u.nombre));
+    // Correo: una sola persona con ese final de celular es ella (Yape a veces pone otro nombre); si hay varias,
+    // desempata el nombre. Captura: siempre por nombre (y celular si se ve).
+    const elegidos = exigirNombre || !conCelular ? porNombre : candidatos.length === 1 ? candidatos : porNombre;
     if (elegidos.length !== 1) return; // ninguno, o dudoso: mejor no registrar a quien no es
     const persona = elegidos[0];
     const quien = yapero || remitente.nombre;
@@ -111,4 +119,17 @@ export async function registrarAlBeneficiario(remitente, datos) {
   } catch (err) {
     console.error('Yape al beneficiario:', err.message);
   }
+}
+
+// Descripción de un pago con Yape o Plin registrado a mano o desde una captura: «Yape a número ***266»,
+// «Yapeo a Franko Val*», «Plin - Raul Tovar», «Franko Val*» → { beneficiario, cel3 }.
+export function beneficiarioDeDescripcion(descripcion) {
+  const texto = String(descripcion ?? '').trim();
+  const cel3 = /\*{2,}\s*(\d{3})\b/.exec(texto)?.[1] ?? '';
+  const nombre = texto
+    .replace(/^(?:yapeo|yape|plineo|plin)\s*(?:a|para|-)?\s*(?:n[uú]mero\s*)?/i, '')
+    .replace(/[*\s]*\d{3}\s*$/, '')
+    .replace(/^[*\s]+/, '')
+    .trim();
+  return { beneficiario: /[a-záéíóúñ]{2,}/i.test(nombre) ? nombre : '', cel3 };
 }
