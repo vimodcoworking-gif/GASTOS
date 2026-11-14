@@ -690,6 +690,7 @@ function chipEstado(mov) {
 
 // Iconos de línea (SVG, 24×24) que toman el color del texto.
 const TRAZOS_ICONO = {
+  diseno: '<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/>',
   movil: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
   enviar: '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>',
   tarjeta: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/>',
@@ -1253,10 +1254,12 @@ function pintarMes({ actual, proximo, pendientes }) {
   }));
   const mayorSemana = Math.max(1, ...semana.map((d) => d.total));
 
-  return [
-    // En PC la tarjeta principal y las tres de totales van lado a lado; en tableta y teléfono, una debajo de otra.
-    h('div', { class: 'cabecera-mes' },
-    h('section', { class: 'heroe' },
+  // Diseño de la pantalla de inicio elegido por la persona (o el que mejor le va, en «automático»).
+  const recomendado = disenoRecomendado(actual, pendientesVista);
+  const diseno = disenoActual(recomendado);
+
+  const heroe =
+    h('section', { class: `heroe ${diseno === 'simple' ? 'heroe-simple' : ''}` },
       h('div', { class: 'heroe-nav' },
         h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(moverMes(estado.mes, -1)), 'aria-label': 'Mes anterior' }, icono('flecha-izq')),
         h('div', { class: 'mes-pildora' }, icono('calendario'), h('h2', { class: 'capital', title: nombreMes(estado.mes) },
@@ -1264,6 +1267,7 @@ function pintarMes({ actual, proximo, pendientes }) {
         h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(siguiente), 'aria-label': 'Mes siguiente' }, icono('flecha')),
         h('span', { class: 'espacio' }),
         estado.mes !== mesActual && h('button', { type: 'button', class: 'pildora-suave', onclick: () => irAMes(mesActual) }, 'Hoy'),
+        h('button', { type: 'button', class: 'circulo', title: 'Cambiar el diseño de la pantalla de inicio', 'aria-label': 'Diseño de inicio', onclick: () => elegirDiseno(recomendado) }, icono('diseno')),
         h('button', { type: 'button', class: 'circulo', title: 'Descargar el informe de este mes en PDF', 'aria-label': 'Descargar PDF del mes', onclick: () => descargarPdf(...rangoDeMes(estado.mes)) }, icono('descargar')),
       ),
       h('div', { class: 'heroe-cuerpo' },
@@ -1294,9 +1298,10 @@ function pintarMes({ actual, proximo, pendientes }) {
         h('button', { type: 'button', class: 'pildora captura', onclick: elegirCaptura, title: 'Sube la captura de «Movimientos» de Yape, Plin o del banco, una constancia o una boleta' },
           icono('imagen'), h('span', { class: 'texto-largo' }, 'Subir captura de Yape, Plin o del banco'), h('span', { class: 'texto-corto' }, 'Subir captura de Yape o banco')),
       ),
-    ),
+    );
 
-    h('div', { class: 'tarjetas tres con-balance' },
+  const tarjetasMes =
+    h('div', { class: `tarjetas tres con-balance ${diseno !== 'clasico' ? 'en-fila' : ''}` },
       tarjeta('Ingresos', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresos - t.ingresosPendientes)} recibido · ${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido',
         '', { icono: 'entrada', tono: 'ingreso', progreso: t.ingresos > 0 ? (t.ingresos - t.ingresosPendientes) / t.ingresos : 0 }),
       tarjeta('Gastos', dinero(t.gastos), `${dinero(t.gastos - t.gastosPendientes)} pagado · ${t.gastos > 0 ? Math.round(((t.gastos - t.gastosPendientes) / t.gastos) * 100) : 0} %`,
@@ -1306,9 +1311,9 @@ function pintarMes({ actual, proximo, pendientes }) {
         t.balance < 0 ? 'balance-negativo' : '', { icono: 'balanza', tono: 'balance' }),
       conInsignia(tarjeta('Falta por pagar', dinero(t.gastosPendientes), sinPagar.filter((m) => m.tipo === 'gasto').length ? `${sinPagar.filter((m) => m.tipo === 'gasto').length} pagos pendientes este mes` : 'Nada pendiente este mes',
         'clara', { icono: 'reloj', tono: 'pendiente' }), sinPagar.filter((m) => m.tipo === 'gasto').length),
-    ),
-    ),
+    );
 
+  const tira =
     h('button', { type: 'button', class: 'tira', onclick: () => irAMes(siguiente), title: 'Ver el mes siguiente' },
       h('span', { class: 'icono-caja' }, icono('calendario')),
       h('span', { class: 'tira-titulo' }, h('small', null, 'Próximo mes'), h('strong', { class: 'capital' }, nombreMes(siguiente, { month: 'long' }))),
@@ -1317,8 +1322,9 @@ function pintarMes({ actual, proximo, pendientes }) {
         h('span', { class: 'tira-dato' }, h('small', null, 'Gastos'), h('b', null, dinero(tp.gastos))),
         h('span', { class: 'tira-dato' }, h('small', null, 'Balance'), h('b', { class: tp.balance < 0 ? 'negativo' : '' }, dinero(tp.balance)))),
       h('span', { class: 'flecha', 'aria-hidden': 'true' }, icono('flecha')),
-    ),
+    );
 
+  const pestanas = () => [
     segmentos('mes', [
       ['calendario', 'Calendario'],
       ['pendientes', 'Pendientes', pendientesVista.length, true],
@@ -1327,6 +1333,105 @@ function pintarMes({ actual, proximo, pendientes }) {
     ]),
     secciones[estado.seccion.mes](),
   ];
+  const irASeccion = (seccion) => () => {
+    estado.seccion.mes = seccion;
+    render(true);
+  };
+
+  switch (diseno) {
+    // Resumen primero: los cuatro totales en una fila arriba, luego la tarjeta del mes.
+    case 'resumen':
+      return [tarjetasMes, heroe, ...pestanas(), tira];
+    // Pagos primero: lo que falta pagar o cobrar arriba, para no olvidar nada.
+    case 'pagos':
+      return [
+        tarjetasMes,
+        h('section', { class: 'panel inicio-panel' },
+          h('header', null,
+            h('h3', null, 'Lo que falta pagar o cobrar'),
+            h('span', { class: 'tenue' }, pendientesVista.length ? `${pendientesVista.length} ${pendientesVista.length === 1 ? 'pendiente' : 'pendientes'}` : 'todo al día')),
+          listaMovimientos(pendientesVista.slice(0, 6), editar, '¡Todo al día! No hay nada pendiente.'),
+          pendientesVista.length > 6 && h('button', { type: 'button', class: 'mini ver-mas', onclick: irASeccion('pendientes') }, `Ver los ${pendientesVista.length}`)),
+        heroe, tira, ...pestanas(),
+      ];
+    // Sencillo: balance y botones sin gráfica, los totales y los últimos movimientos.
+    case 'simple':
+      return [
+        heroe, tarjetasMes,
+        h('section', { class: 'panel inicio-panel' },
+          h('header', null, h('h3', null, 'Últimos movimientos'), h('span', { class: 'tenue' }, actual.length > 8 ? `8 de ${actual.length}` : '')),
+          listaMovimientos(ultimosMovimientos(actual, 8), editar, 'Aún no hay movimientos este mes.'),
+          actual.length > 8 && h('button', { type: 'button', class: 'mini ver-mas', onclick: irASeccion('movimientos') }, 'Ver todos')),
+        ...pestanas(), tira,
+      ];
+    // Clásico: en PC la tarjeta principal y las de totales lado a lado; en tableta y teléfono, una debajo de otra.
+    default:
+      return [h('div', { class: 'cabecera-mes' }, heroe, tarjetasMes), tira, ...pestanas()];
+  }
+}
+
+// ---------- diseño de la pantalla de inicio ----------
+
+const DISENOS = [
+  { id: 'auto', nombre: 'Automático', texto: 'Se adapta solo a ti según tus movimientos y pendientes.', bloques: ['auto'] },
+  { id: 'clasico', nombre: 'Clásico', texto: 'Tarjeta del mes con la gráfica y los totales al lado.', bloques: ['heroe-lado', 'lado', 'tabs'] },
+  { id: 'resumen', nombre: 'Resumen primero', texto: 'Ingresos, gastos, balance y pendientes de un vistazo, arriba.', bloques: ['fila', 'heroe', 'tabs'] },
+  { id: 'pagos', nombre: 'Pagos primero', texto: 'Lo que falta pagar o cobrar arriba, para no olvidar nada.', bloques: ['fila', 'lista', 'heroe'] },
+  { id: 'simple', nombre: 'Sencillo', texto: 'Sin gráfica: balance, botones y tus últimos movimientos.', bloques: ['mini', 'fila', 'lista'] },
+];
+const nombreDiseno = (id) => DISENOS.find((d) => d.id === id)?.nombre ?? '';
+
+const ultimosMovimientos = (movimientos, n) =>
+  [...movimientos].sort((a, b) => `${b.fecha} ${b.hora ?? ''}`.localeCompare(`${a.fecha} ${a.hora ?? ''}`)).slice(0, n);
+
+// El que mejor se adapta: pagos por hacer → pagos primero; muchos movimientos → resumen; pocos → sencillo.
+function disenoRecomendado(actual, pendientes) {
+  const vencidos = pendientes.filter((m) => m.fecha <= hoy()).length;
+  if (pendientes.length >= 3 || vencidos >= 1) return 'pagos';
+  if (actual.length >= 40) return 'resumen';
+  if (actual.length < 10) return 'simple';
+  return 'clasico';
+}
+
+function disenoActual(recomendado) {
+  const elegido = guardado.leer('disenoInicio');
+  return elegido && elegido !== 'auto' && DISENOS.some((d) => d.id === elegido) ? elegido : recomendado;
+}
+
+function elegirDiseno(recomendado) {
+  const elegido = guardado.leer('disenoInicio') || 'auto';
+  let dlg = $('#dlg-diseno');
+  if (!dlg) {
+    dlg = h('dialog', { id: 'dlg-diseno', class: 'dlg-diseno' });
+    document.body.append(dlg);
+  }
+  const elegir = (id) => {
+    guardado.poner('disenoInicio', id);
+    dlg.close();
+    render(true);
+    avisar(id === 'auto' ? `Diseño automático: ahora «${nombreDiseno(recomendado)}»` : `Diseño «${nombreDiseno(id)}» aplicado`);
+  };
+  dlg.replaceChildren(
+    h('h2', null, 'Diseño de inicio'),
+    h('p', { class: 'tenue' }, 'Elige cómo quieres ver tu pantalla de inicio. Puedes cambiarlo cuando quieras.'),
+    h('div', { class: 'disenos', role: 'radiogroup', 'aria-label': 'Diseños de inicio' },
+      DISENOS.map((d) => h('button', {
+        type: 'button',
+        role: 'radio',
+        'aria-checked': String(elegido === d.id),
+        class: `diseno-opcion ${elegido === d.id ? 'activo' : ''}`,
+        onclick: () => elegir(d.id),
+      },
+        h('span', { class: 'diseno-mini', 'aria-hidden': 'true' }, d.bloques.map((b) => h('span', { class: `b-${b}` }))),
+        h('span', { class: 'diseno-texto' },
+          h('strong', null, d.nombre),
+          d.id === recomendado && h('span', { class: 'chip-recomendado' }, '★ Recomendado para ti'),
+          d.id === 'auto' && h('span', { class: 'chip-ahora' }, `Ahora: ${nombreDiseno(recomendado)}`),
+          h('small', null, d.texto)),
+      ))),
+    h('div', { class: 'acciones' }, h('button', { type: 'button', onclick: () => dlg.close() }, 'Cerrar')),
+  );
+  if (!dlg.open) dlg.showModal();
 }
 
 // ---------- vista: año ----------

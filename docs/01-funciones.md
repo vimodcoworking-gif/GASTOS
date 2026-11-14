@@ -42,6 +42,20 @@ Avisan de cada movimiento registrado solo (correo, teléfono, capturas, otra per
 
 La app abierta se actualiza sola cuando entra un movimiento nuevo y muestra «🔔 Nuevo movimiento registrado». Si hay un formulario abierto, espera a que se cierre. Al volver a la app desde segundo plano también se ponen al día los datos.
 
+## Diseño de la pantalla de inicio
+
+El botón de cuadritos en la tarjeta del mes (junto a la descarga del PDF) abre **Diseño de inicio**:
+
+| Diseño | Orden |
+| --- | --- |
+| **Automático** (por defecto) | Elige solo el que mejor va con tus datos: con pagos vencidos o 3+ pendientes → Pagos primero; 40+ movimientos en el mes → Resumen primero; menos de 10 → Sencillo; si no, Clásico. Se recomienda con «★ Recomendado para ti». |
+| **Clásico** | Tarjeta del mes con la gráfica y los totales al lado, próximo mes y pestañas. |
+| **Resumen primero** | Los cuatro totales en una fila arriba, luego la tarjeta del mes y las pestañas. |
+| **Pagos primero** | Totales y la lista de lo que falta pagar o cobrar arriba, luego la tarjeta del mes. |
+| **Sencillo** | Tarjeta del mes sin gráfica, totales y los últimos 8 movimientos. |
+
+La elección se guarda en cada dispositivo.
+
 ## Apariencia
 
 - Tema claro (por defecto) u oscuro desde el menú ☰ → **Modo oscuro**.
