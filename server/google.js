@@ -179,6 +179,52 @@ rutasGoogle.post('/gmail/revisar', requiereSesion, async (req, res) => {
 });
 
 // Los últimos correos revisados y qué se hizo con cada uno, para saber por qué un aviso no aparece.
+// Diagnóstico de las últimas 24 horas: qué avisos de pago hay en cada Gmail y qué pasó con cada uno,
+// si la IA y el bot de WhatsApp funcionan, y lo último que llegó del teléfono.
+rutasGoogle.get('/gmail/diagnostico', requiereSesion, async (req, res) => {
+  const usuario = await Usuario.findById(req.usuario.id);
+  const [{ iaDisponible }, { AvisoRecibido }] = await Promise.all([import('./ia.js'), import('./models.js')]);
+  const ia = await iaDisponible().catch(() => ({ disponible: false }));
+  const cuentas = [];
+  for (const cuenta of cuentasDe(usuario)) {
+    const info = { email: cuenta.datos.email, activo: cuenta.datos.activo, error: cuenta.datos.error || '', ultimaRevision: cuenta.datos.ultimaRevision ?? null, avisos: [] };
+    try {
+      const autorizacion = { headers: { Authorization: `Bearer ${await accesoGmail(usuario, cuenta)}` } };
+      const lista = await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${new URLSearchParams({ q: `${FILTRO} newer_than:1d`, maxResults: '40' })}`, autorizacion);
+      for (const { id } of (lista.messages ?? []).slice(0, 40)) {
+        const mov = await Movimiento.findOne({ correoId: id, creadoPor: usuario._id }).select('tipo monto descripcion').lean();
+        const revisado = await CorreoRevisado.findById(`${usuario.id}:${id}`).lean();
+        let asunto = revisado?.asunto;
+        let remitente = revisado?.remitente;
+        if (!asunto) {
+          const meta = await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`, autorizacion).catch(() => null);
+          const cab = (n) => meta?.payload?.headers?.find((h) => h.name.toLowerCase() === n)?.value ?? '';
+          asunto = cab('subject');
+          remitente = cab('from');
+        }
+        info.avisos.push({
+          id,
+          asunto: (asunto || '(sin asunto)').slice(0, 120),
+          remitente: String(remitente ?? '').replace(/<.*>/, '').replace(/"/g, '').trim().slice(0, 60),
+          estado: mov ? 'registrado' : revisado ? 'descartado' : 'pendiente',
+          detalle: mov ? `${mov.tipo === 'ingreso' ? '+' : '−'}${mov.monto.toFixed(2)} · ${mov.descripcion}` : revisado?.resultado ?? 'Aún no se revisó (se revisará en la próxima vuelta)',
+        });
+      }
+    } catch (err) {
+      info.error = info.error || `No se pudo leer este Gmail: ${err.message}`;
+    }
+    cuentas.push(info);
+  }
+  const ultimosEnvios = await AvisoRecibido.find({ usuario: usuario._id }).sort({ cuando: -1 }).limit(5).lean();
+  res.json({
+    ia: { disponible: Boolean(ia.disponible) },
+    whatsapp: { conectado: whatsappConectado(), numero: Boolean(usuario.whatsapp) },
+    minutos: config.minutosGmail,
+    cuentas,
+    telefono: ultimosEnvios.map((a) => ({ cuando: a.cuando, origen: a.origen, resultado: a.resultado, ok: a.ok })),
+  });
+});
+
 rutasGoogle.get('/gmail/revisados', requiereSesion, async (req, res) => {
   const lista = await CorreoRevisado.find({ usuario: req.usuario.id }).sort('-cuando').limit(40).lean();
   res.json({
@@ -497,18 +543,17 @@ async function interpretar(correo, monedaLibro, titular, nombre = '', whatsapp =
   // Correos de Yape: se leen campo por campo (más rápido y sin errores de quién pagó a quién).
   const deYape = leerCorreoYape(correo, nombre, whatsapp);
   if (deYape) return deYape;
-  let gasto = await leerGastoDeCorreo(correo, titular);
   const esGasto = (g) => g?.tipo === 'gasto' || g?.esGasto === true;
-  // Un aviso de consumo con tarjeta inequívoco se registra aunque la IA diga otra cosa.
-  if (!esGasto(gasto)) gasto = avisoDeConsumo(correo) ?? gasto;
-  // Los avisos de Yape y Plin («Yapeaste S/ 25 a…», «JUAN te envió un pago por S/ 10») se reconocen aunque la IA dude.
-  if (!esGasto(gasto) && gasto?.tipo !== 'ingreso' && /yape|plin/i.test(`${correo.remitente} ${correo.asunto}`)) {
-    const aviso = leerAvisoDePago(`${correo.asunto}\n${correo.texto}`, { app: correo.remitente });
-    if (aviso) gasto = { ...aviso, fecha: correo.fecha };
+  // Primero los lectores fijos (sin IA): los avisos con formato conocido se registran siempre, de cualquier
+  // monto, aunque la IA esté caída o se equivoque. La IA queda para los correos que ninguno reconoce.
+  const dePago = /yape|plin/i.test(`${correo.remitente} ${correo.asunto} ${correo.texto.slice(0, 300)}`)
+    ? leerAvisoDePago(`${correo.asunto}\n${correo.texto}`, { app: correo.remitente }) : null;
+  let gasto = avisoDeConsumo(correo) ?? (dePago && { ...dePago, fecha: correo.fecha }) ?? avisoFinancieroSinIa(correo);
+  if (!gasto) {
+    // Si la IA falla, el error sube: el correo no se marca como visto y se vuelve a intentar en la próxima revisión.
+    gasto = await leerGastoDeCorreo(correo, titular);
+    gasto ??= gastoSinIa(correo); // IA desactivada
   }
-  gasto ??= gastoSinIa(correo);
-  // La IA lo descartó (o respondió algo ilegible) pero es un aviso de banco o billetera con importe: respaldo sin IA.
-  if (!esGasto(gasto) && gasto?.tipo !== 'ingreso') gasto = avisoFinancieroSinIa(correo) ?? gasto;
   // «esGasto» es el formato anterior de la respuesta; se sigue aceptando.
   let tipo = gasto?.tipo === 'ingreso' ? 'ingreso' : esGasto(gasto) ? 'gasto' : null;
   if (!tipo) return null;

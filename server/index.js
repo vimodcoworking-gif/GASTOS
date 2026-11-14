@@ -79,7 +79,8 @@ conectar()
       .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados))
       .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez))
       .then(() => corregirUnaVez('correccion:yapes-correo-v3', corregirYapesDeCorreo))
-      .then(() => corregirUnaVez('limpieza:registros-correo-v1', () => revisarRegistrosDeCorreo(new Date('2026-11-14T00:05:00Z'))));
+      .then(() => corregirUnaVez('limpieza:registros-correo-v1', () => revisarRegistrosDeCorreo(new Date('2026-11-14T00:05:00Z'))))
+      .then(() => corregirUnaVez('correccion:avisos-recientes-v2', () => recuperarAvisosRecientes(7)));
     iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();

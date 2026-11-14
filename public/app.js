@@ -1910,6 +1910,7 @@ function pintarCuenta() {
           correos.map(tarjetaCorreo),
           h('div', { class: 'acciones' },
             correos.some((c) => c.activo) && h('button', { type: 'button', class: 'primario', onclick: revisar }, 'Revisar ahora'),
+            h('button', { type: 'button', onclick: abrirDiagnostico }, 'Diagnóstico de hoy'),
             correos.length < MAX_CORREOS && h('button', { type: 'button', onclick: vincular }, '+ Añadir otro correo'),
           ),
           correos.length < MAX_CORREOS && h('p', { class: 'tenue nota' }, `Hasta ${MAX_CORREOS} cuentas de Gmail.`),
@@ -3193,6 +3194,51 @@ function tutorialAtajoUnaVez() {
   if (guardado.leer('tutorial-atajo-v2')) return;
   guardado.poner('tutorial-atajo-v2', '1');
   abrirTutorialAtajo();
+}
+
+// ---------- diagnóstico de los registros automáticos ----------
+// Muestra qué avisos de pago hay hoy en cada Gmail y qué pasó con cada uno, y si la IA, el bot y el teléfono
+// están funcionando: así se ve dónde se pierde un movimiento.
+async function abrirDiagnostico() {
+  ventana([h('h2', null, 'Diagnóstico de hoy'), h('p', { class: 'tenue' }, 'Revisando tu Gmail…'), h('div', { class: 'cargando-captura' }, h('span'), h('span'), h('span'))], { ancho: 'dlg-diagnostico' });
+  let d;
+  try {
+    d = await api('/auth/google/gmail/diagnostico');
+  } catch (err) {
+    ventana([h('h2', null, 'Diagnóstico de hoy'), h('p', { class: 'error' }, err.message)], { ancho: 'dlg-diagnostico' });
+    return;
+  }
+  const estado = (ok, si, no) => h('li', { class: ok ? 'ok' : 'falla' }, h('span', { class: 'historial-icono', 'aria-hidden': 'true' }, ok ? '✓' : '!'), h('span', null, ok ? si : no));
+  const reintentar = (id, boton) => intentar(async () => {
+    boton.disabled = true;
+    boton.textContent = 'Revisando…';
+    const { nuevos, resultado } = await api(`/auth/google/gmail/revisados/${encodeURIComponent(id)}/reintentar`, { method: 'POST' });
+    avisar(nuevos ? 'Registrado' : resultado || 'No se registró');
+    abrirDiagnostico();
+  });
+  const totalAvisos = d.cuentas.reduce((s, c) => s + c.avisos.length, 0);
+  const registrados = d.cuentas.reduce((s, c) => s + c.avisos.filter((x) => x.estado === 'registrado').length, 0);
+  ventana([
+    h('h2', null, 'Diagnóstico de hoy'),
+    h('p', { class: 'tenue' }, `Últimas 24 horas: ${totalAvisos} avisos de pago en tu Gmail, ${registrados} registrados.`),
+    h('ul', { class: 'diagnostico-estado historial-avisos' },
+      estado(d.ia.disponible, 'IA activa: lee capturas y correos poco comunes.', 'IA desactivada: activa la IA en Admin → IA para leer capturas y correos poco comunes.'),
+      estado(d.cuentas.length > 0, `Gmail vinculado: se revisa cada ${d.minutos} minutos.`, 'No hay Gmail vinculado: vincúlalo en Mi cuenta.'),
+      estado(d.whatsapp.conectado && d.whatsapp.numero, 'Bot de WhatsApp conectado y tu número guardado.', d.whatsapp.numero ? 'El bot de WhatsApp no está conectado (Admin → WhatsApp).' : 'Guarda tu número de WhatsApp en Mi cuenta.'),
+      estado(d.telefono.length > 0, `Teléfono: último envío ${d.telefono[0] ? new Date(d.telefono[0].cuando).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''} · ${d.telefono[0]?.resultado ?? ''}`, 'Del teléfono no llegó nada (atajo de iPhone o MacroDroid). Los Yapes que recibes solo llegan por ahí.')),
+    d.cuentas.map((c) => h('section', { class: 'diagnostico-cuenta' },
+      h('h3', null, c.email, !c.activo && h('small', { class: 'tenue' }, ' · en pausa')),
+      c.error && h('p', { class: 'error' }, c.error),
+      c.avisos.length
+        ? h('ul', { class: 'diagnostico-lista' }, c.avisos.map((x) => h('li', { class: `diag-${x.estado}` },
+            h('span', { class: 'estado-chip' }, x.estado === 'registrado' ? 'Registrado' : x.estado === 'descartado' ? 'Descartado' : 'Pendiente'),
+            h('span', { class: 'diag-texto' }, h('b', null, x.asunto), h('small', { class: 'tenue' }, `${x.remitente} · ${x.detalle}`)),
+            x.estado === 'descartado' && h('button', { type: 'button', class: 'mini', onclick: (ev) => reintentar(x.id, ev.currentTarget) }, 'Volver a revisar'))))
+        : h('p', { class: 'tenue nota' }, 'No hay avisos de pago en este Gmail en las últimas 24 horas.'))),
+    h('div', { class: 'acciones' },
+      h('button', { type: 'button', onclick: abrirDiagnostico }, 'Actualizar'),
+      h('button', { type: 'button', class: 'primario', onclick: () => $('#dlg-extra').close() }, 'Cerrar')),
+  ], { ancho: 'dlg-diagnostico' });
 }
 
 // ---------- render ----------

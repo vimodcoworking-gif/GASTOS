@@ -1719,3 +1719,18 @@ html { scroll-behavior: auto; }
 @media (display-mode: standalone) {
   html, body { overscroll-behavior-y: none; }
 }
+
+/* Diagnóstico de los registros automáticos */
+.dlg-extra.dlg-diagnostico { width: min(640px, calc(100vw - 24px)); }
+.dlg-diagnostico > * + * { margin-top: .8rem; }
+.diagnostico-cuenta h3 { margin: 0 0 .4rem; font-size: 1rem; overflow-wrap: anywhere; }
+.diagnostico-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.diagnostico-lista li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .6rem; align-items: center; padding: .55rem .7rem; border-radius: 12px; background: var(--t-elev); font-size: .85rem; }
+.diag-texto { display: grid; gap: .1rem; min-width: 0; }
+.diag-texto b, .diag-texto small { overflow-wrap: anywhere; }
+.diag-registrado .estado-chip { background: color-mix(in srgb, var(--lima) 35%, transparent); color: var(--t-tinta); box-shadow: none; }
+.diag-descartado .estado-chip { color: var(--rojo); }
+@media (max-width: 520px) {
+  .diagnostico-lista li { grid-template-columns: minmax(0, 1fr); }
+  .diagnostico-lista li .estado-chip { justify-self: start; }
+}
