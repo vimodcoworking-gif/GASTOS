@@ -282,7 +282,7 @@ export async function registrarMovimiento(usuario, libro, datos, extra = {}) {
       ? `${mov.descripcion}: *${mov.moneda} ${mov.montoOriginal.toFixed(2)}* (≈ ${dinero(monto)})`
       : `${mov.descripcion}: *${dinero(monto)}*`,
     `${fechaLarga(fecha)} · ${mov.categoria}${textoMedio(mov) ? ` · ${textoMedio(mov)}` : ""} · ${estado}`,
-    'Para corregirlo, responde a este mensaje: «era ingreso», «son 30», «fue ayer» o «anúlalo».',
+    '_Responde a este mensaje para corregirlo o anularlo._',
   ].join('\n');
 }
 
@@ -688,11 +688,11 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
   }
   if (repetidos.length) {
     lineas.push('', modoRepetidos === 'manual' ? '↪️ Me los acabas de mandar, no los repetí:' : '↪️ Ya estaban anotados (mismo monto y fecha), no los repetí:', ...repetidos.map((r) => `• ${r}`));
-    if (modoRepetidos !== 'manual') lineas.push('Si sí eran otros, escríbemelos (p. ej. *gasté 30 en taxi*) y los registro.');
+    if (modoRepetidos !== 'manual') lineas.push('_Si eran otros, escríbemelos y los anoto._');
   }
   if (fallos.length) lineas.push('', '⚠️ No pude registrar:', ...fallos.map((f) => `• ${f}`));
   if (!lineas.length) return 'No encontré ningún monto válido para registrar.';
-  if (hechos.length && modoRepetidos !== 'ninguno') lineas.push('', hechos.length > 1 ? 'Si algo no es correcto, responde a este mensaje (p. ej. «el de 30 era ingreso» o «anula el segundo») o escribe *deshacer* para borrarlos todos.' : 'Para corregirlo, responde a este mensaje: «era gasto», «son 30», «fue ayer» o «anúlalo».');
+  if (hechos.length && modoRepetidos !== 'ninguno') lineas.push('', hechos.length > 1 ? '_Responde a este mensaje para corregir o anular («el de 30 era ingreso», «anula el segundo»), o escribe *deshacer*._' : '_Responde a este mensaje para corregirlo o anularlo._');
   return lineas.join('\n').trim();
 }
 
