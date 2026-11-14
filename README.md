@@ -1,4 +1,4 @@
-# N.F.T.A Gastos
+# DUOLAB Gastos
 
 > **Documentación completa:** carpeta [`docs/`](docs/README.md) — funciones, registro automático (Gmail, Yape, iPhone, Android, WhatsApp), guías, administración, arquitectura, despliegue, mantenimiento, solución de problemas e historial de cambios.
 
