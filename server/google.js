@@ -407,16 +407,24 @@ const NO_ES_MOVIMIENTO = /estado de cuenta|pago m[ií]nimo|vence|vencimiento|rec
  * Respaldo sin IA: un aviso de un banco o billetera con importe y una palabra de operación se registra
  * aunque la IA lo haya descartado o no haya respondido bien. Ingreso si habla de dinero recibido.
  */
+// Frases que dicen sin duda que se hizo una operación (no basta con que el correo hable de pagos).
+const OPERACION_EXPLICITA = /(realizaste (?:un |una )?(?:consumo|compra|pago|yapeo|plineo|transferencia|retiro)|compraste|pagaste|transferiste|yapeaste|plineaste|enviaste (?:un |una )?(?:yape|plin|transferencia|dinero)|recibiste (?:un |una )?(?:abono|dep[oó]sito|yape|plin|transferencia|pago)|te (?:yapearon|plinearon|transfirieron|depositaron|enviaron)|(?:consumo|compra|pago) (?:aprobad[ao]|realizad[ao]|exitos[ao]))/i;
+// Movimientos de deuda, pagos de la propia tarjeta o entre cuentas propias: nunca se registran solos.
+const NUNCA_SIN_IA = /compra de deuda|traslado de (?:saldo|deuda)|consolidaci[oó]n|pago (?:de|a) (?:tu |su )?tarjeta|pago de (?:tu |su )?(?:cuota|pr[eé]stamo|cr[eé]dito|deuda)|desembolso|efectivo preferente|disposici[oó]n de efectivo|entre (?:tus|mis|sus) cuentas|cuentas? propias?|ampliaci[oó]n de l[ií]nea|l[ií]nea de cr[eé]dito/i;
+// Un importe alto sin confirmación de la IA es demasiado arriesgado: lo decide la IA.
+const MAXIMO_SIN_IA = 3000;
+
 export function avisoFinancieroSinIa(correo) {
   if (!FINANCIERO.test(`${correo.remitente} ${correo.asunto}`)) return null;
   if (NO_ES_MOVIMIENTO.test(correo.asunto)) return null;
   const todo = `${correo.asunto}\n${correo.texto}`;
   const inicio = todo.slice(0, 900);
-  if (!/(consumo|consumiste|compra|compraste|pago|pagaste|cargo|transferencia|transferiste|abono|abonamos|dep[oó]sito|depositaron|recibiste|yape|plin|retiro|operaci[oó]n|constancia|env[ií]o|enviaste)/i.test(inicio)) return null;
+  if (NUNCA_SIN_IA.test(todo.slice(0, 2000))) return null;
+  if (!OPERACION_EXPLICITA.test(inicio)) return null;
   const importe = new RegExp(`${SIMBOLO}\\s?${NUMERO}`, 'i').exec(inicio) ?? new RegExp(`${SIMBOLO}\\s?${NUMERO}`, 'i').exec(todo);
   if (!importe) return null;
   const { monto, moneda } = leerImporte(importe[1], importe[2]);
-  if (!(monto > 0)) return null;
+  if (!(monto > 0) || monto > MAXIMO_SIN_IA) return null;
   const ingreso = /(recibiste|te (?:yapearon|plinearon|transfirieron|depositaron|enviaron)|abono|abonamos|dep[oó]sito (?:a|en) tu|haberes|sueldo|remuneraci[oó]n|devoluci[oó]n|reembolso|extorno)/i.test(inicio);
   // Comercio o persona: «en COMERCIO», «a NOMBRE», «de NOMBRE»; si no, el asunto.
   // (sin importes como «S/ 1,200» y sin la coletilla «con tu tarjeta», «por Plin»…)
@@ -599,15 +607,17 @@ async function yaRegistrado(libro, datos) {
     return await Movimiento.findOne({ libro: libro._id, huella: datos.huella }).select('descripcion fecha').lean()
       ?? Movimiento.findOne({ libro: libro._id, tipo: datos.tipo, monto: Math.round(datos.monto * 100) / 100, huella: { $exists: false }, correoId: { $exists: false }, fecha: { $gte: new Date(fecha), $lt: new Date(fecha + DIA) } }).select('descripcion fecha').lean();
   }
-  // Solo cuenta como el mismo un movimiento anotado por otro camino (a mano, WhatsApp, captura): otro correo
-  // con el mismo monto es otra operación (dos cargos de S/ 2 el mismo día son dos).
-  return Movimiento.findOne({
+  // Un movimiento anotado por otro camino (a mano, WhatsApp, captura) con el mismo monto es el mismo.
+  // Otro correo con el mismo monto solo si la descripción se parece (dos avisos del mismo pago);
+  // dos cargos distintos de S/ 2 el mismo día son dos.
+  const candidatos = await Movimiento.find({
     libro: libro._id,
     tipo: datos.tipo,
-    correoId: { $exists: false },
     ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: Math.round(datos.monto * 100) / 100 }),
     fecha: { $gte: new Date(fecha - DIA), $lte: new Date(fecha + DIA) },
-  }).select('descripcion fecha').lean();
+  }).select('descripcion fecha correoId').limit(20).lean();
+  const clave = (t) => String(t ?? '').normalize('NFD').replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 6);
+  return candidatos.find((c) => !c.correoId || clave(c.descripcion) === clave(datos.descripcion)) ?? null;
 }
 
 // Lee un correo y registra el gasto o ingreso que avise, anotando en «resultado» lo hecho.
@@ -1030,3 +1040,60 @@ export async function corregirYapesDeCorreo({ soloPendientes = false, dias = 30,
 
 /** Avisos de bancos y billeteras de los últimos días que no se registraron: se vuelven a leer (con respaldo sin IA). */
 export const recuperarAvisosRecientes = (dias = 7) => corregirYapesDeCorreo({ soloPendientes: true, dias, q: FILTRO });
+
+/**
+ * Una vez: vuelve a decidir, con la lógica corregida, los movimientos registrados desde el correo desde
+ * «desde». Borra los que no son un movimiento hecho (deudas, pagos de tarjeta, estados de cuenta…), corrige
+ * tipo o monto, y quita los duplicados de algo que ya estaba anotado antes.
+ */
+export async function revisarRegistrosDeCorreo(desde) {
+  let cambios = 0;
+  const movimientos = await Movimiento.find({ correoId: { $exists: true }, createdAt: { $gte: desde } }).sort({ createdAt: 1 }).limit(3000);
+  const usuarios = new Map();
+  for (const mov of movimientos) {
+    const clave = String(mov.creadoPor);
+    if (!usuarios.has(clave)) usuarios.set(clave, await Usuario.findById(mov.creadoPor));
+    const usuario = usuarios.get(clave);
+    if (!usuario) continue;
+    const libro = await Libro.findById(mov.libro).select('moneda').lean();
+    let correo = null;
+    for (const cuenta of cuentasDe(usuario)) {
+      try {
+        const autorizacion = { headers: { Authorization: `Bearer ${await accesoGmail(usuario, cuenta)}` } };
+        correo = leerMensaje(await pedirGoogle(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${mov.correoId}?format=full`, autorizacion));
+        break;
+      } catch {
+        // No está en esta cuenta: se prueba la siguiente.
+      }
+    }
+    if (!correo) continue;
+    let datos;
+    try {
+      datos = await interpretar(correo, libro?.moneda ?? 'PEN', titularDe(usuario), usuario.nombre, usuario.whatsapp);
+    } catch {
+      continue; // la IA no respondió: se deja como está
+    }
+    if (!datos) {
+      await mov.deleteOne();
+      cambios += 1;
+      continue;
+    }
+    if (datos.tipo !== mov.tipo || Math.abs(datos.monto - mov.monto) > 0.009) {
+      Object.assign(mov, { tipo: datos.tipo, monto: datos.monto, descripcion: datos.descripcion });
+      await mov.save();
+      cambios += 1;
+    }
+    // ¿Ya estaba anotado antes por otro camino o por otro correo del mismo pago?
+    const dia = new Date(mov.fecha);
+    const anterior = await Movimiento.findOne({
+      _id: { $ne: mov._id }, libro: mov.libro, tipo: mov.tipo, monto: mov.monto,
+      fecha: { $gte: new Date(dia.getTime() - DIA), $lte: new Date(dia.getTime() + DIA) }, createdAt: { $lt: mov.createdAt },
+    }).select('descripcion correoId').lean();
+    const parecida = (a, b) => String(a ?? '').normalize('NFD').replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 6) === String(b ?? '').normalize('NFD').replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 6);
+    if (anterior && (!anterior.correoId || parecida(anterior.descripcion, mov.descripcion))) {
+      await mov.deleteOne();
+      cambios += 1;
+    }
+  }
+  return cambios;
+}

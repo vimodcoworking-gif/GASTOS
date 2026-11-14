@@ -11,7 +11,7 @@ import { rutasAdmin } from './admin.js';
 import { rutasApi } from './routes.js';
 import { manejarErrores } from './errores.js';
 import { reanudarWhatsapp, pararWhatsapp } from './whatsapp.js';
-import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail, corregirYapesDeCorreo, recuperarAvisosRecientes } from './google.js';
+import { rutasGoogle, iniciarRevisionGmail, pararRevisionGmail, corregirYapesDeCorreo, recuperarAvisosRecientes, revisarRegistrosDeCorreo } from './google.js';
 import { prepararLicencias } from './licencias.js';
 import { rutasAvisos } from './avisos.js';
 import { iniciarRecordatorios } from './recordatorios.js';
@@ -79,7 +79,7 @@ conectar()
       .then(() => corregirUnaVez('correccion:yapeos-enviados', corregirYapeosEnviados))
       .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez))
       .then(() => corregirUnaVez('correccion:yapes-correo-v3', corregirYapesDeCorreo))
-      .then(() => corregirUnaVez('correccion:avisos-recientes-v1', () => recuperarAvisosRecientes(10)));
+      .then(() => corregirUnaVez('limpieza:registros-correo-v1', () => revisarRegistrosDeCorreo(new Date('2026-11-14T00:05:00Z'))));
     iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();
