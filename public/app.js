@@ -604,6 +604,7 @@ function pintarRepeticion() {
   ].filter(Boolean).join(' ');
 }
 
+$('#diseno-inicio').addEventListener('click', () => elegirDiseno(disenoSugerido));
 $('#nuevo-rapido').addEventListener('click', () => abrirMovimiento(null, estado.vista === 'mes' ? estado.dia : null));
 
 $('#mov-eliminar').addEventListener('click', () => {
@@ -1256,6 +1257,7 @@ function pintarMes({ actual, proximo, pendientes }) {
 
   // Diseño de la pantalla de inicio elegido por la persona (o el que mejor le va, en «automático»).
   const recomendado = disenoRecomendado(actual, pendientesVista);
+  disenoSugerido = recomendado;
   const diseno = disenoActual(recomendado);
 
   const heroe =
@@ -1267,7 +1269,6 @@ function pintarMes({ actual, proximo, pendientes }) {
         h('button', { type: 'button', class: 'circulo', onclick: () => irAMes(siguiente), 'aria-label': 'Mes siguiente' }, icono('flecha')),
         h('span', { class: 'espacio' }),
         estado.mes !== mesActual && h('button', { type: 'button', class: 'pildora-suave', onclick: () => irAMes(mesActual) }, 'Hoy'),
-        h('button', { type: 'button', class: 'circulo', title: 'Cambiar el diseño de la pantalla de inicio', 'aria-label': 'Diseño de inicio', onclick: () => elegirDiseno(recomendado) }, icono('diseno')),
         h('button', { type: 'button', class: 'circulo', title: 'Descargar el informe de este mes en PDF', 'aria-label': 'Descargar PDF del mes', onclick: () => descargarPdf(...rangoDeMes(estado.mes)) }, icono('descargar')),
       ),
       h('div', { class: 'heroe-cuerpo' },
@@ -1371,6 +1372,10 @@ function pintarMes({ actual, proximo, pendientes }) {
 }
 
 // ---------- diseño de la pantalla de inicio ----------
+
+// El que recomienda el último mes pintado (para el botón de la barra de arriba). «var»: se usa antes de
+// que termine de cargar el módulo.
+var disenoSugerido = 'clasico';
 
 const DISENOS = [
   { id: 'auto', nombre: 'Automático', texto: 'Se adapta solo a ti según tus movimientos y pendientes.', bloques: ['auto'] },
@@ -3397,6 +3402,7 @@ async function render(reutilizar = false) {
   sincronizarHistorial();
   $('#titulo-libro').textContent = libro ? `${libro.nombre} · ${libro.moneda}` : '';
   $('#nuevo-rapido').hidden = !puedeEditar() || estado.vista === 'admin' || estado.vista === 'cuenta';
+  $('#diseno-inicio').hidden = !libro || estado.vista !== 'mes';
 
   if (!libro && estado.vista !== 'admin' && estado.vista !== 'cuenta') {
     cont.replaceChildren(h('p', { class: 'vacio' }, 'No tienes ningún libro. Abre el menú y crea uno con «+ Nuevo libro».'));

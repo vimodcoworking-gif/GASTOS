@@ -1581,6 +1581,10 @@ button.circulo.pequeno .icono { width: 17px; height: 17px; }
   .tel-fila { padding: .4rem .6rem; }
 }
 #nuevo-rapido { white-space: nowrap; flex: none; }
+/* Botón de diseño de inicio, al lado de «+ Nuevo». */
+#diseno-inicio { flex: none; margin-left: auto; width: 42px; height: 42px; min-height: 42px; }
+#diseno-inicio .icono { width: 19px; height: 19px; }
+#diseno-inicio[hidden] { display: none; }
 @media (max-width: 360px) {
   #titulo-libro { display: none; }
   .barra { gap: .5rem; }
@@ -1794,11 +1798,6 @@ html, body { overflow-x: clip; }
   .diseno-mini { width: 52px; }
   .diseno-opcion { gap: .7rem; padding: .65rem .7rem; }
 }
-/* Teléfonos pequeños: con el botón de diseño hay 4 botones redondos en la cabecera de la tarjeta. */
 @media (max-width: 400px) {
-  .heroe-nav { gap: .3rem; }
-  .heroe-nav button.circulo { width: 36px; height: 36px; min-height: 36px; }
-  .heroe-nav button.circulo .icono { width: 17px; height: 17px; }
-  .heroe-nav .pildora-suave { padding: .35rem .6rem; font-size: .8rem; }
-  .mes-pildora { padding: .38rem .55rem; }
+  #diseno-inicio { width: 38px; height: 38px; min-height: 38px; }
 }

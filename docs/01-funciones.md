@@ -44,7 +44,7 @@ La app abierta se actualiza sola cuando entra un movimiento nuevo y muestra «�
 
 ## Diseño de la pantalla de inicio
 
-El botón de cuadritos en la tarjeta del mes (junto a la descarga del PDF) abre **Diseño de inicio**:
+El botón de cuadritos de la barra de arriba (al lado de «+ Nuevo», solo en Mes) abre **Diseño de inicio**:
 
 | Diseño | Orden |
 | --- | --- |
