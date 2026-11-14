@@ -1,5 +1,8 @@
 # N.F.T.A Gastos
 
+> **Documentación completa:** carpeta [`docs/`](docs/README.md) — funciones, registro automático (Gmail, Yape, iPhone, Android, WhatsApp), guías, administración, arquitectura, despliegue, mantenimiento, solución de problemas e historial de cambios.
+
+
 Aplicación web para llevar las finanzas personales o compartidas: gastos, ingresos, pagos pendientes y previsión de los meses siguientes. Tiene cuentas de usuario, libros que se pueden compartir, informes en PDF, un bot de WhatsApp con inteligencia artificial opcional y se puede instalar como app en el móvil o el ordenador.
 
 ## Contenido

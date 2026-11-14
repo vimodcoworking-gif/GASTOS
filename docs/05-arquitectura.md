@@ -1,0 +1,125 @@
+# 05 · Arquitectura
+
+## Tecnologías
+
+| Parte | Tecnología |
+| --- | --- |
+| Servidor | Node.js ≥ 20, Express 5, módulos ES |
+| Base de datos | MongoDB (Atlas) con Mongoose 8 |
+| WhatsApp | Baileys (WhatsApp Web) |
+| IA | Anthropic SDK (Claude) o API de NVIDIA; Whisper (Groq/OpenAI) para audios |
+| Imágenes | sharp (reducir capturas antes de la IA) |
+| PDF | pdfkit (informes) y unpdf 1.8.1 (leer PDF) |
+| Notificaciones | web-push con claves VAPID |
+| Seguridad | helmet, express-rate-limit, sesiones JWT en cookie, contraseñas con bcrypt |
+| App | Una página en JavaScript sin framework (`public/app.js`), service worker (`public/sw.js`), manifiesto PWA |
+
+## Cómo encajan las partes
+
+```mermaid
+flowchart TB
+  subgraph Cliente
+    APP[App web / PWA\npublic/app.js + sw.js]
+  end
+  subgraph Servidor[Servidor Express · server/index.js]
+    API[API /api\nroutes.js, auth.js, extras.js]
+    AV[Avisos del teléfono\navisos.js]
+    GM[Gmail\ngoogle.js + yape.js]
+    WA[Bot WhatsApp\nwhatsapp.js + bot.js]
+    IA[IA\nia.js + imagen.js]
+    EV[Tiempo real\neventos.js SSE]
+    PU[Push\npush.js]
+    RE[Recordatorios\nrecordatorios.js]
+    MA[Mantenimiento\nmantenimiento.js]
+  end
+  DB[(MongoDB)]
+  APP <--> API
+  APP <-. eventos .- EV
+  AV --> IA
+  GM --> IA
+  WA --> IA
+  API --> DB
+  AV --> DB
+  GM --> DB
+  WA --> DB
+  DB -. cambios .-> EV
+  RE --> WA
+  RE --> PU
+  GM --> PU
+  AV --> PU
+```
+
+## Módulos del servidor (`server/`)
+
+| Archivo | Qué hace |
+| --- | --- |
+| `index.js` | Arranque: Express, cabeceras, rutas, conexión a la base, correcciones únicas y tareas periódicas. `/api/version`. |
+| `config.js` | Lee las variables de entorno. |
+| `db.js` | Conexión a MongoDB (o una local si no hay datos). |
+| `models.js` | Esquemas y colecciones (tabla abajo). Avisa a `eventos.js` cuando cambian los movimientos. |
+| `auth.js` | Registro, entrada, sesión, perfil, recuperación de contraseña, recordatorio por persona. |
+| `routes.js` | Libros, movimientos, mes, pendientes, resumen, miembros, informe PDF, envíos, capturas, IA en la app. |
+| `extras.js` | Metas de ahorro y categorías con presupuesto. |
+| `google.js` | Entrar con Google, vincular Gmail, revisión cada 3 min, escaneo, correos revisados, lectores sin IA, recuperación de avisos. |
+| `yape.js` | Lector exacto de correos de Yape y registro al beneficiario que usa la app. |
+| `avisos.js` | Enlace personal del teléfono: notificaciones, capturas, PDF; historial de envíos. |
+| `whatsapp.js` | Conexión del bot, mensajes entrantes (texto, foto, PDF, audio), envíos. |
+| `bot.js` | Lógica del bot: registrar, varios a la vez, corregir, anular, preguntas, huellas anti-duplicados. |
+| `ia.js` | Llamadas a Claude o NVIDIA: chat, lectura de correos, comprobantes y capturas. |
+| `imagen.js` | Reduce y comprime imágenes para la IA; extrae archivos de formularios. |
+| `medios.js` | Detecta el medio de pago (Yape, Plin, tarjeta…) y el banco. |
+| `recordatorios.js` | Recordatorios de pago por WhatsApp y push. |
+| `push.js` | Claves VAPID, suscripciones y envío de notificaciones. |
+| `eventos.js` | Canal en tiempo real (Server-Sent Events) hacia la app abierta. |
+| `mantenimiento.js` | Compactación, limpieza diaria y tamaños por colección. |
+| `informe.js` | Genera el PDF con el logo. |
+| `cambio.js` | Tipo de cambio para cobros en otra moneda. |
+| `correo.js` | Envío de correos (Cloudflare, Brevo o SMTP). |
+| `licencias.js` | Comprobación de licencias de VIMOD. |
+| `admin.js` | Rutas del panel Admin. |
+| `errores.js` | Errores HTTP y validación de textos. |
+
+## Colecciones de la base de datos
+
+| Colección | Guarda | Caducidad |
+| --- | --- | --- |
+| `usuarios` | Cuentas, WhatsApp, Gmail vinculados (tokens cifrados), enlace de avisos, ajuste de recordatorios | — |
+| `libros` | Libros, moneda, miembros y categorías con presupuesto | — |
+| `movimientos` | Gastos e ingresos (con medio, banco, recordatorio, huella, correo de origen) | — |
+| `metas` | Metas de ahorro con sus aportes | — |
+| `suscripcionpushes` | Dispositivos con notificaciones activadas | — |
+| `ajustes` | Ajustes del administrador, claves VAPID, correcciones ya hechas | — |
+| `sesionwas` | Sesión y claves del bot de WhatsApp | — |
+| `correovistos` | Correos ya revisados, avisos y capturas ya recibidos | 45 días |
+| `correorevisados` | Qué se decidió con cada correo | 8 días |
+| `mensajebots` | Mensajes del bot y los movimientos que confirman (para corregir respondiendo) | 45 días |
+| `avisorecibidos` | Últimos envíos al enlace personal | 7 días |
+
+## API (resumen)
+
+Todas bajo `/api`, con sesión salvo las indicadas.
+
+| Prefijo | Rutas principales |
+| --- | --- |
+| `/auth` | `POST registro, login, logout, olvide, restablecer` · `GET/PATCH yo` |
+| `/auth/google` | Entrar con Google, `callback`, `estado`; `gmail` (vincular, pausar, desvincular), `gmail/revisar`, `gmail/escanear`, `gmail/revisados` |
+| `/libros` | `GET/POST /libros`; en `/libros/:id`: `mes`, `movimientos`, `pendientes`, `resumen`, `miembros`, `informe.pdf`, `enviar`, `capturas`, `capturas/registrar`, `metas`, `categorias` |
+| `/avisos` | `enlace` (sesión) · `historial` (sesión) · `POST /:token` (sin sesión, para el teléfono) |
+| `/push` | `clave`, `suscribir`, `prueba` |
+| `/eventos` | Canal de tiempo real (SSE) |
+| `/ia` | `estado`, `chat`, `whatsapp` |
+| `/recordatorios/prueba` | Mensaje de prueba |
+| `/admin` | `almacenamiento`, `usuarios`, `whatsapp`, `ia` (solo administradores) |
+| `/version` | Versión publicada (sin sesión) |
+
+## App web (`public/`)
+
+| Archivo | Qué es |
+| --- | --- |
+| `index.html` | Estructura, menú, formularios y barra inferior |
+| `app.js` | Toda la lógica: vistas, gráficas, ventanas, instalación, notificaciones, gestos, tiempo real |
+| `styles.css` | Estilos por capas (tema claro y oscuro, adaptación a cada ancho) |
+| `sw.js` | Service worker: abre al instante desde la copia guardada, se actualiza por detrás y recibe notificaciones. La versión de caché (`nfta-gastos-vNN`) sube en cada cambio. |
+| `manifest.webmanifest` | Nombre, iconos y colores de la app instalada |
+| `logo-duolab*.png`, `icons/`, `favicon.ico` | Logos e iconos |
+| `privacidad.html`, `terminos.html` | Páginas legales |
