@@ -46,4 +46,4 @@ La app abierta se actualiza sola cuando entra un movimiento nuevo y muestra «�
 
 - Tema claro (por defecto) u oscuro desde el menú ☰ → **Modo oscuro**.
 - Diseño adaptado de 320 px (teléfonos pequeños) a 1920 px (monitores).
-- En el teléfono hay barra de navegación inferior: Mes, Metas, Categorías, Asistente y Más.
+- En teléfono y tableta, la **barra inferior** es la navegación principal (Mes, Metas, Categorías, Asistente) y **Más** abre el menú solo con lo que no está en la barra (Año, Informe PDF, Compartir, Mi cuenta, tema, libro, cerrar sesión). En PC no hay barra inferior y el menú ☰ tiene todas las secciones.

@@ -1734,3 +1734,19 @@ html { scroll-behavior: auto; }
   .diagnostico-lista li { grid-template-columns: minmax(0, 1fr); }
   .diagnostico-lista li .estado-chip { justify-self: start; }
 }
+
+/* ---------- Nada ensancha la página (en iPhone, eso movía la barra inferior) ---------- */
+html, body { overflow-x: clip; }
+@supports not (overflow: clip) { body { overflow-x: hidden; } }
+.tooltip { max-width: 100%; box-sizing: border-box; }
+.tooltip div { white-space: normal; flex-wrap: wrap; }
+.linea-marco, .grafica-linea { max-width: 100%; }
+
+/* ---------- Teléfono y tableta: la barra inferior es la navegación principal ----------
+   El menú (botón «Más») solo muestra lo que no está en la barra, y el botón ☰ de arriba se oculta. */
+@media (max-width: 900px) {
+  #abrir-menu { display: none; }
+  #pestanas [data-vista="mes"], #pestanas [data-vista="metas"], #pestanas [data-vista="categorias"], #pestanas [data-vista="asistente"] { display: none; }
+  /* La barra queda fija abajo, centrada, sin depender del desplazamiento horizontal. */
+  .nav-inferior { left: 0; right: 0; margin: 0 auto; width: max-content; max-width: calc(100vw - 24px); transform: none; }
+}

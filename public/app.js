@@ -995,9 +995,15 @@ function graficaAcumulada(movimientos, mes) {
       h('div', null, h('i', { class: 'muestra serie-ingreso' }), `Ingresos: ${dinero(ingresos[i])}`, delDia('ingreso') ? h('small', null, ` (+${dinero(delDia('ingreso'))} ese día)`) : null),
       h('div', null, h('i', { class: 'muestra serie-gasto' }), `Gastos: ${dinero(gastos[i])}`, delDia('gasto') ? h('small', null, ` (+${dinero(delDia('gasto'))} ese día)`) : null),
     );
-    // El cuadro se pone al lado contrario del puntero para no taparlo.
-    tip.style.left = fraccion > 0.55 ? 'auto' : `calc(${x(dia)}% + 12px)`;
-    tip.style.right = fraccion > 0.55 ? `calc(${100 - x(dia)}% + 12px)` : 'auto';
+    // El cuadro va al lado contrario del puntero para no taparlo, y siempre dentro de la gráfica:
+    // si se saliera de la pantalla, el teléfono ensancharía la página y movería la barra inferior.
+    tip.style.right = 'auto';
+    tip.style.left = '0px';
+    const ancho = area.clientWidth;
+    const w = Math.min(tip.offsetWidth, ancho);
+    const px = (x(dia) / 100) * ancho;
+    const izq = fraccion > 0.55 ? px - 12 - w : px + 12;
+    tip.style.left = `${Math.max(0, Math.min(ancho - w, izq))}px`;
   };
   const ocultar = () => [guia, marcaI, marcaG, tip].forEach((el) => { el.hidden = true; });
   area.addEventListener('pointermove', mostrar);
