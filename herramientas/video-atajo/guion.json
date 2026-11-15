@@ -1,0 +1,12 @@
+[
+  {"id": "intro", "texto": "Registra tus yapes en DUOLAB de forma automática en tu iPhone. Solo se configura una vez, en unos tres minutos."},
+  {"id": "como", "texto": "Así funciona: te llega un yape y tocas la notificación. Yape se abre, el iPhone toma una captura de tus movimientos y la envía a DUOLAB. En segundos queda registrado, de cualquier monto y sin duplicar."},
+  {"id": "p1a", "texto": "Paso uno. En DUOLAB entra a Mi cuenta, sección Yape, Plin y avisos del teléfono, y toca Ver tutorial. Luego toca Copiar enlace y añadir atajo."},
+  {"id": "p1b", "texto": "Se abre la app Atajos. Toca Añadir atajo. Cuando te pida tu enlace, mantén pulsado el campo y elige Pegar. Tu enlace ya está copiado."},
+  {"id": "p2a", "texto": "Paso dos. En Atajos, ve a la pestaña Automatización y toca el botón más. Luego elige App."},
+  {"id": "p2b", "texto": "Elige Yape. Deja marcado solo Se abre, y selecciona Ejecutar inmediatamente."},
+  {"id": "p2c", "texto": "Toca Siguiente y elige el atajo DUOLAB Yape. Listo, la automatización queda creada."},
+  {"id": "p3", "texto": "Paso tres. En Yape deja visibles tus movimientos. La primera vez, el iPhone te preguntará si el atajo puede conectarse. Elige Permitir siempre."},
+  {"id": "prueba", "texto": "Para comprobarlo, abre Yape, espera unos segundos y revisa en DUOLAB: Mi cuenta, Últimos envíos."},
+  {"id": "fin", "texto": "Si no hay nada nuevo, no recibirás ninguna notificación. Y los yapes que envías también llegan por tu correo, sin duplicarse. ¡Listo! Ya tienes tus yapes siempre al día."}
+]
