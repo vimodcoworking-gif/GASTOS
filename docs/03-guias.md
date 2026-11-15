@@ -26,6 +26,8 @@ Apple no deja que ninguna app lea las notificaciones de Yape. El atajo hace lo m
 
 El tutorial está dentro de la app (se abre solo una vez en iPhone, y en Mi cuenta → Yape, Plin y avisos del teléfono → **Ver tutorial**).
 
+**Video tutorial** (1:43, con voz): `public/videos/tutorial-atajo-iphone.mp4`, en https://gastos-g63s.onrender.com/videos/tutorial-atajo-iphone.mp4. En la app: botón **▶ Ver video** en Mi cuenta y en el primer paso del tutorial. Se genera con `video.py` (dibujos con Pillow, voz de Windows «Sabina», ffmpeg).
+
 ### Para el administrador: publicar el atajo una vez
 
 Apple no permite crear atajos desde una web ni generarlos en un servidor (tienen que ir firmados). Por eso se crea **una vez** en un iPhone y se comparte por iCloud; desde entonces cada usuario lo añade con un toque.

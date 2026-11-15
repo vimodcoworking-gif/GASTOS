@@ -1801,3 +1801,9 @@ html, body { overflow-x: clip; }
 @media (max-width: 400px) {
   #diseno-inicio { width: 38px; height: 38px; min-height: 38px; }
 }
+
+/* ---------- Video tutorial ---------- */
+.dlg-video { width: min(460px, calc(100vw - 32px)); }
+.video-tutorial { display: block; width: 100%; max-height: calc(100dvh - 260px); aspect-ratio: 9 / 16; margin: .75rem auto; border-radius: 18px; background: #000; object-fit: contain; }
+.boton-video { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); padding: .5rem 1.1rem; border: 0; border-radius: 999px; background: var(--lima); color: var(--sobre-lima); font-weight: 800; box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .5); white-space: nowrap; }
+.dlg-video .acciones a { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: .6rem 1.3rem; border-radius: 999px; background: var(--t-elev); color: var(--t-tinta); font-weight: 700; text-decoration: none; }

@@ -2093,7 +2093,9 @@ function seccionAvisosTelefono() {
           h('details', { class: 'instrucciones', open: esIOS },
             h('summary', null, 'iPhone: automático al abrir Yape'),
             h('p', { class: 'tenue nota' }, 'Cada vez que abres Yape (o tocas su notificación) se registran los movimientos nuevos, de cualquier monto.'),
-            h('button', { type: 'button', class: 'primario', onclick: abrirTutorialAtajo }, 'Ver tutorial'),
+            h('div', { class: 'form-linea' },
+              h('button', { type: 'button', class: 'primario', onclick: abrirTutorialAtajo }, 'Ver tutorial'),
+              h('button', { type: 'button', onclick: verVideoAtajo }, '▶ Ver video')),
           ),
         )
       : h('div', null,
@@ -3214,6 +3216,19 @@ function pantallaYape() {
       .map(([n, t, m]) => h('div', { class: 'tel-fila' }, h('span', null, h('b', null, n), h('small', null, t)), h('span', { class: 'tel-monto' }, m))));
 }
 
+// Video tutorial del atajo de iPhone (1:43, con voz).
+const VIDEO_ATAJO = '/videos/tutorial-atajo-iphone.mp4';
+function verVideoAtajo() {
+  ventana([
+    h('h2', null, 'Video: yapes automáticos en iPhone'),
+    h('video', { class: 'video-tutorial', src: VIDEO_ATAJO, poster: '/videos/tutorial-atajo-iphone.jpg', controls: true, playsinline: true, autoplay: true, preload: 'metadata' }),
+    h('p', { class: 'tenue' }, 'Paso a paso: añadir el atajo, crear la automatización «al abrir Yape» y comprobar que funciona.'),
+    h('div', { class: 'acciones' },
+      h('a', { class: 'boton-enlace al-inicio', href: VIDEO_ATAJO, download: 'DUOLAB-tutorial-yape-iphone.mp4' }, 'Descargar'),
+      h('button', { type: 'button', class: 'primario', onclick: () => abrirTutorialAtajo() }, 'Ver los pasos')),
+  ], { ancho: 'dlg-video' });
+}
+
 async function abrirTutorialAtajo() {
   let paso = 0;
   // El atajo automático manda «?silencioso=1»: solo avisa cuando registra algo nuevo.
@@ -3293,7 +3308,8 @@ async function abrirTutorialAtajo() {
       titulo: 'Tus yapes se registran solos al abrir Yape',
       texto: 'Apple no deja que ninguna app lea las notificaciones de Yape. Pero el iPhone sí puede hacer algo cada vez que abres Yape: esperar unos segundos, tomar una captura de tu lista de movimientos y enviarla a DUOLAB. Se registra todo lo nuevo, de cualquier monto, sin repetir. Se configura una vez (unos 3 minutos).',
       dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(),
-        h('div', { class: 'noti-mini' }, h('b', null, 'DUOLAB Yape'), h('span', null, '✅ 2 movimientos registrados'))),
+        h('div', { class: 'noti-mini' }, h('b', null, 'DUOLAB Yape'), h('span', null, '✅ 2 movimientos registrados')),
+        h('button', { type: 'button', class: 'boton-video', onclick: verVideoAtajo }, '▶ Ver video (1:43)')),
     },
     ...pasosAtajo,
     {
