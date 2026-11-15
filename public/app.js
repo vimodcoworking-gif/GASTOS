@@ -3217,11 +3217,11 @@ function pantallaYape() {
 }
 
 // Video tutorial del atajo de iPhone (1:43, con voz).
-const VIDEO_ATAJO = '/videos/tutorial-atajo-iphone.mp4';
+const VIDEO_ATAJO = '/videos/tutorial-atajo-iphone.mp4?v=2';
 function verVideoAtajo() {
   ventana([
     h('h2', null, 'Video: yapes automáticos en iPhone'),
-    h('video', { class: 'video-tutorial', src: VIDEO_ATAJO, poster: '/videos/tutorial-atajo-iphone.jpg', controls: true, playsinline: true, autoplay: true, preload: 'metadata' }),
+    h('video', { class: 'video-tutorial', src: VIDEO_ATAJO, poster: '/videos/tutorial-atajo-iphone.jpg?v=2', controls: true, playsinline: true, autoplay: true, preload: 'metadata' }),
     h('p', { class: 'tenue' }, 'Paso a paso: añadir el atajo, crear la automatización «al abrir Yape» y comprobar que funciona.'),
     h('div', { class: 'acciones' },
       h('a', { class: 'boton-enlace al-inicio', href: VIDEO_ATAJO, download: 'DUOLAB-tutorial-yape-iphone.mp4' }, 'Descargar'),
