@@ -2,7 +2,8 @@ import { tamanos } from './mantenimiento.js';
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { config } from './config.js';
-import { Usuario, Libro, Movimiento } from './models.js';
+import { Usuario, Libro, Movimiento, Ajuste } from './models.js';
+import { ATAJO_IPHONE, esEnlaceDeAtajo } from './avisos.js';
 import { crearUsuario, cambiarPassword, olvidarCuenta, esAdmin } from './auth.js';
 import { ErrorHttp } from './errores.js';
 import { wa, conectarWhatsapp, desconectarWhatsapp, enviarEstadoDeCuenta } from './whatsapp.js';
@@ -149,6 +150,21 @@ rutasAdmin.put('/ia', async (req, res) => {
 });
 
 rutasAdmin.post('/ia/probar', async (req, res) => res.json(await probarIa()));
+
+// ---------- atajo de iPhone compartido por iCloud ----------
+
+rutasAdmin.get('/atajo', async (req, res) => {
+  const ajuste = await Ajuste.findById(ATAJO_IPHONE).lean();
+  res.json({ url: ajuste?.valor ?? null });
+});
+
+rutasAdmin.put('/atajo', async (req, res) => {
+  const url = String(req.body?.url ?? '').trim().replace(/\?.*$/, '');
+  if (url && !esEnlaceDeAtajo(url)) throw new ErrorHttp(400, 'Pega el enlace de iCloud del atajo: https://www.icloud.com/shortcuts/…');
+  if (url) await Ajuste.updateOne({ _id: ATAJO_IPHONE }, { $set: { valor: url } }, { upsert: true });
+  else await Ajuste.deleteOne({ _id: ATAJO_IPHONE });
+  res.json({ url: url || null });
+});
 
 // Elimina la cuenta con sus libros y movimientos, y la quita de los libros que le compartieron.
 rutasAdmin.delete('/usuarios/:id', async (req, res) => {

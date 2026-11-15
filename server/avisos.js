@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { createHash, randomBytes } from 'node:crypto';
 import { config } from './config.js';
-import { Usuario, CorreoVisto, Movimiento, AvisoRecibido } from './models.js';
+import { Usuario, CorreoVisto, Movimiento, AvisoRecibido, Ajuste } from './models.js';
 import { archivoDeFormulario, ErrorImagen } from './imagen.js';
 import { estadoBd } from './db.js';
 import { requiereSesion } from './auth.js';
@@ -42,6 +42,14 @@ rutasAvisos.post('/enlace', requiereSesion, async (req, res) => {
   const token = randomBytes(18).toString('hex');
   await Usuario.updateOne({ _id: req.usuario.id }, { $set: { tokenAvisos: token } });
   res.json({ enlace: enlaceDe(req, token) });
+});
+
+// Atajo de iPhone ya hecho, compartido por iCloud (lo pone el administrador): se añade con un toque.
+export const ATAJO_IPHONE = 'atajo-iphone';
+export const esEnlaceDeAtajo = (url) => /^https:\/\/www\.icloud\.com\/shortcuts\/[0-9a-f]{32}\/?$/i.test(String(url ?? ''));
+rutasAvisos.get('/atajo', requiereSesion, async (req, res) => {
+  const ajuste = await Ajuste.findById(ATAJO_IPHONE).lean();
+  res.json({ url: esEnlaceDeAtajo(ajuste?.valor) ? ajuste.valor : null });
 });
 
 rutasAvisos.delete('/enlace', requiereSesion, async (req, res) => {
@@ -95,6 +103,12 @@ rutasAvisos.get('/:token', limite, async (req, res) => {
 // también cuando algo falla, y queda anotada en el historial de la persona.
 async function responderAviso(res, usuario, { estado = 200, ok, mensaje, origen, inicio }) {
   const limpio = String(mensaje ?? '').replace(/\*/g, '').trim();
+  // Atajo automático («?silencioso=1»): si no se registró nada nuevo (pantalla de inicio de sesión, captura sin
+  // movimientos, todo ya registrado), responde sin mensaje para que el iPhone no muestre ninguna notificación.
+  if (res.locals.silencioso && !limpio.startsWith('✅')) {
+    if (usuario) AvisoRecibido.create({ usuario: usuario._id, origen: `${origen} (automático)`, resultado: limpio.split('\n')[0].slice(0, 200), registrados: 0, ok }).catch(() => {});
+    return res.status(200).json({ ok, mensaje: '', registrados: 0 });
+  }
   let registrados = 0;
   if (usuario) {
     registrados = inicio ? await Movimiento.countDocuments({ creadoPor: usuario._id, createdAt: { $gte: inicio } }).catch(() => 0) : 0;
@@ -105,6 +119,7 @@ async function responderAviso(res, usuario, { estado = 200, ok, mensaje, origen,
 
 rutasAvisos.post('/:token', limite, async (req, res) => {
   const inicio = new Date();
+  res.locals.silencioso = req.query.silencioso === '1';
   const token = String(req.params.token);
   if (!/^[0-9a-f]{36}$/.test(token)) return res.status(404).json({ ok: false, mensaje: 'Enlace no válido. Cópialo otra vez desde Mi cuenta.', error: 'Enlace no válido' });
   const usuario = await Usuario.findOne({ tokenAvisos: token });

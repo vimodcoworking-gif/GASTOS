@@ -2091,8 +2091,8 @@ function seccionAvisosTelefono() {
             ),
           ),
           h('details', { class: 'instrucciones', open: esIOS },
-            h('summary', null, 'iPhone: dos toques en la parte de atrás'),
-            h('p', { class: 'tenue nota' }, 'Registra todos los pagos de «Movimientos» de Yape, también los pequeños.'),
+            h('summary', null, 'iPhone: automático al abrir Yape'),
+            h('p', { class: 'tenue nota' }, 'Cada vez que abres Yape (o tocas su notificación) se registran los movimientos nuevos, de cualquier monto.'),
             h('button', { type: 'button', class: 'primario', onclick: abrirTutorialAtajo }, 'Ver tutorial'),
           ),
         )
@@ -2250,13 +2250,14 @@ function tamano(bytes) {
 }
 
 async function cargarAdmin() {
-  const [almacenamiento, { usuarios }, whatsapp, ia] = await Promise.all([
+  const [almacenamiento, { usuarios }, whatsapp, ia, atajo] = await Promise.all([
     api('/admin/almacenamiento'),
     api('/admin/usuarios'),
     api('/admin/whatsapp'),
     api('/admin/ia'),
+    api('/admin/atajo').catch(() => ({ url: null })),
   ]);
-  return { almacenamiento, usuarios, whatsapp, ia };
+  return { almacenamiento, usuarios, whatsapp, ia, atajo };
 }
 
 // Mientras se espera el escaneo del QR, se consulta el estado cada 3 segundos y se repinta.
@@ -2278,7 +2279,7 @@ function vigilarWhatsapp() {
 const telefono = (numero) => (numero ? `+${numero}` : 'Sin WhatsApp');
 
 function pintarAdmin(datos) {
-  const { almacenamiento: a, usuarios, whatsapp: w, ia } = datos;
+  const { almacenamiento: a, usuarios, whatsapp: w, ia, atajo } = datos;
   const porcentaje = a.porcentaje < 0.1 && a.usado > 0 ? '< 0.1' : a.porcentaje.toFixed(1);
 
   // ----- WhatsApp -----
@@ -2313,6 +2314,16 @@ function pintarAdmin(datos) {
   // Proveedor que se está viendo en el formulario (al guardar pasa a ser el que usa el bot).
   const proveedorVisto = datos.proveedorVisto ?? ia.proveedor;
   const prov = ia.proveedores[proveedorVisto];
+
+  const guardarAtajo = (ev) => {
+    ev.preventDefault();
+    const url = ev.target.url.value.trim();
+    intentar(async () => {
+      datos.atajo = await api('/admin/atajo', { method: 'PUT', body: { url } });
+      avisar(url ? 'Atajo guardado: los usuarios de iPhone ya pueden añadirlo con un toque.' : 'Atajo quitado: el tutorial vuelve a explicar cómo crearlo a mano.');
+      render(true);
+    });
+  };
 
   const guardarIa = (ev) => {
     ev.preventDefault();
@@ -2502,6 +2513,33 @@ function pintarAdmin(datos) {
       ),
     ],
 
+    atajo: () =>
+      h('section', { class: 'panel' },
+        h('header', null,
+          h('h3', null, 'Atajo de iPhone «DUOLAB Yape»'),
+          h('span', { class: atajo?.url ? 'chip ok' : 'chip' }, atajo?.url ? 'Publicado' : 'Sin publicar')),
+        h('p', null, 'Con el atajo publicado, cada usuario de iPhone lo añade con un toque desde el tutorial (en vez de crearlo acción por acción). Apple no deja crear atajos desde una web: hay que hacerlo una vez en un iPhone y compartirlo por iCloud.'),
+        h('form', { onsubmit: guardarAtajo },
+          h('label', null, 'Enlace de iCloud del atajo',
+            h('input', { name: 'url', type: 'url', inputmode: 'url', placeholder: 'https://www.icloud.com/shortcuts/…', value: atajo?.url ?? '' })),
+          h('div', { class: 'form-linea' }, h('button', { class: 'primario' }, 'Guardar'))),
+        h('details', { class: 'instrucciones', open: !atajo?.url },
+          h('summary', null, 'Cómo crear y publicar el atajo (una sola vez, en tu iPhone)'),
+          h('ol', null,
+            h('li', null, 'En DUOLAB, abre Mi cuenta → Yape, Plin y avisos del teléfono → Ver tutorial y toca «Copiar enlace»: se copia tu enlace con «?silencioso=1» al final.'),
+            h('li', null, 'Abre Atajos → «+». Ponle de nombre «DUOLAB Yape».'),
+            h('li', null, 'Acción «Texto»: pega el enlace copiado.'),
+            h('li', null, 'Acción «Esperar»: 6 segundos (lo que tarda Yape en enseñar los movimientos).'),
+            h('li', null, 'Acción «Hacer captura de pantalla».'),
+            h('li', null, 'Acción «Obtener contenido de URL»: URL = «Texto»; toca «>»: Método POST, Cuerpo de la solicitud «Archivo», Archivo = «Captura de pantalla».'),
+            h('li', null, 'Acción «Obtener valor del diccionario»: clave «mensaje».'),
+            h('li', null, 'Acción «Si»: «Valor del diccionario» «tiene algún valor» → dentro, «Mostrar notificación» con «Valor del diccionario».'),
+            h('li', null, 'Toca la «i» del atajo → «Configurar este atajo» (Preguntas de importación) → añade la del campo «Texto» con la pregunta «Pega tu enlace de DUOLAB (ya está copiado)».'),
+            h('li', null, 'Prueba: abre Yape con los movimientos a la vista y ejecuta el atajo; mira Mi cuenta → Últimos envíos.'),
+            h('li', null, 'Compártelo: mantén pulsado el atajo → Compartir → «Copiar enlace de iCloud». Pégalo arriba y guarda.'),
+          ),
+          h('p', { class: 'tenue' }, 'El enlace que pongas al crearlo no se comparte: al añadirlo, el iPhone de cada persona le pide el suyo.')),
+      ),
     ia: () =>
       h('section', { class: 'panel' },
         h('header', null,
@@ -2558,7 +2596,7 @@ function pintarAdmin(datos) {
         `${entero(a.totales.usuarios)} ${a.totales.usuarios === 1 ? 'usuario' : 'usuarios'} · ${entero(a.totales.libros)} ${a.totales.libros === 1 ? 'libro' : 'libros'}`),
     ),
 
-    segmentos('admin', [['almacenamiento', 'Almacenamiento'], ['usuarios', 'Usuarios', usuarios.length], ['whatsapp', 'WhatsApp'], ['ia', 'IA']]),
+    segmentos('admin', [['almacenamiento', 'Almacenamiento'], ['usuarios', 'Usuarios', usuarios.length], ['whatsapp', 'WhatsApp'], ['ia', 'IA'], ['atajo', 'Atajo iPhone']]),
     secciones[estado.seccion.admin](),
   ];
 }
@@ -3178,110 +3216,120 @@ function pantallaYape() {
 
 async function abrirTutorialAtajo() {
   let paso = 0;
+  // El atajo automático manda «?silencioso=1»: solo avisa cuando registra algo nuevo.
+  const conSilencio = (e) => (e ? `${e}?silencioso=1` : e);
   let enlace = null;
+  // Atajo ya hecho, publicado por el administrador en iCloud (si no hay, se explica cómo crearlo a mano).
+  let atajoUrl = null;
+  try {
+    [enlace, { url: atajoUrl }] = await Promise.all([enlaceAvisos().then(conSilencio), api('/avisos/atajo').catch(() => ({ url: null }))]);
+  } catch {
+    // Sin enlace todavía: se vuelve a pedir al copiar.
+  }
   const copiar = async (boton) => {
     try {
-      enlace ??= await enlaceAvisos();
+      enlace ??= conSilencio(await enlaceAvisos());
       await navigator.clipboard.writeText(enlace);
       boton.textContent = '✓ Enlace copiado';
     } catch {
       boton.textContent = 'Mantén pulsado el enlace para copiarlo';
     }
   };
-  const campoEnlace = () => {
-    const caja = h('div', { class: 'tutorial-enlace' }, h('code', null, 'Cargando tu enlace…'));
-    enlaceAvisos().then((e) => {
-      enlace = e;
-      caja.replaceChildren(h('code', null, e));
-    }).catch(() => caja.replaceChildren(h('code', null, 'No se pudo cargar. Ábrelo en Mi cuenta.')));
-    return caja;
+  // Copia el enlace y abre el atajo en el mismo toque (Safari exige que las dos cosas vengan del toque).
+  const anadirAtajo = (boton) => {
+    if (enlace) navigator.clipboard?.writeText(enlace).catch(() => {});
+    window.open(atajoUrl, '_blank');
+    boton.textContent = '✓ Enlace copiado · abriendo Atajos…';
   };
+  const campoEnlace = () => h('div', { class: 'tutorial-enlace' }, h('code', null, enlace ?? 'No se pudo cargar. Ábrelo en Mi cuenta.'));
+  const rutaAjustes = (...partes) => h('div', { class: 'ajustes-ruta' }, partes.map((t, i) => h('span', null, i ? '›' : '', h('b', null, t))));
+
+  // Paso 1 con el atajo publicado: un toque. Sin publicar: se crea acción por acción.
+  const pasosAtajo = atajoUrl
+    ? [{
+        titulo: 'Paso 1 · Añade el atajo',
+        pasos: [
+          ['Toca el botón: se copia tu enlace personal y se abre el atajo ', h('b', null, '«DUOLAB Yape»'), '.'],
+          ['Toca ', h('b', null, '«Añadir atajo»'), '. Cuando pregunte por tu enlace, mantén pulsado el campo y elige ', h('b', null, '«Pegar»'), '.'],
+        ],
+        dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+          campoEnlace(),
+          h('button', { type: 'button', class: 'primario', onclick: (ev) => anadirAtajo(ev.currentTarget) }, 'Copiar enlace y añadir atajo')),
+      }]
+    : [
+        {
+          titulo: 'Paso 1 · Copia tu enlace',
+          texto: 'Es la dirección a la que el atajo manda la captura. No la compartas.',
+          dibujo: () => h('div', { class: 'tutorial-dibujo columna' }, campoEnlace(),
+            h('button', { type: 'button', class: 'primario', onclick: (ev) => copiar(ev.currentTarget) }, 'Copiar enlace')),
+        },
+        {
+          titulo: 'Paso 1 · Crea el atajo «DUOLAB Yape»',
+          pasos: [
+            ['En ', h('b', null, 'Atajos'), ' toca ', h('b', null, '«+»'), ' y ponle de nombre ', h('b', null, 'DUOLAB Yape'), '.'],
+            ['Añade ', h('b', null, '«Texto»'), ' (pega tu enlace), ', h('b', null, '«Esperar» 6 segundos'), ' y ', h('b', null, '«Hacer captura de pantalla»'), '.'],
+          ],
+          dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+            accionAtajo('#f2a516', '📝', 'Texto', ['', 'tu enlace']),
+            accionAtajo('#8e8e93', '⏱️', 'Esperar', ['Segundos', '6']),
+            accionAtajo('#3987e5', '📸', 'Hacer captura de pantalla'),
+            h('a', { class: 'boton-enlace', href: 'shortcuts://' }, 'Abrir la app Atajos')),
+        },
+        {
+          titulo: 'Paso 1 · Envía la captura',
+          pasos: [
+            ['Añade ', h('b', null, '«Obtener contenido de URL»'), ': URL = ', h('b', null, 'Texto'), '; en «>»: ', h('b', null, 'POST'), ', cuerpo ', h('b', null, 'Archivo'), ' = ', h('b', null, 'Captura de pantalla'), '.'],
+            ['Añade ', h('b', null, '«Obtener valor del diccionario»'), ' (clave ', h('b', null, 'mensaje'), ') y ', h('b', null, '«Si»'), ' tiene algún valor → ', h('b', null, '«Mostrar notificación»'), '.'],
+          ],
+          dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
+            accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['URL', 'Texto'], ['Método', 'POST'], ['Archivo', 'Captura de pantalla']),
+            accionAtajo('#f2a516', '📖', 'Obtener valor del diccionario', ['Clave', 'mensaje']),
+            accionAtajo('#e5484d', '🔔', 'Si tiene algún valor → Mostrar notificación')),
+        },
+      ];
 
   const PASOS = [
     {
-      titulo: 'Registra tus yapes desde el iPhone',
-      texto: 'Apple no deja que ninguna app lea las notificaciones de Yape. Con un atajo de iPhone envías la constancia o la lista de movimientos y se registran todos los pagos, también los pequeños, sin duplicar. Se configura una vez (unos 5 minutos).',
-      dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(), h('div', { class: 'toques' }, h('span'), h('span'), h('small', null, 'toc toc'))),
+      titulo: 'Tus yapes se registran solos al abrir Yape',
+      texto: 'Apple no deja que ninguna app lea las notificaciones de Yape. Pero el iPhone sí puede hacer algo cada vez que abres Yape: esperar unos segundos, tomar una captura de tu lista de movimientos y enviarla a DUOLAB. Se registra todo lo nuevo, de cualquier monto, sin repetir. Se configura una vez (unos 3 minutos).',
+      dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(),
+        h('div', { class: 'noti-mini' }, h('b', null, 'DUOLAB Yape'), h('span', null, '✅ 2 movimientos registrados'))),
     },
+    ...pasosAtajo,
     {
-      titulo: 'Antes de empezar: copia tu enlace',
-      texto: 'Es la dirección a la que el atajo manda la captura. No la compartas.',
-      dibujo: () => h('div', { class: 'tutorial-dibujo columna' }, campoEnlace(),
-        h('button', { type: 'button', class: 'primario', onclick: (ev) => copiar(ev.currentTarget) }, 'Copiar enlace')),
-    },
-    {
-      titulo: 'Parte 1 · Crea el atajo',
+      titulo: 'Paso 2 · Que se ejecute solo al abrir Yape',
       pasos: [
-        ['Abre la app ', h('b', null, 'Atajos'), ' y en la pestaña Atajos toca ', h('b', null, '«+»'), ' arriba a la derecha.'],
-        ['Toca ', h('b', null, '«Añadir acción»'), ', busca ', h('b', null, '«Hacer captura de pantalla»'), ' y añádela.'],
+        ['En ', h('b', null, 'Atajos'), ', pestaña ', h('b', null, 'Automatización'), ' → ', h('b', null, '«+»'), ' (o «Nueva automatización»).'],
+        ['Elige ', h('b', null, 'App'), ' → ', h('b', null, 'Yape'), '. Deja marcado solo ', h('b', null, '«Se abre»'), '.'],
+        ['Marca ', h('b', null, '«Ejecutar inmediatamente»'), ' y desactiva «Notificar al ejecutar».'],
+        ['Toca ', h('b', null, 'Siguiente'), ' y elige el atajo ', h('b', null, 'DUOLAB Yape'), '. Listo.'],
       ],
       dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
-        accionAtajo('#3987e5', '📸', 'Hacer captura de pantalla'),
+        rutaAjustes('Automatización', 'App', 'Yape', 'Se abre', 'Ejecutar inmediatamente'),
+        h('div', { class: 'ajustes-opcion' }, h('span', null, 'DUOLAB Yape'), h('b', null, '✓')),
         h('a', { class: 'boton-enlace', href: 'shortcuts://' }, 'Abrir la app Atajos')),
     },
     {
-      titulo: 'Parte 1 · Envía la captura a tu enlace',
+      titulo: 'Paso 3 · Movimientos a la vista en Yape',
       pasos: [
-        ['Añade ', h('b', null, '«Obtener contenido de URL»'), ' debajo y pega tu enlace en ', h('b', null, 'URL'), '.'],
-        ['Toca la flechita ', h('b', null, '«>»'), ' de esa acción: ', h('b', null, 'Método POST'), ', ', h('b', null, 'Cuerpo de la solicitud: Archivo'), '.'],
-        ['En ', h('b', null, 'Archivo'), ' elige ', h('b', null, '«Captura de pantalla»'), '.'],
-      ],
-      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
-        accionAtajo('#3987e5', '📸', 'Hacer captura de pantalla'),
-        accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['URL', 'tu enlace'], ['Método', 'POST'], ['Cuerpo', 'Archivo'], ['Archivo', 'Captura de pantalla'])),
-    },
-    {
-      titulo: 'Parte 1 · Mira qué se registró y ponle nombre',
-      pasos: [
-        ['(Opcional) Añade ', h('b', null, '«Obtener valor del diccionario»'), ' con la clave ', h('b', null, 'mensaje'), ' y luego ', h('b', null, '«Mostrar notificación»'), ' con ese valor.'],
-        ['Arriba, toca el nombre y escribe ', h('b', null, 'Registrar Yape'), '. Toca ', h('b', null, 'OK'), '.'],
-      ],
-      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
-        accionAtajo('#f2a516', '📖', 'Obtener valor del diccionario', ['Clave', 'mensaje']),
-        accionAtajo('#e5484d', '🔔', 'Mostrar notificación', ['Texto', 'Valor del diccionario'])),
-    },
-    {
-      titulo: 'Actívalo con dos toques atrás',
-      pasos: [
-        ['Ve a ', h('b', null, 'Ajustes → Accesibilidad → Tocar → Tocar atrás → Doble toque'), '.'],
-        ['Elige ', h('b', null, 'Registrar Yape'), '.'],
-        ['Úsalo: en Yape, con la constancia o «Mostrar movimientos» en pantalla, toca dos veces la parte de atrás del iPhone.'],
-      ],
-      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
-        h('div', { class: 'ajustes-ruta' }, ['Ajustes', 'Accesibilidad', 'Tocar', 'Tocar atrás', 'Doble toque'].map((t, i) => h('span', null, i ? '›' : '', h('b', null, t)))),
-        h('div', { class: 'ajustes-opcion' }, h('span', null, 'Registrar Yape'), h('b', null, '✓'))),
-    },
-    {
-      titulo: 'Parte 2 · Que se envíe solo al cerrar Yape',
-      pasos: [
-        ['En Atajos, pestaña ', h('b', null, 'Automatización'), ' → ', h('b', null, '«+»'), '.'],
-        ['Elige ', h('b', null, 'App'), ' → ', h('b', null, 'Yape'), '. Marca ', h('b', null, '«Se cierra»'), ' y desmarca «Se abre».'],
-        ['Elige ', h('b', null, '«Ejecutar inmediatamente»'), ' → Siguiente → ', h('b', null, '«Nuevo atajo en blanco»'), '.'],
-        ['Añade ', h('b', null, '«Obtener las últimas capturas de pantalla»'), ' (cantidad 1) y ', h('b', null, '«Obtener contenido de URL»'), ' con tu enlace, POST, Archivo → Capturas de pantalla. Toca OK.'],
-      ],
-      dibujo: () => h('div', { class: 'tutorial-dibujo columna' },
-        h('div', { class: 'ajustes-ruta' }, ['Automatización', 'App', 'Yape', 'Se cierra', 'Ejecutar inmediatamente'].map((t, i) => h('span', null, i ? '›' : '', h('b', null, t)))),
-        accionAtajo('#3987e5', '🖼️', 'Obtener las últimas capturas de pantalla', ['Cantidad', '1']),
-        accionAtajo('#2fb36b', '🌐', 'Obtener contenido de URL', ['Método', 'POST'], ['Archivo', 'Capturas de pantalla'])),
-    },
-    {
-      titulo: 'La primera vez',
-      pasos: [
-        ['El iPhone preguntará si el atajo puede conectarse a ', h('b', null, 'gastos-g63s.onrender.com'), ' y ver tus capturas: elige ', h('b', null, '«Permitir siempre»'), '.'],
-        ['Haz una prueba y revisa en la app ', h('b', null, 'Mi cuenta → Últimos envíos'), ': ahí ves si llegó y cuántos pagos se registraron.'],
+        ['El atajo solo lee lo que se ve en pantalla. Si en tu Yape los movimientos están ocultos, toca ', h('b', null, '«Mostrar movimientos»'), '.'],
+        ['La primera vez el iPhone pregunta si el atajo puede conectarse a ', h('b', null, 'gastos-g63s.onrender.com'), ': elige ', h('b', null, '«Permitir siempre»'), '.'],
+        ['Prueba: abre Yape y espera unos segundos. En ', h('b', null, 'Mi cuenta → Últimos envíos'), ' ves si llegó.'],
       ],
       dibujo: () => h('div', { class: 'tutorial-dibujo' },
-        h('div', { class: 'permiso-mini' }, h('b', null, '¿Permitir que «Registrar Yape» se conecte a gastos-g63s.onrender.com?'),
+        h('div', { class: 'permiso-mini' }, h('b', null, '¿Permitir que «DUOLAB Yape» se conecte a gastos-g63s.onrender.com?'),
           h('div', null, h('span', null, 'No permitir'), h('span', null, 'Permitir una vez'), h('span', { class: 'si' }, 'Permitir siempre')))),
     },
     {
-      titulo: '¡Listo!',
+      titulo: '¡Listo! Así funciona',
       pasos: [
-        ['Después de yapear o recibir un yape: haz una captura de la constancia y cierra Yape (o toca dos veces atrás).'],
-        ['En unos segundos te llega la notificación. Si envías la misma captura otra vez, no se repite nada.'],
+        ['Te llega «Te yapearon S/ 3.50» → ', h('b', null, 'tocas la notificación'), ' → en unos segundos: «✅ Registrado».'],
+        ['Cada vez que abres Yape se revisa tu lista: lo nuevo se registra y lo que ya estaba no se repite.'],
+        ['Si no hay nada nuevo (o aún estás en la pantalla de la clave), no te avisa de nada.'],
+        ['Los yapes que envías también llegan por tu correo: no se duplican.'],
       ],
       dibujo: () => h('div', { class: 'tutorial-dibujo' }, pantallaYape(),
-        h('div', { class: 'noti-mini' }, h('b', null, 'Registrar Yape'), h('span', null, '✅ 3 movimientos registrados · Total gastos: S/ 15.00'))),
+        h('div', { class: 'noti-mini' }, h('b', null, 'DUOLAB Yape'), h('span', null, '✅ Ingreso S/ 3.50 · Yapeo de Ana Gómez'))),
     },
   ];
 
@@ -3307,8 +3355,8 @@ async function abrirTutorialAtajo() {
 
 // Una sola vez en cada dispositivo (si ese día no se mostró ya el aviso de instalar la app).
 function tutorialAtajoUnaVez() {
-  if (guardado.leer('tutorial-atajo-v2')) return;
-  guardado.poner('tutorial-atajo-v2', '1');
+  if (!esIOS || guardado.leer('tutorial-atajo-v3')) return;
+  guardado.poner('tutorial-atajo-v3', '1');
   abrirTutorialAtajo();
 }
 

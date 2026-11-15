@@ -20,31 +20,37 @@ Si cambia el logo o el nombre, una app ya instalada puede seguir mostrando los v
 
 En iPhone solo funcionan con la app **instalada desde Safari y abierta desde su icono** (iOS 16.4 o posterior). Si se negó el permiso: Ajustes → Notificaciones → DUOLAB.
 
-## iPhone: atajo «Registrar Yape»
+## iPhone: atajo «DUOLAB Yape» (automático al abrir Yape)
 
-El tutorial está también dentro de la app: Mi cuenta → Yape, Plin y avisos del teléfono → iPhone → **Ver tutorial**.
+Apple no deja que ninguna app lea las notificaciones de Yape. El atajo hace lo más cercano: **cada vez que se abre Yape** (también al tocar la notificación «Te yapearon»), espera 6 segundos, toma una captura de la lista de movimientos y la envía al enlace personal con `?silencioso=1`. Se registra todo lo nuevo, de cualquier monto, sin repetir; si no hay nada nuevo (pantalla de la clave, todo ya registrado) responde sin mensaje y el iPhone no muestra nada.
 
-**Parte 1 · El atajo**
+El tutorial está dentro de la app (se abre solo una vez en iPhone, y en Mi cuenta → Yape, Plin y avisos del teléfono → **Ver tutorial**).
 
-1. En DUOLAB, Mi cuenta → Yape, Plin y avisos del teléfono → **Copiar** el enlace.
-2. App **Atajos** → pestaña Atajos → **«+»**.
-3. Añadir acción **«Hacer captura de pantalla»**.
-4. Añadir **«Obtener contenido de URL»**: URL = tu enlace; tocar «>»: **Método POST**, **Cuerpo de la solicitud: Archivo**, Archivo = **Captura de pantalla**.
-5. (Opcional) **«Obtener valor del diccionario»** con la clave `mensaje` y **«Mostrar notificación»** con ese valor.
-6. Nombre: **Registrar Yape** → OK.
-7. **Ajustes → Accesibilidad → Tocar → Tocar atrás → Doble toque** → Registrar Yape.
+### Para el administrador: publicar el atajo una vez
 
-Uso: en Yape, con la constancia o «Mostrar movimientos» en pantalla, tocar dos veces la parte de atrás del iPhone.
+Apple no permite crear atajos desde una web ni generarlos en un servidor (tienen que ir firmados). Por eso se crea **una vez** en un iPhone y se comparte por iCloud; desde entonces cada usuario lo añade con un toque.
 
-**Parte 2 · Envío automático al cerrar Yape (recomendado)**
+1. En DUOLAB, Ver tutorial → **Copiar enlace** (se copia con `?silencioso=1`).
+2. Atajos → «+» → nombre **DUOLAB Yape**.
+3. **Texto**: el enlace copiado.
+4. **Esperar**: 6 segundos.
+5. **Hacer captura de pantalla**.
+6. **Obtener contenido de URL**: URL = Texto; Método POST; Cuerpo Archivo = Captura de pantalla.
+7. **Obtener valor del diccionario**: clave `mensaje`.
+8. **Si** Valor del diccionario *tiene algún valor* → **Mostrar notificación** con ese valor.
+9. «i» del atajo → **Configurar este atajo** (preguntas de importación) → pregunta para el campo Texto: «Pega tu enlace de DUOLAB (ya está copiado)».
+10. Compartir → **Copiar enlace de iCloud** → pegarlo en **Admin → Atajo iPhone** → Guardar.
 
-1. Atajos → pestaña **Automatización** → «+» → **App** → Yape.
-2. Marcar **«Se cierra»** (desmarcar «Se abre») → **«Ejecutar inmediatamente»** → Siguiente → **Nuevo atajo en blanco**.
-3. Añadir **«Obtener las últimas capturas de pantalla»** (cantidad 1) y **«Obtener contenido de URL»** con el enlace, POST, Archivo → Capturas de pantalla. OK.
+Sin enlace publicado, el tutorial explica cómo crear el atajo acción por acción.
 
-Uso: después de yapear o recibir un Yape, hacer una captura y cerrar Yape. Si no hay captura nueva, no se repite nada.
+### Para cada usuario
 
-**La primera vez** el iPhone pregunta si el atajo puede conectarse a `gastos-g63s.onrender.com` y ver las capturas: **Permitir siempre**. Comprobar en Mi cuenta → **Últimos envíos**.
+1. **Añadir el atajo**: en el tutorial, «Copiar enlace y añadir atajo» → **Añadir atajo** → pegar el enlace cuando lo pida.
+2. **Automatización** (esto Apple no deja automatizarlo, son 5 toques): Atajos → Automatización → «+» → **App** → Yape → solo **«Se abre»** → **«Ejecutar inmediatamente»** (sin «Notificar al ejecutar») → Siguiente → **DUOLAB Yape**.
+3. En Yape, dejar visibles los movimientos («Mostrar movimientos») si están ocultos.
+4. La primera vez: **Permitir siempre** la conexión a `gastos-g63s.onrender.com`. Comprobar en Mi cuenta → **Últimos envíos** (los envíos automáticos sin nada nuevo aparecen como «(automático)»).
+
+Opcional: el mismo atajo en **Ajustes → Accesibilidad → Tocar → Tocar atrás → Doble toque**, para enviarlo cuando se quiera.
 
 ## Android: MacroDroid (automático)
 
