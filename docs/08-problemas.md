@@ -6,6 +6,11 @@
 | Un Yape que **envié** no aparece | El correo de Yape va al correo registrado en la app de Yape, no al Gmail vinculado; o Yape no mandó correo | Revisar el correo del perfil de Yape; usar el atajo o **Subir captura** |
 | Un aviso de banco no se registró | La IA lo descartó, o es de un remitente fuera del filtro | Mi cuenta → Gmail → **Ver correos revisados** → «Volver a revisar»; se recupera solo cada 6 horas si es un aviso claro |
 | El atajo de iPhone no registra nada | No llegó al enlace, o falló la lectura | Mi cuenta → **Últimos envíos**: vacío = el atajo no llega (revisar URL, POST, Archivo); con error = dice el motivo |
+| El atajo automático (al abrir Yape) no registra | La automatización no se ejecuta, la captura sale antes de que Yape muestre los movimientos, o los movimientos están ocultos | Últimos envíos: sin «Captura (automático)» = la automatización no corre (Atajos → Automatización: «Se abre», «Ejecutar inmediatamente»); con «Nada nuevo» = subir «Esperar» a 8-10 s en el atajo o tocar «Mostrar movimientos» en Yape |
+| Llega una notificación vacía del atajo | Atajo creado sin el «Si … tiene algún valor» o sin `?silencioso=1` | Volver a añadir el atajo desde el tutorial (o desde Admin → Atajo iPhone) |
+| No aparece «Copiar enlace y añadir atajo» en el tutorial | El administrador no publicó el atajo | Admin → Atajo iPhone → pegar el enlace de iCloud |
+| El video tutorial no se reproduce en iPhone | Copia vieja de la app | Cerrar y abrir la app; el video se pide siempre a la red |
+| El yape a otra persona de DUOLAB no le aparece | Falta su WhatsApp, varios usuarios con los mismos 3 dígitos, o quien pagó lo anotó a mano antes del correo | Ver [02 · Yape entre dos personas](02-registro-automatico.md#yape-entre-dos-personas-que-usan-duolab) |
 | «Activa la IA» al subir una captura | IA desactivada | Admin → IA → elegir proveedor, clave y Activar |
 | Una captura HEIC no se lee | Formato no compatible | En el atajo, añadir «Convertir imagen» a JPEG |
 | No llega el recordatorio por WhatsApp | Bot desconectado o número no guardado | Admin → WhatsApp (conectar con QR); Mi cuenta → WhatsApp; **Probar** |

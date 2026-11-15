@@ -32,6 +32,15 @@ Referencia: un movimiento ocupa unos 250 bytes con sus índices; 512 MB dan para
 - Las claves también pueden ir en `ANTHROPIC_API_KEY` o `NVIDIA_API_KEY` (la variable de entorno manda sobre lo guardado en el panel).
 - Sin IA activa: no se leen capturas ni correos ambiguos, y el asistente no responde.
 
+## Atajo iPhone
+
+Pestaña **Admin → Atajo iPhone**: el enlace de iCloud del atajo «DUOLAB Yape» (`https://www.icloud.com/shortcuts/…`). Con el enlace guardado, el tutorial de cada usuario de iPhone muestra **«Copiar enlace y añadir atajo»** (un toque); sin él, explica cómo crear el atajo acción por acción.
+
+- Apple no permite crear atajos desde una web ni generarlos en el servidor (tienen que ir firmados), por eso se crea **una vez** en un iPhone y se comparte por iCloud. Los pasos exactos están en la misma pestaña y en [03 · Guías](03-guias.md#para-el-administrador-publicar-el-atajo-una-vez).
+- El atajo lleva una **pregunta de importación** en el campo Texto: al añadirlo, cada iPhone pide su propio enlace (el del administrador no se comparte).
+- La **automatización** «al abrir Yape» no se puede compartir: cada usuario la crea en su iPhone (5 toques, explicados en el tutorial y en el video).
+- Se guarda en la colección `ajustes` con la clave `atajo-iphone`. Dejar el campo vacío y guardar lo quita.
+
 ## Licencias de VIMOD
 
 Si están `VIMOD_MONGODB_URI` y `VIMOD_SOFTWARE`, solo entran clientes con licencia activa de ese software en el Panel de VIMOD (se busca su cuenta por el correo). Si se suspende o vence, se pierde el acceso en un minuto. `LICENCIA_LIBRE` lista correos que entran sin licencia. Sin esas variables, la app queda abierta.

@@ -104,12 +104,12 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 | `/auth` | `POST registro, login, logout, olvide, restablecer` · `GET/PATCH yo` |
 | `/auth/google` | Entrar con Google, `callback`, `estado`; `gmail` (vincular, pausar, desvincular), `gmail/revisar`, `gmail/escanear`, `gmail/revisados` |
 | `/libros` | `GET/POST /libros`; en `/libros/:id`: `mes`, `movimientos`, `pendientes`, `resumen`, `miembros`, `informe.pdf`, `enviar`, `capturas`, `capturas/registrar`, `metas`, `categorias` |
-| `/avisos` | `enlace` (sesión) · `historial` (sesión) · `POST /:token` (sin sesión, para el teléfono) |
+| `/avisos` | `enlace` (sesión) · `historial` (sesión) · `atajo` (sesión: enlace de iCloud del atajo) · `POST /:token` (sin sesión, para el teléfono; `?silencioso=1` responde sin mensaje si no hay nada nuevo) |
 | `/push` | `clave`, `suscribir`, `prueba` |
 | `/eventos` | Canal de tiempo real (SSE) |
 | `/ia` | `estado`, `chat`, `whatsapp` |
 | `/recordatorios/prueba` | Mensaje de prueba |
-| `/admin` | `almacenamiento`, `usuarios`, `whatsapp`, `ia` (solo administradores) |
+| `/admin` | `almacenamiento`, `usuarios`, `whatsapp`, `ia`, `atajo` (`GET/PUT`, enlace de iCloud del atajo) (solo administradores) |
 | `/version` | Versión publicada (sin sesión) |
 
 ## App web (`public/`)
@@ -123,3 +123,14 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 | `manifest.webmanifest` | Nombre, iconos y colores de la app instalada |
 | `logo-duolab*.png`, `icons/`, `favicon.ico` | Logos e iconos |
 | `privacidad.html`, `terminos.html` | Páginas legales |
+| `videos/tutorial-atajo-iphone.mp4` (+ `.jpg` de portada) | Video tutorial del atajo de iPhone (1:43, 1080×1920, voz «Camila»). El service worker no lo guarda en caché: Safari pide los videos por partes (Range). |
+
+## Herramientas (`herramientas/`)
+
+| Carpeta | Qué hace |
+| --- | --- |
+| `video-atajo/` | Regenera el video tutorial: `guion.json` (texto de cada escena), `voz.py` (voz neuronal con edge-tts → WAV), `video.py` (dibuja las pantallas con Pillow y monta el MP4 con ffmpeg). Ver su `LEEME.md`. |
+
+## Pantalla de inicio (diseños)
+
+`pintarMes` arma la pantalla con bloques (tarjeta del mes, totales, próximo mes, pestañas, lista de pendientes, últimos movimientos) y los ordena según el diseño elegido (`localStorage` `disenoInicio`: `auto`, `clasico`, `resumen`, `pagos`, `simple`). `disenoRecomendado` elige el automático según pendientes y número de movimientos. Ver [01 · Funciones](01-funciones.md#diseño-de-la-pantalla-de-inicio).

@@ -4,7 +4,8 @@ DUOLAB Gastos es una app web instalable (PWA) que registra gastos, ingresos y pa
 
 - App publicada: <https://gastos-g63s.onrender.com>
 - Código: GitHub `vimodcoworking-gif/GASTOS` (rama `main`; Render publica cada cambio que se sube)
-- Última revisión de esta documentación: 14 de noviembre de 2026 (versión `6cfb2b5`)
+- Última revisión de esta documentación: 15 de noviembre de 2026 (versión `15353cc` y posteriores)
+- Video tutorial del atajo de iPhone: <https://gastos-g63s.onrender.com/videos/tutorial-atajo-iphone.mp4>
 
 ## Índice
 
@@ -19,11 +20,13 @@ DUOLAB Gastos es una app web instalable (PWA) que registra gastos, ingresos y pa
 | [07 · Tareas automáticas y mantenimiento](07-mantenimiento.md) | Desarrollo y soporte | Revisiones periódicas, limpiezas y correcciones únicas |
 | [08 · Solución de problemas](08-problemas.md) | Soporte | Síntomas frecuentes y qué revisar |
 | [09 · Historial de cambios](09-cambios.md) | Todos | Cambios publicados, del más reciente al más antiguo |
+| [10 · iPhone, Android y apps nativas](10-ios-android.md) | Todos | Qué se puede registrar solo en cada teléfono, atajos de iPhone y qué aportaría una app nativa |
 
 ## En una frase por parte
 
 - **Datos:** todo se guarda en MongoDB (plan gratuito de 512 MB); cada movimiento ocupa unos 250 bytes.
 - **Servidor:** Node.js 20 con Express 5, en Render.
 - **App:** una sola página en JavaScript sin framework, con service worker para instalarla y abrirla al instante.
-- **Fuentes automáticas:** Gmail cada 3 minutos, enlace personal para el teléfono, bot de WhatsApp y capturas leídas por IA.
+- **Fuentes automáticas:** Gmail cada 3 minutos, enlace personal para el teléfono (atajo de iPhone al abrir Yape, MacroDroid en Android), bot de WhatsApp y capturas leídas por IA.
+- **Inicio a medida:** cinco diseños de la pantalla de inicio, con uno automático que se adapta a cada usuario.
 - **Avisos:** notificaciones push y WhatsApp para movimientos nuevos y pagos por vencer.

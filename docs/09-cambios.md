@@ -4,6 +4,19 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-14 | `15353cc` | Video tutorial: voz neuronal natural (Camila, español de Perú) |
+| 2026-11-14 | `e350e50` | Herramienta para regenerar el video tutorial del atajo |
+| 2026-11-14 | `2be5761` | Video tutorial del atajo de iPhone (1:43, con voz) y botón «Ver video» en la app |
+| 2026-11-14 | `c4a39b9` | iPhone: atajo automático al abrir Yape (modo silencioso), atajo publicable por iCloud desde Admin y tutorial nuevo |
+| 2026-11-14 | `1308249` | Inicio: el botón de diseño pasa a la barra de arriba, al lado de «+ Nuevo» |
+| 2026-11-14 | `b480dcb` | Inicio: botón para elegir el diseño de la pantalla de inicio (automático, clásico, resumen, pagos, sencillo) |
+| 2026-11-14 | `df31930` | WhatsApp: respuestas más breves y tono que se adapta a la persona; logo sin mancha en la unión de la U y la O |
+| 2026-11-14 | `7e4d7f2` | Teléfono: barra inferior fija sin moverse y menú sin opciones repetidas |
+| 2026-11-14 | `e318e69` | Ingresos: más avisos de pagos recibidos y registro al beneficiario también desde capturas y avisos |
+| 2026-11-14 | `d23b5ac` | Docs: orden de lectura de correos y diagnóstico de hoy |
+| 2026-11-14 | `bbfa1e2` | Gmail: lectores fijos antes que la IA, registro aunque la IA falle y diagnóstico de hoy |
+| 2026-11-14 | `c796ebc` | README: nombre DUOLAB Gastos |
+| 2026-11-14 | `6012851` | Documentación completa en docs/ |
 | 2026-11-14 | `6cfb2b5` | Corrige registros erróneos del respaldo sin IA y lo hace estricto |
 | 2026-11-13 | `0498b6c` | Gmail: ningún aviso de banco o billetera se pierde |
 | 2026-11-13 | `f5cb1e3` | Gmail: se vuelven a leer los correos de Yape del último mes que no se registraron (y cada 6 horas) |

@@ -42,6 +42,12 @@ Por eso **cada cuenta debe tener su WhatsApp guardado** en Mi cuenta.
 
 ### Yape entre dos personas que usan DUOLAB
 
+**Requisitos:** quien paga usa DUOLAB con el Gmail donde le llegan los correos de Yape; quien recibe usa DUOLAB con su **WhatsApp guardado**; y solo un usuario coincide con esos 3 dígitos (o el nombre desempata). Si no, no se registra nada.
+
+**Casos que no cubre:** si quien paga ya había anotado ese Yape **a mano en la app** antes de que llegue el correo, el correo se descarta por duplicado y al beneficiario no se le registra. (Si lo anotó por captura, atajo o WhatsApp, sí: ese camino también avisa al beneficiario, con nombre.)
+
+**Cómo comprobarlo:** quien paga yapea S/ 1 a quien recibe; en unos 3 minutos aparece el gasto en una cuenta y el ingreso «Yapeo de…» en la otra. Si no, Mi cuenta → Gmail → Diagnóstico de hoy en la cuenta de quien pagó.
+
 Cuando el correo de Yape se registra como gasto en la cuenta de quien pagó, la app busca al beneficiario entre los usuarios por los 3 últimos dígitos de su WhatsApp (y el nombre si hay varios). Si hay exactamente uno, le registra el **ingreso** y le avisa por notificación («💜 X te yapeó S/ Y») y WhatsApp. Si hay duda, no registra nada.
 
 También funciona cuando quien paga registra su Yape o Plin **por captura, atajo, WhatsApp o aviso del teléfono**: en ese caso se exige que el **nombre** del beneficiario («Franko Val*») coincida con un único usuario (y los 3 dígitos del celular si se ven). Un nombre ambiguo o solo un número enmascarado no registran nada.
@@ -58,7 +64,8 @@ También funciona cuando quien paga registra su Yape o Plin **por captura, atajo
 Cada persona crea su enlace en **Mi cuenta → Yape, Plin y avisos del teléfono**. No debe compartirse: con él se registran movimientos en su cuenta.
 
 - **Android (automático):** MacroDroid reenvía cada notificación de Yape, Plin o del banco como texto. Se lee sin IA cuando el formato es conocido y con IA si no.
-- **iPhone (casi automático):** un atajo envía una **captura** de la constancia o de «Movimientos» de Yape. Apple no deja que ninguna app lea las notificaciones de otra, así que en iPhone no puede ser 100 % automático. Ver [03 · Guías](03-guias.md).
+- **iPhone (automático al abrir Yape):** el atajo «DUOLAB Yape» se ejecuta solo cada vez que se abre Yape (también al tocar la notificación «Te yapearon»): espera 6 segundos, captura la lista de movimientos y la envía con `?silencioso=1`. Apple no deja que ninguna app lea las notificaciones de otra, así que en iPhone hace falta abrir Yape (un toque). Ver [03 · Guías](03-guias.md) y [10 · iPhone, Android y apps nativas](10-ios-android.md).
+- **Modo silencioso (`?silencioso=1`):** si no se registró nada nuevo (pantalla de la clave de Yape, captura sin movimientos, todo ya registrado), la respuesta llega con `mensaje` vacío y código 200, para que el atajo no muestre ninguna notificación. En **Últimos envíos** queda como «Captura (automático)».
 - El enlace acepta texto, JSON, imagen (con o sin tipo), formulario o PDF.
 - La respuesta siempre trae `mensaje` (lo que muestra la notificación del atajo), también con el motivo cuando algo falla.
 - Cada envío queda en **Mi cuenta → Últimos envíos** (7 días): hora, origen, cuántos se registraron o por qué falló.
@@ -73,6 +80,8 @@ Cada persona crea su enlace en **Mi cuenta → Yape, Plin y avisos del teléfono
 ## 4. Bot de WhatsApp
 
 - Reconoce a la persona por su número guardado en Mi cuenta.
+- **Tono:** respuestas cortas, como un mensaje entre personas (casi siempre de 1 a 4 líneas, sin introducciones ni resúmenes, como mucho una pregunta corta). Se adapta al estilo de quien escribe: formal (de usted), neutro o suelto con jerga y emojis; por defecto cercano y tuteando. Siempre respetuoso: no se burla, no juzga ni da sermones. Si la persona solo quiere conversar, conversa con naturalidad sin llevar todo a las finanzas. Las reglas están en `INSTRUCCIONES` de `server/ia.js`.
+- Las confirmaciones de registro también son breves: «_Responde a este mensaje para corregirlo o anularlo._».
 - Registra frases («gasté 30 en taxi», varias líneas a la vez), fotos, PDF y audios (con `GROQ_API_KEY` u `OPENAI_API_KEY`).
 - Para corregir, se **responde** al mensaje del bot: «era ingreso», «son 30», «fue ayer», «anúlalo». «deshacer» borra lo último.
 - Responde preguntas con la IA y envía el estado de cuenta o el PDF.
@@ -91,5 +100,6 @@ Cada persona crea su enlace en **Mi cuenta → Yape, Plin y avisos del teléfono
 
 - **Yape no envía correo a quien recibe.** Los Yapes recibidos solo llegan por el teléfono (atajo, MacroDroid) o si quien paga también usa DUOLAB.
 - **El correo de Yape va al correo registrado en la app de Yape**, que puede no ser el Gmail vinculado.
-- **iPhone:** el atajo hay que dispararlo (dos toques atrás o captura y cerrar Yape).
+- **iPhone:** ninguna app puede leer las notificaciones de Yape; el atajo se dispara al abrir Yape (tocar la notificación basta). Si Yape tarda más de 6 segundos en mostrar los movimientos, esa vez no registra nada (se recupera la próxima vez que se abra Yape, porque la lista muestra los últimos movimientos).
+- **Costo de IA:** cada apertura de Yape con el atajo automático envía una captura a la IA.
 - La lectura de capturas y de correos ambiguos necesita la IA activada (Admin → IA).
