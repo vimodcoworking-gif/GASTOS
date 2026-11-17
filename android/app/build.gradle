@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+// La firma vive fuera del repositorio: %USERPROFILE%\.duolab\keystore.properties (o la ruta en DUOLAB_KEYSTORE).
+// Sin ella el APK de «release» no se firma. Hay que guardar una copia: sin la misma firma, las
+// actualizaciones no se instalan encima de la versión anterior.
+def firma = new Properties()
+def archivoFirma = file(System.getenv('DUOLAB_KEYSTORE') ?: "${System.getProperty('user.home')}/.duolab/keystore.properties")
+if (archivoFirma.exists()) archivoFirma.withInputStream { firma.load(it) }
+
+android {
+    namespace 'pe.duolab.gastos'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'pe.duolab.gastos'
+        minSdk 23
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        release {
+            if (firma['storeFile']) {
+                storeFile file(firma['storeFile'])
+                storePassword firma['storePassword']
+                keyAlias firma['keyAlias']
+                keyPassword firma['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

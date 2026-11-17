@@ -112,6 +112,8 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 | `/admin` | `almacenamiento`, `usuarios`, `whatsapp`, `ia`, `atajo` (`GET/PUT`, enlace de iCloud del atajo) (solo administradores) |
 | `/version` | Versión publicada (sin sesión) |
 
+Fuera de `/api`: `GET /.well-known/assetlinks.json` (huella de la app Android, para abrirla sin barra de direcciones).
+
 ## App web (`public/`)
 
 | Archivo | Qué es |
@@ -124,6 +126,10 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 | `logo-duolab*.png`, `icons/`, `favicon.ico` | Logos e iconos |
 | `privacidad.html`, `terminos.html` | Páginas legales |
 | `videos/tutorial-atajo-iphone.mp4` (+ `.jpg` de portada) | Video tutorial del atajo de iPhone (1:43, 1080×1920, voz «Camila»). El service worker no lo guarda en caché: Safari pide los videos por partes (Range). |
+
+## App Android (`android/`)
+
+Proyecto Gradle (Java, sin Kotlin): Trusted Web Activity que abre la web con `?app=android`, servicio `LecturaAvisos` (lector de notificaciones de apps financieras con monto) y pantalla `ConfigurarActivity` (`duolab://configurar?enlace=…`). El APK firmado se sirve en `/descargas/duolab-gastos.apk` (el service worker no lo guarda). Ver [android/LEEME.md](../android/LEEME.md).
 
 ## Herramientas (`herramientas/`)
 

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DUOLAB</string>
+    <string name="atajo_lectura">Lectura de Yape</string>
+    <string name="servicio_lectura">DUOLAB: registrar Yape, Plin y bancos</string>
+    <string name="url_inicio" translatable="false">https://gastos-g63s.onrender.com/?app=android</string>
+    <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://gastos-g63s.onrender.com\"}}]</string>
+</resources>

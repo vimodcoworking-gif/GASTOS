@@ -1807,3 +1807,10 @@ html, body { overflow-x: clip; }
 .video-tutorial { display: block; width: 100%; max-height: calc(100dvh - 260px); aspect-ratio: 9 / 16; margin: .75rem auto; border-radius: 18px; background: #000; object-fit: contain; }
 .boton-video { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); padding: .5rem 1.1rem; border: 0; border-radius: 999px; background: var(--lima); color: var(--sobre-lima); font-weight: 800; box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .5); white-space: nowrap; }
 .dlg-video .acciones a { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: .6rem 1.3rem; border-radius: 999px; background: var(--t-elev); color: var(--t-tinta); font-weight: 700; text-decoration: none; }
+
+/* ---------- App Android (APK) ---------- */
+.boton-apk { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 46px; padding: .55rem 1.2rem; border-radius: 999px; background: var(--lima); color: var(--sobre-lima); font-weight: 800; text-decoration: none; }
+.boton-apk .icono { width: 18px; height: 18px; }
+.apk-oferta { display: grid; gap: .6rem; margin: .85rem 0; padding: .85rem 1rem; border-radius: 18px; background: color-mix(in srgb, var(--lima) 14%, transparent); border: 1px solid color-mix(in srgb, var(--lima) 45%, transparent); }
+.apk-oferta p { margin: 0; font-size: .9rem; }
+.apk-oferta .boton-apk { justify-self: start; }

@@ -37,6 +37,10 @@ Se ponen en Render → Environment (y en local, en un archivo `.env` que nunca s
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL` | No | Notificaciones push (si faltan, se generan solas y se guardan en la base) |
 | `VIMOD_MONGODB_URI`, `VIMOD_MONGODB_DB`, `VIMOD_SOFTWARE`, `LICENCIA_LIBRE` | No | Licencias de VIMOD |
 
+## App Android
+
+El APK no lo compila Render: se compila en una PC con Android Studio ([android/LEEME.md](../android/LEEME.md)), se copia a `public/descargas/duolab-gastos.apk` y se publica como cualquier cambio. Variable opcional `ANDROID_SHA256`: huella de la firma para `/.well-known/assetlinks.json`.
+
 ## Trabajar en local
 
 ```bash

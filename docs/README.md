@@ -5,6 +5,7 @@ DUOLAB Gastos es una app web instalable (PWA) que registra gastos, ingresos y pa
 - App publicada: <https://gastos-g63s.onrender.com>
 - Código: GitHub `vimodcoworking-gif/GASTOS` (rama `main`; Render publica cada cambio que se sube)
 - Última revisión de esta documentación: 15 de noviembre de 2026 (versión `15353cc` y posteriores)
+- App Android (APK): <https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk>
 - Video tutorial del atajo de iPhone: <https://gastos-g63s.onrender.com/videos/tutorial-atajo-iphone.mp4>
 
 ## Índice
@@ -20,7 +21,8 @@ DUOLAB Gastos es una app web instalable (PWA) que registra gastos, ingresos y pa
 | [07 · Tareas automáticas y mantenimiento](07-mantenimiento.md) | Desarrollo y soporte | Revisiones periódicas, limpiezas y correcciones únicas |
 | [08 · Solución de problemas](08-problemas.md) | Soporte | Síntomas frecuentes y qué revisar |
 | [09 · Historial de cambios](09-cambios.md) | Todos | Cambios publicados, del más reciente al más antiguo |
-| [10 · iPhone, Android y apps nativas](10-ios-android.md) | Todos | Qué se puede registrar solo en cada teléfono, atajos de iPhone y qué aportaría una app nativa |
+| [10 · iPhone, Android y apps nativas](10-ios-android.md) | Todos | Qué se registra solo en cada teléfono, atajos de iPhone y la app Android (APK) |
+| [android/LEEME.md](../android/LEEME.md) | Desarrollo | App Android: piezas, firma y cómo compilar |
 
 ## En una frase por parte
 

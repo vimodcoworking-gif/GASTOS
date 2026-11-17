@@ -246,11 +246,15 @@ async function entrar(usuario) {
   $('#app').hidden = false;
   await cargarLibros();
   aplicarDestinoDeUrl();
+  marcarSiEsApk();
   render();
   escucharCambios();
   // Una sola vez: invitación a instalar la app (o, ya instalada, a activar las notificaciones).
   // Si no hubo nada que mostrar, en iPhone se enseña (una vez) cómo registrar los yapes con el atajo.
-  setTimeout(() => abrirAvisoApp().then((mostrado) => { if (!mostrado) tutorialAtajoUnaVez(); }).catch(() => {}), 1500);
+  setTimeout(() => {
+    if (avisoConectarApk()) return;
+    abrirAvisoApp().then((mostrado) => { if (!mostrado) tutorialAtajoUnaVez(); }).catch(() => {});
+  }, 1500);
 }
 
 // ---------- tema claro u oscuro ----------
@@ -2081,14 +2085,25 @@ function seccionAvisosTelefono() {
             h('div', { class: 'botones-fila' },
               h('button', { type: 'button', class: 'primario', onclick: copiar }, 'Copiar'),
               h('button', { type: 'button', onclick: () => crear(true) }, 'Cambiar'))),
-          h('details', { class: 'instrucciones' },
-            h('summary', null, 'Android: automático con MacroDroid'),
-            h('ol', null,
-              h('li', null, 'Instala MacroDroid y crea una macro.'),
-              h('li', null, 'Disparador: Notificación recibida → Yape (y Plin o tu banco).'),
-              h('li', null, 'Acción: Solicitud HTTP · POST · URL: tu enlace · Cuerpo JSON: {"titulo":"[notification_title]","texto":"[notification]","app":"[app_name]"}'),
-              h('li', null, 'Dale permiso de notificaciones y haz un yape de prueba.'),
-            ),
+          h('details', { class: 'instrucciones', open: esAndroid },
+            h('summary', null, 'Android: app DUOLAB (registra solo, al instante)'),
+            h('p', { class: 'tenue nota' }, 'La app lee los avisos de Yape, Plin y tu banco que traen un monto y los registra al momento, enviados y recibidos, de cualquier monto.'),
+            enApk()
+              ? h('div', { class: 'form-linea' }, botonConectarApk())
+              : [
+                  h('ol', null,
+                    h('li', null, 'Descarga e instala la app. Si Android lo pide, permite «Instalar apps desconocidas» para Chrome.'),
+                    h('li', null, 'Ábrela desde el icono DUOLAB e inicia sesión.'),
+                    h('li', null, 'En Mi cuenta toca «Conectar lectura automática» y activa el acceso a notificaciones.')),
+                  h('div', { class: 'form-linea' }, botonDescargarApk(), esAndroid && botonConectarApk('Ya la tengo: conectar')),
+                ],
+            h('details', { class: 'instrucciones' },
+              h('summary', null, 'Sin la app: MacroDroid'),
+              h('ol', null,
+                h('li', null, 'Instala MacroDroid y crea una macro.'),
+                h('li', null, 'Disparador: Notificación recibida → Yape (y Plin o tu banco).'),
+                h('li', null, 'Acción: Solicitud HTTP · POST · URL: tu enlace · Cuerpo JSON: {"titulo":"[notification_title]","texto":"[notification]","app":"[app_name]"}'),
+                h('li', null, 'Dale permiso de notificaciones y haz un yape de prueba.'))),
           ),
           h('details', { class: 'instrucciones', open: esIOS },
             h('summary', null, 'iPhone: automático al abrir Yape'),
@@ -3135,6 +3150,9 @@ async function abrirAvisoApp({ forzar = false } = {}) {
       } }, icono('descargar'), 'Instalar ahora'),
       h('div', { class: 'segmentos n3 pestanas-app', role: 'tablist' }, pestana('ios', 'iPhone / iPad'), pestana('android', 'Android'), pestana('pc', 'PC / Mac')),
       pasosInstalar(plataforma),
+      plataforma === 'android' && h('div', { class: 'apk-oferta' },
+        h('p', null, h('b', null, 'O instala la app Android (APK):'), ' además registra sola tus Yapes, Plin y avisos del banco al instante.'),
+        botonDescargarApk()),
       !esIOS && estadoPush === 'inactivo' && botonNotificar,
       h('div', { class: 'acciones' },
         h('button', { type: 'button', onclick: (ev) => cerrar(ev.target.closest('dialog')) }, 'Ahora no'),
@@ -3214,6 +3232,44 @@ function pantallaYape() {
     h('div', { class: 'tel-barra' }, h('span', null, 'Mis movimientos'), h('small', null, 'Ejemplo')),
     [['Bodega Don Lucho', 'Hoy 9:15 am', '- S/ 3.50'], ['Ana Gómez*', 'Hoy 8:40 am', '- S/ 10.00'], ['*** *** 512', 'Ayer 7:05 pm', '- S/ 1.50']]
       .map(([n, t, m]) => h('div', { class: 'tel-fila' }, h('span', null, h('b', null, n), h('small', null, t)), h('span', { class: 'tel-monto' }, m))));
+}
+
+// ---------- app Android (APK) ----------
+// La app (Trusted Web Activity) abre esta web con «?app=android»; su lector de notificaciones manda Yape, Plin y
+// los avisos del banco al enlace personal. La web le pasa el enlace con duolab://configurar?enlace=…
+const APK_URL = '/descargas/duolab-gastos.apk';
+var enApk = () => guardado.leer('apk') === '1';
+function marcarSiEsApk() {
+  if (new URLSearchParams(location.search).get('app') === 'android' || document.referrer.startsWith('android-app://pe.duolab.gastos')) guardado.poner('apk', '1');
+}
+const intentConectar = (enlace) => `intent://configurar?enlace=${encodeURIComponent(enlace)}#Intent;scheme=duolab;package=pe.duolab.gastos;S.browser_fallback_url=${encodeURIComponent(location.origin + APK_URL)};end`;
+// Abre la pantalla «Lectura de Yape» de la app con el enlace de esta cuenta (el enlace se pide antes, para
+// que Chrome acepte la navegación dentro del mismo toque).
+function botonConectarApk(texto = 'Conectar lectura automática') {
+  let enlace = null;
+  enlaceAvisos().then((e) => { enlace = e; }).catch(() => {});
+  return h('button', { type: 'button', class: 'primario', onclick: () => {
+    if (!enlace) return avisar('Cargando tu enlace… vuelve a tocar en un segundo.');
+    guardado.poner('apk-conectar-v1', '1');
+    location.href = intentConectar(enlace);
+  } }, texto);
+}
+const botonDescargarApk = (texto = 'Descargar app Android (APK)') => h('a', { class: 'boton-apk', href: APK_URL, download: 'DUOLAB.apk' }, icono('descargar'), texto);
+
+// Dentro de la app Android, una vez: invitar a conectar la lectura automática.
+function avisoConectarApk() {
+  if (!enApk() || guardado.leer('apk-conectar-v1')) return false;
+  ventana(h('div', { class: 'aviso-app' },
+    h('div', { class: 'app-cabecera' }, h('img', { src: 'icons/app-duolab-192.png', alt: '', width: 64, height: 64 }),
+      h('div', null, h('h2', null, 'Registra tus Yapes solos'), h('p', { class: 'tenue' }, 'La app puede leer los avisos de Yape, Plin y tu banco y registrarlos al instante, de cualquier monto.'))),
+    h('ol', { class: 'tutorial-pasos' },
+      h('li', null, h('span', null, 'Toca ', h('b', null, 'Conectar'), ': se abre la pantalla «Lectura de Yape».')),
+      h('li', null, h('span', null, 'Toca ', h('b', null, 'Activar acceso a notificaciones'), ' y activa ', h('b', null, 'DUOLAB'), '.')),
+      h('li', null, h('span', null, 'Solo se leen los avisos de apps financieras que traen un monto.'))),
+    h('div', { class: 'acciones' },
+      h('button', { type: 'button', onclick: () => { guardado.poner('apk-conectar-v1', '1'); $('#dlg-extra').close(); } }, 'Ahora no'),
+      botonConectarApk('Conectar'))), { ancho: 'dlg-app' });
+  return true;
 }
 
 // Video tutorial del atajo de iPhone (1:43, con voz).

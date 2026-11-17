@@ -42,6 +42,13 @@ app.use('/api', (req, res, next) => {
   if (estadoBd.lista) return next();
   res.status(503).json({ error: `Sin conexión con la base de datos. ${estadoBd.causa}` });
 });
+// App Android (Trusted Web Activity): Android comprueba aquí que la app firmada es de este sitio para abrirla
+// a pantalla completa, sin barra de direcciones. ANDROID_SHA256 permite cambiar la huella sin publicar código.
+const HUELLA_ANDROID = process.env.ANDROID_SHA256?.trim() || 'C9:78:E0:7F:66:60:89:37:51:58:F2:49:3B:D7:65:B1:1B:82:7B:95:5F:22:7D:D3:36:8F:43:B5:15:EA:BE:98';
+app.get('/.well-known/assetlinks.json', (req, res) => res.json([{
+  relation: ['delegate_permission/common.handle_all_urls'],
+  target: { namespace: 'android_app', package_name: 'pe.duolab.gastos', sha256_cert_fingerprints: [HUELLA_ANDROID] },
+}]));
 app.get('/api/version', (req, res) => res.json({ version: (process.env.RENDER_GIT_COMMIT ?? 'local').slice(0, 7), desde: arranque }));
 app.use('/api/auth/google', rutasGoogle);
 app.use('/api/auth', rutasAuth);

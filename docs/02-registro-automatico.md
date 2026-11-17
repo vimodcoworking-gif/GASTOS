@@ -63,7 +63,8 @@ También funciona cuando quien paga registra su Yape o Plin **por captura, atajo
 
 Cada persona crea su enlace en **Mi cuenta → Yape, Plin y avisos del teléfono**. No debe compartirse: con él se registran movimientos en su cuenta.
 
-- **Android (automático):** MacroDroid reenvía cada notificación de Yape, Plin o del banco como texto. Se lee sin IA cuando el formato es conocido y con IA si no.
+- **Android (automático): app DUOLAB (APK).** Lee las notificaciones de Yape, Plin y bancos que traen un monto y las manda al enlace personal al instante. Se conecta desde Mi cuenta («Conectar lectura automática»). Ver [android/LEEME.md](../android/LEEME.md).
+- **Android sin la app:** MacroDroid reenvía cada notificación de Yape, Plin o del banco como texto. Se lee sin IA cuando el formato es conocido y con IA si no.
 - **iPhone (automático al abrir Yape):** el atajo «DUOLAB Yape» se ejecuta solo cada vez que se abre Yape (también al tocar la notificación «Te yapearon»): espera 6 segundos, captura la lista de movimientos y la envía con `?silencioso=1`. Apple no deja que ninguna app lea las notificaciones de otra, así que en iPhone hace falta abrir Yape (un toque). Ver [03 · Guías](03-guias.md) y [10 · iPhone, Android y apps nativas](10-ios-android.md).
 - **Modo silencioso (`?silencioso=1`):** si no se registró nada nuevo (pantalla de la clave de Yape, captura sin movimientos, todo ya registrado), la respuesta llega con `mensaje` vacío y código 200, para que el atajo no muestre ninguna notificación. En **Últimos envíos** queda como «Captura (automático)».
 - El enlace acepta texto, JSON, imagen (con o sin tipo), formulario o PDF.

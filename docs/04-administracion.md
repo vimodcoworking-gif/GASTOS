@@ -41,6 +41,10 @@ Pestaña **Admin → Atajo iPhone**: el enlace de iCloud del atajo «DUOLAB Yape
 - La **automatización** «al abrir Yape» no se puede compartir: cada usuario la crea en su iPhone (5 toques, explicados en el tutorial y en el video).
 - Se guarda en la colección `ajustes` con la clave `atajo-iphone`. Dejar el campo vacío y guardar lo quita.
 
+## App Android (APK)
+
+Se publica como archivo en `public/descargas/duolab-gastos.apk`. La firma (`C:\Users\JANCA\.duolab\`) no está en el repositorio: **hay que guardar una copia**. Cómo compilar una versión nueva: [android/LEEME.md](../android/LEEME.md). `ANDROID_SHA256` (opcional) cambia la huella de `/.well-known/assetlinks.json`.
+
 ## Licencias de VIMOD
 
 Si están `VIMOD_MONGODB_URI` y `VIMOD_SOFTWARE`, solo entran clientes con licencia activa de ese software en el Panel de VIMOD (se busca su cuenta por el correo). Si se suspende o vence, se pierde el acceso en un minuto. `LICENCIA_LIBRE` lista correos que entran sin licencia. Sin esas variables, la app queda abierta.

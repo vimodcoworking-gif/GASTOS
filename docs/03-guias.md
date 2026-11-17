@@ -54,7 +54,18 @@ Sin enlace publicado, el tutorial explica cómo crear el atajo acción por acci�
 
 Opcional: el mismo atajo en **Ajustes → Accesibilidad → Tocar → Tocar atrás → Doble toque**, para enviarlo cuando se quiera.
 
-## Android: MacroDroid (automático)
+## Android: app DUOLAB (APK)
+
+1. En el teléfono, abre DUOLAB en Chrome → Mi cuenta → Yape, Plin y avisos del teléfono → **Descargar app Android (APK)** (o <https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk>).
+2. Ábrelo e instala. Si Android lo pide, permite **«Instalar apps desconocidas»** para Chrome.
+3. Abre **DUOLAB** desde el icono e inicia sesión.
+4. Toca **Conectar** (aparece sola la primera vez; también en Mi cuenta → «Conectar lectura automática»). Se abre la pantalla «Lectura de Yape» con «✓ Conectada a tu cuenta».
+5. **Activar acceso a notificaciones** → DUOLAB → Permitir. En Xiaomi, Huawei u Oppo, también **Quitar el ahorro de batería**.
+6. **Probar el envío**: debe responder el servidor. Después haz un Yape de prueba.
+
+La pantalla «Lectura de Yape» también se abre manteniendo pulsado el icono de DUOLAB.
+
+## Android: MacroDroid (sin la app)
 
 1. Instalar **MacroDroid** y crear una macro.
 2. Disparador: **Notificación recibida** → Yape (y Plin o el banco).

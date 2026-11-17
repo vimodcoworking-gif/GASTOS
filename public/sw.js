@@ -1,5 +1,5 @@
 // Cambia la versión al publicar cambios para que se descarte la caché anterior.
-const CACHE = 'nfta-gastos-v79';
+const CACHE = 'nfta-gastos-v80';
 const ARCHIVOS = ['/', '/styles.css', '/app.js', '/tema.js', '/manifest.webmanifest', '/logo-duolab.png', '/logo-duolab-blanco.png', '/icons/app-duolab-192.png', '/icons/app-duolab-512.png'];
 
 self.addEventListener('install', (ev) => {
@@ -19,7 +19,7 @@ self.addEventListener('fetch', (ev) => {
   // Los datos (/api) siempre van a la red: nunca se guardan gastos en la caché.
   if (ev.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
   // Videos directo de la red: Safari los pide por partes (Range) y la caché no sabe responder así.
-  if (url.pathname.startsWith('/videos/')) return;
+  if (url.pathname.startsWith('/videos/') || url.pathname.startsWith('/descargas/')) return;
   // Otras páginas (privacidad, términos) van directas a la red: no deben guardarse como la app.
   if (ev.request.mode === 'navigate' && url.pathname !== '/' && url.pathname !== '/index.html') return;
 
