@@ -22,7 +22,7 @@ App nativa mínima: abre la web de DUOLAB a pantalla completa (Trusted Web Activ
 | `Enviador.java` | `POST` JSON `{titulo, texto, app}` a `/api/avisos/<token>` (el mismo formato que MacroDroid). Si no hay red o el servidor está despertando, guarda el aviso (hasta 30) y lo reintenta con el siguiente. La misma notificación actualizada en 2 minutos se manda una vez. |
 | `ConfigurarActivity.java` | Pantalla «Lectura de Yape»: recibe el enlace desde la web (`duolab://configurar?enlace=…`), muestra si está conectada y si tiene el permiso, y lleva a «Acceso a notificaciones», al ahorro de batería y a «Probar el envío». También se abre manteniendo pulsado el icono. |
 
-La web detecta la app por `?app=android` o `?app=android-play` (lo guarda en `localStorage` `apk`: `web` o `play`). Solo en la versión `play` ofrece **Conectar**, que la primera vez, que abre `intent://configurar?enlace=…#Intent;scheme=duolab;package=pe.duolab.gastos;…`. El servidor ya registra, avisa por push y WhatsApp y evita duplicados con el correo.
+La web detecta la app por `?app=android` o `?app=android-play` (lo guarda en `localStorage` `apk`: `web` o `play`). Solo en la versión `play` ofrece **Conectar** (sola la primera vez y en Mi cuenta), que abre `intent://configurar?enlace=…#Intent;scheme=duolab;package=pe.duolab.gastos;…`. El servidor ya registra, avisa por push y WhatsApp y evita duplicados con el correo.
 
 ## Sin barra de direcciones
 
