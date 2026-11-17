@@ -4,6 +4,8 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-17 | `238c568` | App Android (APK): DUOLAB a pantalla completa con lectura automática de Yape, Plin y bancos; descarga y conexión desde la web |
+| 2026-11-15 | `c394e67` | Docs: tono del bot, atajo automático de iPhone, Admin → Atajo iPhone, API nueva, video, diseños de inicio, problemas, historial e iPhone/Android |
 | 2026-11-14 | `15353cc` | Video tutorial: voz neuronal natural (Camila, español de Perú) |
 | 2026-11-14 | `e350e50` | Herramienta para regenerar el video tutorial del atajo |
 | 2026-11-14 | `2be5761` | Video tutorial del atajo de iPhone (1:43, con voz) y botón «Ver video» en la app |
