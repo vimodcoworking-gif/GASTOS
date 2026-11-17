@@ -57,15 +57,13 @@ Opcional: el mismo atajo en **Ajustes → Accesibilidad → Tocar → Tocar atr�
 ## Android: app DUOLAB (APK)
 
 1. En el teléfono, abre DUOLAB en Chrome → Mi cuenta → Yape, Plin y avisos del teléfono → **Descargar app Android (APK)** (o <https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk>).
-2. Ábrelo e instala. Si Android lo pide, permite **«Instalar apps desconocidas»** para Chrome.
+2. Ábrelo e instala. Si Android lo pide, permite **«Instalar apps desconocidas»** para Chrome. Si Play Protect avisa de una «app desconocida», **Más detalles → Instalar de todas formas**.
 3. Abre **DUOLAB** desde el icono e inicia sesión.
-4. Toca **Conectar** (aparece sola la primera vez; también en Mi cuenta → «Conectar lectura automática»). Se abre la pantalla «Lectura de Yape» con «✓ Conectada a tu cuenta».
-5. **Activar acceso a notificaciones** → DUOLAB → Permitir. En Xiaomi, Huawei u Oppo, también **Quitar el ahorro de batería**.
-6. **Probar el envío**: debe responder el servidor. Después haz un Yape de prueba.
+4. Para que los Yapes se registren solos, configura **MacroDroid** (abajo).
 
-La pantalla «Lectura de Yape» también se abre manteniendo pulsado el icono de DUOLAB.
+> **Play Protect:** desde 2025, Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**, «para proteger el dispositivo». Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
 
-## Android: MacroDroid (sin la app)
+## Android: MacroDroid (Yape automático)
 
 1. Instalar **MacroDroid** y crear una macro.
 2. Disparador: **Notificación recibida** → Yape (y Plin o el banco).

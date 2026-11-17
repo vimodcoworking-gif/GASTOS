@@ -11,7 +11,8 @@
 | No aparece «Copiar enlace y añadir atajo» en el tutorial | El administrador no publicó el atajo | Admin → Atajo iPhone → pegar el enlace de iCloud |
 | El video tutorial no se reproduce en iPhone | Copia vieja de la app | Cerrar y abrir la app; el video se pide siempre a la red |
 | El yape a otra persona de DUOLAB no le aparece | Falta su WhatsApp, varios usuarios con los mismos 3 dígitos, o quien pagó lo anotó a mano antes del correo | Ver [02 · Yape entre dos personas](02-registro-automatico.md#yape-entre-dos-personas-que-usan-duolab) |
-| La app Android no registra los Yapes | Sin acceso a notificaciones, sin conectar, o el sistema cerró la app por batería | Mantener pulsado el icono → «Lectura de Yape»: ver los dos ✓, **Probar el envío**; quitar el ahorro de batería; Mi cuenta → Últimos envíos |
+| «Se bloqueó la app para proteger tu dispositivo» (Play Protect) al instalar el APK | APK antiguo (v1.0) con acceso a notificaciones: Google bloquea esas apps fuera de Play Store | Descargar de nuevo el APK (v1.1, sin ese permiso). No desactivar Play Protect |
+| La app Android (Play Store) no registra los Yapes | Sin acceso a notificaciones, sin conectar, o el sistema cerró la app por batería | Mantener pulsado el icono → «Lectura de Yape»: ver los dos ✓, **Probar el envío**; quitar el ahorro de batería; Mi cuenta → Últimos envíos |
 | La app Android muestra una barra con la dirección | Android aún no verificó `assetlinks.json` o la firma no coincide | Abrir `/.well-known/assetlinks.json` y comparar la huella con la de la firma; reinstalar la app |
 | «No se puede instalar» al actualizar el APK | La versión nueva está firmada con otra clave | Usar siempre la firma de `C:\Users\JANCA\.duolab\`; si se perdió, desinstalar y volver a instalar |
 | «Activa la IA» al subir una captura | IA desactivada | Admin → IA → elegir proveedor, clave y Activar |

@@ -7,7 +7,7 @@ Qué se puede registrar solo en cada teléfono, con qué herramientas, y qué ca
 | Movimiento | iPhone | Android |
 | --- | --- | --- |
 | Yape **enviado** | Correo de Yape → Gmail (0 toques) | Correo de Yape, o notificación con MacroDroid (0 toques) |
-| Yape **recibido** | Atajo «DUOLAB Yape» al abrir Yape: tocar la notificación (1 toque) | App DUOLAB (APK) o MacroDroid (0 toques) |
+| Yape **recibido** | Atajo «DUOLAB Yape» al abrir Yape: tocar la notificación (1 toque) | MacroDroid, o la app DUOLAB de Play Store (0 toques) |
 | Yape de alguien que usa DUOLAB | Correo del que paga (0 toques) | Igual |
 | Plin y transferencias | Correo de alerta del banco (0 toques, si el banco lo envía) | Notificación del banco con MacroDroid, o correo (0 toques) |
 | Captura, boleta, constancia | Subir captura, WhatsApp o tocar atrás | Igual |
@@ -30,11 +30,14 @@ No existe el disparador «al recibir una notificación».
 
 ## Apps nativas
 
-### Android: hecho — app DUOLAB (APK)
+### Android: app DUOLAB
 
-**Disponible:** <https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk> (Mi cuenta → Android, o la ventana «Instala DUOLAB»). Detalles técnicos, firma y cómo compilar: [android/LEEME.md](../android/LEEME.md).
+> **Play Protect:** desde 2025, Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**, «para proteger el dispositivo». Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
 
-Para el usuario: 1) descargar e instalar (permitir «Instalar apps desconocidas» para Chrome); 2) abrir DUOLAB desde el icono e iniciar sesión; 3) tocar **Conectar** (sale solo la primera vez, o en Mi cuenta) → **Activar acceso a notificaciones** → DUOLAB. Desde entonces cada aviso de Yape, Plin o banco con un monto se registra al instante, con notificación y WhatsApp.
+- **APK de la web** (<https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk>): DUOLAB con su icono, a pantalla completa y con notificaciones. Yape automático con **MacroDroid** (de Play Store).
+- **Versión de Play Store** (pendiente de publicar): además lee sola las notificaciones de Yape, Plin y bancos. Tras instalarla: abrir DUOLAB → **Conectar** → **Activar acceso a notificaciones**. Requiere cuenta de Google Play (US$ 25, un pago) y declarar el uso del acceso a notificaciones.
+
+Detalles técnicos, firma y cómo compilar: [android/LEEME.md](../android/LEEME.md).
 
 ### Android: por qué aporta
 
@@ -50,5 +53,5 @@ Seguiría sin leer las notificaciones de Yape. Solo sumaría «Compartir → DUO
 
 ### Recomendación
 
-- **Android:** app DUOLAB (APK) con lector de notificaciones: 100 % automática. Publicada; no está en Play Store (se instala desde la web).
+- **Android:** APK de la web + MacroDroid hoy; versión con lector propio cuando se publique en Play Store (fuera de Play Store la bloquea Play Protect).
 - **iPhone:** seguir con la app web instalada + atajo automático al abrir Yape + correo de Yape + alertas de banco por correo.

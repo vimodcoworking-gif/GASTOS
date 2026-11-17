@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Versión web (APK fuera de Play Store): sin lectura de notificaciones, sin accesos directos. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android" />

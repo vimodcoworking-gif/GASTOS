@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solo en la versión de Play Store: lectura de notificaciones de Yape, Plin y bancos.
+     Fuera de Play Store, Google Play Protect bloquea la instalación de apps con este permiso. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Conectar la lectura automática: la web abre duolab://configurar?enlace=… -->
+        <activity
+            android:name=".ConfigurarActivity"
+            android:exported="true"
+            android:label="@string/atajo_lectura"
+            android:theme="@style/Tema">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="duolab" android:host="configurar" />
+            </intent-filter>
+        </activity>
+
+        <!-- Lee las notificaciones de Yape, Plin y bancos (con el permiso «Acceso a notificaciones»). -->
+        <service
+            android:name=".LecturaAvisos"
+            android:exported="true"
+            android:label="@string/servicio_lectura"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+    </application>
+</manifest>

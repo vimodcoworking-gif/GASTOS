@@ -49,31 +49,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Conectar la lectura automática: la web abre duolab://configurar?enlace=… -->
-        <activity
-            android:name=".ConfigurarActivity"
-            android:exported="true"
-            android:label="@string/atajo_lectura"
-            android:theme="@style/Tema">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="duolab" android:host="configurar" />
-            </intent-filter>
-        </activity>
-
-        <!-- Lee las notificaciones de Yape, Plin y bancos (con el permiso «Acceso a notificaciones»). -->
-        <service
-            android:name=".LecturaAvisos"
-            android:exported="true"
-            android:label="@string/servicio_lectura"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
-
         <!-- Las notificaciones push de la web salen con el nombre y el icono de la app. -->
         <service
             android:name="com.google.androidbrowserhelper.trusted.DelegationService"

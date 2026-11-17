@@ -17,8 +17,17 @@ android {
         applicationId 'pe.duolab.gastos'
         minSdk 23
         targetSdk 36
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '1.1'
+    }
+
+    // web: el APK que se descarga desde la web (sin lectura de notificaciones: Play Protect bloquea fuera de
+    //      Play Store las apps con acceso a notificaciones).
+    // play: para publicar en Play Store, con la lectura automática de Yape, Plin y bancos.
+    flavorDimensions = ['canal']
+    productFlavors {
+        web { dimension 'canal' }
+        play { dimension 'canal' }
     }
 
     signingConfigs {
