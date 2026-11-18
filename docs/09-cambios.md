@@ -4,6 +4,8 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-18 | `fd839f1` | App Android 2.1: mismo diseño que la web (Mes, calendario, gráficas, Metas, Categorías, Asistente, Año, Informe PDF, captura de Yape, modo oscuro) y notificaciones |
+| 2026-11-17 | `6710a07` | La descarga del APK se muestra siempre en la web |
 | 2026-11-17 | `464c4a2` | App Android nativa (Kotlin + Jetpack Compose) v2.0: entrar con correo o Google (código de un solo uso), inicio, movimientos, pendientes y formulario |
 | 2026-11-17 | `30a56d3` | APK de la web sin acceso a notificaciones (Play Protect lo bloqueaba); lectura automática solo en la versión de Play Store |
 | 2026-11-17 | `238c568` | App Android (APK): DUOLAB a pantalla completa con lectura automática de Yape, Plin y bancos; descarga y conexión desde la web |
