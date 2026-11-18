@@ -4,6 +4,8 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-18 | `0aaf15b` | App Android 2.2 toda nativa: entrar, crear cuenta, recuperar contraseña, Mi cuenta (Gmail, recordatorios, Yape), Compartir, Administración, diseños de inicio |
+| 2026-11-18 | `05c38e8` | App Android 2.1.1: corrige el cierre al abrir |
 | 2026-11-18 | `fd839f1` | App Android 2.1: mismo diseño que la web (Mes, calendario, gráficas, Metas, Categorías, Asistente, Año, Informe PDF, captura de Yape, modo oscuro) y notificaciones |
 | 2026-11-17 | `6710a07` | La descarga del APK se muestra siempre en la web |
 | 2026-11-17 | `464c4a2` | App Android nativa (Kotlin + Jetpack Compose) v2.0: entrar con correo o Google (código de un solo uso), inicio, movimientos, pendientes y formulario |
