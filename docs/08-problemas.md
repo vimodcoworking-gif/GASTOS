@@ -16,6 +16,7 @@
 | La app Android muestra una barra con la dirección | Android aún no verificó `assetlinks.json` o la firma no coincide | Abrir `/.well-known/assetlinks.json` y comparar la huella con la de la firma; reinstalar la app |
 | «Continuar con Google» en la app Android no vuelve a la app | Chrome no abrió `duolab://login`, o pasaron más de 2 minutos | Volver a tocar «Continuar con Google»; si persiste, entrar con correo y contraseña (se crea en la web con «¿Olvidaste tu contraseña?») |
 | «Ese código ya se usó» o «El código caducó» | El código de Google para la app vale una vez y 2 minutos | Volver a tocar «Continuar con Google» |
+| La app Android se cierra al abrirla (2.1) | El optimizador R8 quitaba piezas de WorkManager (notificaciones) | Corregido en 2.1.1 (`proguard-rules.pro`); volver a descargar el APK. Antes de publicar, probar siempre el APK final (release), no solo el de prueba |
 | «No se puede instalar» al actualizar el APK | La versión nueva está firmada con otra clave | Usar siempre la firma de `C:\Users\JANCA\.duolab\`; si se perdió, desinstalar y volver a instalar |
 | «Activa la IA» al subir una captura | IA desactivada | Admin → IA → elegir proveedor, clave y Activar |
 | Una captura HEIC no se lee | Formato no compatible | En el atajo, añadir «Convertir imagen» a JPEG |
