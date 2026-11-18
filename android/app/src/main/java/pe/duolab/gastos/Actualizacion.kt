@@ -93,13 +93,18 @@ object Actualizacion {
         }
         val archivo = withContext(Dispatchers.IO) {
             runCatching {
+                // Se descarga a un archivo temporal y, solo si llegó completo, se renombra con un nombre nuevo:
+                // así un segundo toque no pisa el archivo que el instalador ya está leyendo.
                 val carpeta = File(contexto.cacheDir, "actualizaciones").apply { mkdirs() }
-                val destino = File(carpeta, "duolab-${v.codigo}.apk")
+                carpeta.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 10 * 60_000 }?.forEach { it.delete() }
+                val parcial = File(carpeta, "duolab-${v.codigo}-${System.currentTimeMillis()}.part")
+                val destino = File(carpeta, parcial.name.removeSuffix(".part") + ".apk")
                 cliente.newCall(Request.Builder().url(v.url).build()).execute().use { r ->
                     if (!r.isSuccessful) return@runCatching null
                     val cuerpo = r.body ?: return@runCatching null
-                    val total = cuerpo.contentLength().takeIf { it > 0 } ?: 2_000_000L
-                    destino.outputStream().use { out ->
+                    val largo = cuerpo.contentLength()
+                    val total = largo.takeIf { it > 0 } ?: 2_000_000L
+                    parcial.outputStream().use { out ->
                         cuerpo.byteStream().use { entrada ->
                             val buf = ByteArray(16 * 1024)
                             var leido = 0L
@@ -112,7 +117,9 @@ object Actualizacion {
                             }
                         }
                     }
+                    if (largo > 0 && parcial.length() != largo) { parcial.delete(); return@runCatching null }
                 }
+                if (!parcial.renameTo(destino)) return@runCatching null
                 destino
             }.getOrNull()
         }
