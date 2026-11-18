@@ -1,6 +1,6 @@
 {
-  "versionCode": 8,
-  "versionName": "2.4",
-  "notas": "Ahora la app te avisa cuando hay una versión nueva y se actualiza sola, sin perder tus datos.",
+  "versionCode": 9,
+  "versionName": "2.5",
+  "notas": "Las tarjetas ahora dicen «Ingresos del mes» y «Gastos del mes», con cuánto recibiste, pagaste y lo que falta.",
   "apk": "/descargas/duolab-gastos.apk"
 }

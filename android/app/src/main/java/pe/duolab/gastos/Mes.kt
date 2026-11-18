@@ -352,9 +352,19 @@ private fun TarjetasMes(vm: AppVM, actual: List<Movimiento>, t: Totales, alPendi
     val pendientesGasto = actual.count { it.esGasto && !it.pagado }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            TarjetaWeb("Ingresos", dinero(t.ingresos, m), if (t.ingresosPendientes > 0) "${dinero(t.ingresos - t.ingresosPendientes, m)} recibido · ${dinero(t.ingresosPendientes, m)} por recibir" else "Todo recibido",
+            TarjetaWeb("Ingresos del mes", dinero(t.ingresos, m),
+                when {
+                    t.ingresos <= 0 -> "Aún no hay ingresos este mes"
+                    t.ingresosPendientes > 0 -> "Recibiste ${dinero(t.ingresos - t.ingresosPendientes, m)} · faltan ${dinero(t.ingresosPendientes, m)}"
+                    else -> "Ya recibiste todo"
+                },
                 Iconos.entrada, Color(0xFFE3F1DA), Color(0xFF3E8E2F), LocalTokens.current.tinta, Modifier.weight(1f), if (t.ingresos > 0) ((t.ingresos - t.ingresosPendientes) / t.ingresos).toFloat() else 0f, Color(0xFF55A630))
-            TarjetaWeb("Gastos", dinero(t.gastos, m), "${dinero(t.gastos - t.gastosPendientes, m)} pagado · ${if (t.gastos > 0) ((t.gastos - t.gastosPendientes) / t.gastos * 100).toInt() else 0} %",
+            TarjetaWeb("Gastos del mes", dinero(t.gastos, m),
+                when {
+                    t.gastos <= 0 -> "Aún no hay gastos este mes"
+                    t.gastosPendientes > 0 -> "Pagaste ${dinero(t.gastos - t.gastosPendientes, m)} · faltan ${dinero(t.gastosPendientes, m)}"
+                    else -> "Todo pagado"
+                },
                 Iconos.salida, Color(0xFFFDE2E2), Color(0xFFE5484D), LocalTokens.current.tinta, Modifier.weight(1f), if (t.gastos > 0) ((t.gastos - t.gastosPendientes) / t.gastos).toFloat() else 0f, Color(0xFFF04A50))
         }
         // «Falta por pagar»: tarjeta oscura a todo el ancho con la insignia del número de pagos.

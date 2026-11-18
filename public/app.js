@@ -1307,9 +1307,11 @@ function pintarMes({ actual, proximo, pendientes }) {
 
   const tarjetasMes =
     h('div', { class: `tarjetas tres con-balance ${diseno !== 'clasico' ? 'en-fila' : ''}` },
-      tarjeta('Ingresos', dinero(t.ingresos), t.ingresosPendientes > 0 ? `${dinero(t.ingresos - t.ingresosPendientes)} recibido · ${dinero(t.ingresosPendientes)} por recibir` : 'Todo recibido',
+      tarjeta('Ingresos del mes', dinero(t.ingresos),
+        t.ingresos <= 0 ? 'Aún no hay ingresos este mes' : t.ingresosPendientes > 0 ? `Recibiste ${dinero(t.ingresos - t.ingresosPendientes)} · faltan ${dinero(t.ingresosPendientes)}` : 'Ya recibiste todo',
         '', { icono: 'entrada', tono: 'ingreso', progreso: t.ingresos > 0 ? (t.ingresos - t.ingresosPendientes) / t.ingresos : 0 }),
-      tarjeta('Gastos', dinero(t.gastos), `${dinero(t.gastos - t.gastosPendientes)} pagado · ${t.gastos > 0 ? Math.round(((t.gastos - t.gastosPendientes) / t.gastos) * 100) : 0} %`,
+      tarjeta('Gastos del mes', dinero(t.gastos),
+        t.gastos <= 0 ? 'Aún no hay gastos este mes' : t.gastosPendientes > 0 ? `Pagaste ${dinero(t.gastos - t.gastosPendientes)} · faltan ${dinero(t.gastosPendientes)}` : 'Todo pagado',
         '', { icono: 'salida', tono: 'gasto', progreso: t.gastos > 0 ? (t.gastos - t.gastosPendientes) / t.gastos : 0 }),
       tarjeta('Balance', dinero(t.balance),
         t.ingresos > 0 ? `Gastas el ${Math.round((t.gastos / t.ingresos) * 100)} % de lo que entra` : t.gastos > 0 ? 'Sin ingresos este mes' : 'Ingresos menos gastos',
