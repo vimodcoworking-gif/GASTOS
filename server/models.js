@@ -243,6 +243,17 @@ const suscripcionPushSchema = new Schema(
 );
 export const SuscripcionPush = model('SuscripcionPush', suscripcionPushSchema);
 
+// Teléfonos con la app Android nativa: su código de Firebase Cloud Messaging para avisar al instante.
+const tokenAppSchema = new Schema(
+  {
+    usuario: { type: ObjectId, ref: 'Usuario', required: true, index: true },
+    token: { type: String, required: true, unique: true },
+    dispositivo: String,
+  },
+  { timestamps: true },
+);
+export const TokenApp = model('TokenApp', tokenAppSchema);
+
 // Últimos avisos que llegaron al enlace personal (atajo del iPhone, MacroDroid…) y qué pasó con cada uno,
 // para ver en «Mi cuenta» si funciona. Se borran solos a los 7 días.
 const avisoRecibidoSchema = new Schema({

@@ -50,7 +50,7 @@ object Avisos {
         p.edit().putStringSet("vistos:$libroId", (antes + ids).toList().takeLast(600).toSet()).apply()
     }
 
-    internal suspend fun revisar(contexto: Context) {
+    internal suspend fun revisar(contexto: Context, avisar: Boolean = true) {
         Api.iniciar(contexto)
         if (!Api.haySesion()) return
         val p = contexto.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -64,7 +64,7 @@ object Avisos {
             val nuevos = todos.distinctBy { it.id }.filter { it.id !in vistos }
             if (nuevos.isEmpty()) continue
             marcarVistos(contexto, libro.id, nuevos.map { it.id })
-            notificar(contexto, libro, nuevos)
+            if (avisar) notificar(contexto, libro, nuevos)
         }
     }
 
@@ -89,6 +89,25 @@ object Avisos {
             .setAutoCancel(true)
             .build()
         runCatching { NotificationManagerCompat.from(contexto).notify(libro.id.hashCode(), aviso) }
+    }
+
+    /** Aviso que manda el servidor al instante (Firebase): movimiento registrado o pago por vencer. */
+    fun mostrar(contexto: Context, titulo: String, cuerpo: String, etiqueta: String) {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(contexto, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        crearCanal(contexto)
+        val abrir = PendingIntent.getActivity(contexto, 0, Intent(contexto, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_IMMUTABLE)
+        val aviso = NotificationCompat.Builder(contexto, CANAL)
+            .setSmallIcon(R.drawable.ic_notificacion)
+            .setColor(0xFFC6F432.toInt())
+            .setContentTitle(titulo)
+            .setContentText(cuerpo.lineSequence().firstOrNull().orEmpty())
+            .setStyle(NotificationCompat.BigTextStyle().bigText(cuerpo))
+            .setContentIntent(abrir)
+            .setAutoCancel(true)
+            .build()
+        // La misma etiqueta sustituye al aviso anterior (como en la web); sin etiqueta, cada aviso aparte.
+        val id = if (etiqueta.isNotBlank()) etiqueta.hashCode() else (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+        runCatching { NotificationManagerCompat.from(contexto).notify(id, aviso) }
     }
 
     private fun crearCanal(contexto: Context) {

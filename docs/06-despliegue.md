@@ -35,6 +35,7 @@ Se ponen en Render → Environment (y en local, en un archivo `.env` que nunca s
 | `GROQ_API_KEY` u `OPENAI_API_KEY` | No | Audios de WhatsApp a texto |
 | `CORREO_REMITENTE`, `CORREO_NOMBRE` + Cloudflare / Brevo / SMTP | No | Enviar correos (estado de cuenta, recuperar contraseña). Render gratuito bloquea los puertos SMTP. |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL` | No | Notificaciones push (si faltan, se generan solas y se guardan en la base) |
+| `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_GOOGLE_SERVICES` | No | Avisos al instante en la app Android (ver «Firebase» abajo). Sin ellas la app revisa cada 15 minutos |
 | `VIMOD_MONGODB_URI`, `VIMOD_MONGODB_DB`, `VIMOD_SOFTWARE`, `LICENCIA_LIBRE` | No | Licencias de VIMOD |
 
 ## App Android
@@ -54,3 +55,23 @@ Sin datos de MongoDB, la app arranca una base local en `./data/mongo`.
 ## Plan gratuito de Render
 
 Render apaga el servicio tras 15 minutos sin visitas. Mientras alguien tiene Gmail activo, el servidor se visita a sí mismo cada 4 minutos (necesita `APP_URL`) para no dormirse; así siguen funcionando la revisión de Gmail, los recordatorios y el bot.
+
+## Firebase: notificaciones al instante en la app Android
+
+La app Android recibe los avisos por Firebase Cloud Messaging (gratis). No hace falta publicar otra versión de la
+app: los datos de Firebase los entrega el servidor y la app se registra sola la próxima vez que se abre.
+
+1. Entra a <https://console.firebase.google.com> con tu cuenta de Google → **Crear un proyecto** (por ejemplo
+   «duolab-gastos»; Google Analytics no hace falta).
+2. En el proyecto: **Agregar app → Android**. Nombre del paquete: `pe.duolab.gastos` (exacto). Lo demás se puede
+   dejar vacío. Descarga **google-services.json** (no hace falta seguir los pasos de Gradle que muestra).
+3. **Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada**. Se descarga un JSON: es
+   secreto, no lo compartas ni lo subas a GitHub.
+4. En Render → el servicio → **Environment**, agrega:
+   - `FIREBASE_SERVICE_ACCOUNT` = el contenido completo del JSON del paso 3.
+   - `FIREBASE_GOOGLE_SERVICES` = el contenido completo de google-services.json.
+5. Guarda (Render vuelve a publicar). En el teléfono: abre DUOLAB, cierra y vuelve a abrir la app, y en
+   **Mi cuenta → App y notificaciones** debe decir «Te aviso al instante…». Toca **Probar notificación**.
+
+Si cambias de proyecto de Firebase, la app lo detecta y se vuelve a registrar al abrirla dos veces.
+

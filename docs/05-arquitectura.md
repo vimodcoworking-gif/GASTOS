@@ -10,7 +10,7 @@
 | IA | Anthropic SDK (Claude) o API de NVIDIA; Whisper (Groq/OpenAI) para audios |
 | Imágenes | sharp (reducir capturas antes de la IA) |
 | PDF | pdfkit (informes) y unpdf 1.8.1 (leer PDF) |
-| Notificaciones | web-push con claves VAPID |
+| Notificaciones | web-push con claves VAPID; Firebase Cloud Messaging (API HTTP v1) para la app Android |
 | Seguridad | helmet, express-rate-limit, sesiones JWT en cookie, contraseñas con bcrypt |
 | App | Una página en JavaScript sin framework (`public/app.js`), service worker (`public/sw.js`), manifiesto PWA |
 
@@ -69,7 +69,7 @@ flowchart TB
 | `imagen.js` | Reduce y comprime imágenes para la IA; extrae archivos de formularios. |
 | `medios.js` | Detecta el medio de pago (Yape, Plin, tarjeta…) y el banco. |
 | `recordatorios.js` | Recordatorios de pago por WhatsApp y push. |
-| `push.js` | Claves VAPID, suscripciones y envío de notificaciones. |
+| `push.js` | Claves VAPID, suscripciones, envío de notificaciones web y FCM para la app Android. |
 | `eventos.js` | Canal en tiempo real (Server-Sent Events) hacia la app abierta. |
 | `mantenimiento.js` | Compactación, limpieza diaria y tamaños por colección. |
 | `informe.js` | Genera el PDF con el logo. |
@@ -88,6 +88,7 @@ flowchart TB
 | `movimientos` | Gastos e ingresos (con medio, banco, recordatorio, huella, correo de origen) | — |
 | `metas` | Metas de ahorro con sus aportes | — |
 | `suscripcionpushes` | Dispositivos con notificaciones activadas | — |
+| `tokenapps` | Teléfonos con la app Android y su código de FCM | — |
 | `ajustes` | Ajustes del administrador, claves VAPID, correcciones ya hechas | — |
 | `sesionwas` | Sesión y claves del bot de WhatsApp | — |
 | `correovistos` | Correos ya revisados, avisos y capturas ya recibidos | 45 días |
@@ -105,7 +106,7 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 | `/auth/google` | Entrar con Google (`?app=android` vuelve a la app), `app/enlace-gmail` (código de 5 min para vincular Gmail desde la app), `callback`, `estado`; `gmail` (vincular, pausar, desvincular), `gmail/revisar`, `gmail/escanear`, `gmail/revisados` |
 | `/libros` | `GET/POST /libros`; en `/libros/:id`: `mes`, `movimientos`, `pendientes`, `resumen`, `miembros`, `informe.pdf`, `enviar`, `capturas`, `capturas/registrar`, `metas`, `categorias` |
 | `/avisos` | `enlace` (sesión) · `historial` (sesión) · `atajo` (sesión: enlace de iCloud del atajo) · `POST /:token` (sin sesión, para el teléfono; `?silencioso=1` responde sin mensaje si no hay nada nuevo) |
-| `/push` | `clave`, `suscribir`, `prueba` |
+| `/push` | `clave`, `suscribir`, `prueba`, `app` (GET datos de Firebase, POST registrar teléfono), `app/quitar` |
 | `/eventos` | Canal de tiempo real (SSE) |
 | `/ia` | `estado`, `chat`, `whatsapp` |
 | `/recordatorios/prueba` | Mensaje de prueba |

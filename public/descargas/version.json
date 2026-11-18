@@ -1,6 +1,6 @@
 {
-  "versionCode": 11,
-  "versionName": "2.7",
-  "notas": "Menús iguales a la web: menú lateral con tu libro y moneda, «Diseño de inicio» con miniaturas y el formulario de movimiento completo (recordatorio por WhatsApp y repetir).",
+  "versionCode": 12,
+  "versionName": "2.8",
+  "notas": "Notificaciones al instante: en cuanto se registra un gasto o ingreso (Gmail, Yape, WhatsApp) o se acerca un pago, te llega el aviso. Nuevo botón «Probar notificación» en Mi cuenta.",
   "apk": "/descargas/duolab-gastos.apk"
 }

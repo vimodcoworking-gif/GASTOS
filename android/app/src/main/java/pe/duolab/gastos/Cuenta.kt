@@ -33,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /** Tarjeta de Mi cuenta: icono, título y nota como .cuenta-tarjeta de la web. */
@@ -138,10 +139,29 @@ private fun AppNotificaciones() {
             Box(Modifier.size(10.dp).clip(CircleShape).background(if (permitido) Color(0xFF55A630) else Color(0xFFE5484D)))
             Text(if (permitido) "  Notificaciones activadas" else "  Notificaciones desactivadas", fontWeight = FontWeight.SemiBold)
         }
-        Text("Te aviso de cada gasto o ingreso que llegue solo (Gmail, Yape, WhatsApp u otra persona del libro). Se revisa cada 15 minutos.", color = t.tenue, fontSize = 12.sp)
+        val alInstante = remember { Push.activo(contexto) }
+        Text(
+            if (alInstante) "Te aviso al instante de cada gasto o ingreso que llegue solo (Gmail, Yape, WhatsApp) y de tus pagos por vencer."
+            else "Te aviso de cada gasto o ingreso que llegue solo (Gmail, Yape, WhatsApp u otra persona del libro). Se revisa cada 15 minutos.",
+            color = t.tenue, fontSize = 12.sp,
+        )
         if (!permitido) BotonLima("Activar notificaciones") {
             if (Build.VERSION.SDK_INT >= 33) pedir.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        val alcance = rememberCoroutineScope()
+        var resultado by remember { mutableStateOf<String?>(null) }
+        if (permitido) BotonSuave("Probar notificación", Modifier.fillMaxWidth()) {
+            alcance.launch {
+                resultado = if (alInstante) {
+                    // Pasa por el servidor y Firebase: prueba el camino completo.
+                    try { Api.post("/push/prueba"); "Enviada: debe llegarte en unos segundos." } catch (e: ApiError) { e.message }
+                } else {
+                    Avisos.mostrar(contexto, "🔔 Notificaciones activadas", "Así te avisaré de cada gasto o ingreso que llegue solo.", "prueba")
+                    "Listo. Los avisos llegan en la revisión de cada 15 minutos."
+                }
+            }
+        }
+        resultado?.let { Text(it, color = t.tenue, fontSize = 12.sp) }
         BotonSuave("Ajustes de notificaciones del teléfono", Modifier.fillMaxWidth()) {
             contexto.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, contexto.packageName))
         }

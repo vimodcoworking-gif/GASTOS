@@ -141,8 +141,11 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     }
 
     fun cerrarSesion() {
-        viewModelScope.launch { runCatching { Api.post("/auth/logout") } }
-        Api.olvidarSesion()
+        val app = getApplication<Application>()
+        // Primero se quita este teléfono de los avisos (hace falta la sesión), luego se cierra la sesión.
+        viewModelScope.launch {
+            try { Push.quitar(app); runCatching { Api.post("/auth/logout") } } finally { Api.olvidarSesion() }
+        }
         cache.edit().clear().apply()
         usuario = null
         libros = emptyList()
@@ -154,6 +157,7 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         cargarMesAhora()
         capturaPendiente?.let { capturaPendiente = null; leerCaptura(it) }
         conectarLectura()
+        runCatching { Push.activar(getApplication()) }
     }
 
     /** Versión de Play Store: la lectura automática recibe el enlace personal sin que el usuario haga nada. */

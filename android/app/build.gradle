@@ -18,8 +18,8 @@ android {
         applicationId 'pe.duolab.gastos'
         minSdk 26
         targetSdk 36
-        versionCode 11
-        versionName '2.7'
+        versionCode 12
+        versionName '2.8'
         // Servidor de la API. Para probar con un servidor local: gradlew … -PapiBase=http://10.0.2.2:3000
         def apiBase = (project.findProperty('apiBase') ?: 'https://gastos-g63s.onrender.com').toString()
         buildConfigField 'String', 'API_BASE', "\"${apiBase}\""
@@ -79,4 +79,6 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'androidx.core:core-ktx:1.17.0'
     implementation 'androidx.work:work-runtime-ktx:2.10.0'
+    // Notificaciones al instante. Sin el plugin de google-services: los datos de Firebase los da el servidor.
+    implementation 'com.google.firebase:firebase-messaging:24.1.0'
 }

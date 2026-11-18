@@ -4,6 +4,7 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-18 | (2.8) | Notificaciones al instante en la app Android con Firebase Cloud Messaging (se activa con dos variables en Render) y botón «Probar notificación» en Mi cuenta |
 | 2026-11-18 | (2.7) | App Android 2.7: menús iguales a la web: menú lateral (libro, moneda, cerrar sesión), «Diseño de inicio» con miniaturas y formulario de movimiento completo (recordatorio por WhatsApp, repetir) |
 | 2026-11-18 | (2.6) | App Android 2.6: abre al instante con copia local de los datos (también sin conexión) y meses precargados; toque estilo iOS con vibración, transiciones suaves e icono adaptable |
 | 2026-11-18 | (2.5) | Tarjetas «Ingresos del mes» y «Gastos del mes» con textos más claros (app y web) |
