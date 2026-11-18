@@ -82,9 +82,9 @@ data class Borrador(
 
 // ---------- lectura del JSON de la API ----------
 
-private fun JSONObject.texto(clave: String): String? = if (!has(clave) || isNull(clave)) null else optString(clave)
+fun JSONObject.texto(clave: String): String? = if (!has(clave) || isNull(clave)) null else optString(clave)
 
-private fun JSONArray.objetos(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
+fun JSONArray.objetos(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
 
 fun usuarioDe(j: JSONObject) = Usuario(
     id = j.optString("id"), nombre = j.optString("nombre"), email = j.optString("email"), esAdmin = j.optBoolean("esAdmin"),
@@ -118,4 +118,57 @@ fun movimientoDe(j: JSONObject) = Movimiento(
 fun datosMesDe(j: JSONObject): DatosMes {
     fun lista(clave: String) = j.optJSONArray(clave)?.objetos().orEmpty().map(::movimientoDe)
     return DatosMes(lista("actual"), lista("proximo"), lista("pendientes"))
+}
+
+// ---------- metas, categorías, año y capturas ----------
+
+data class Aporte(val id: String, val monto: Double, val fecha: LocalDate?, val nota: String)
+
+data class Meta(
+    val id: String, val nombre: String, val objetivo: Double, val ahorrado: Double,
+    val fechaLimite: LocalDate?, val color: String?, val completada: Boolean, val aportes: List<Aporte>,
+) {
+    val progreso get() = if (objetivo > 0) (ahorrado / objetivo).coerceIn(0.0, 1.0) else 0.0
+}
+
+data class CategoriaMes(
+    val nombre: String, val tipo: String, val color: String?, val presupuesto: Double?,
+    val propia: Boolean, val movimientos: Int, val totalMes: Double, val cuantosMes: Int,
+)
+
+data class MesResumen(val mes: Int, val ingresos: Double, val gastos: Double)
+
+data class ResumenAnio(val anio: Int, val meses: List<MesResumen>, val ingresos: Double, val gastos: Double)
+
+/** Movimiento leído de una captura, antes de registrarlo. */
+data class MovCaptura(val json: JSONObject, val elegido: Boolean) {
+    val tipo: String get() = json.optString("tipo")
+    val monto: Double get() = json.optDouble("monto", 0.0)
+    val descripcion: String get() = json.optString("descripcion")
+    val fecha: String get() = json.optString("fecha")
+    val yaAnotado: Boolean get() = json.optBoolean("yaAnotado")
+}
+
+private fun fechaOpcional(s: String?) = s?.takeIf { it.length >= 10 }?.let { LocalDate.parse(it.take(10)) }
+
+fun metasDe(j: JSONObject): List<Meta> = j.optJSONArray("metas")?.objetos().orEmpty().map { m ->
+    Meta(
+        id = m.optString("id"), nombre = m.optString("nombre"), objetivo = m.optDouble("objetivo", 0.0), ahorrado = m.optDouble("ahorrado", 0.0),
+        fechaLimite = fechaOpcional(m.texto("fechaLimite")), color = m.texto("color"), completada = m.optBoolean("completada"),
+        aportes = m.optJSONArray("aportes")?.objetos().orEmpty().map { a -> Aporte(a.optString("id"), a.optDouble("monto", 0.0), fechaOpcional(a.texto("fecha")), a.optString("nota")) },
+    )
+}
+
+fun categoriasMesDe(j: JSONObject): List<CategoriaMes> = j.optJSONArray("categorias")?.objetos().orEmpty().map { c ->
+    CategoriaMes(
+        nombre = c.optString("nombre"), tipo = c.optString("tipo", "gasto"), color = c.texto("color"),
+        presupuesto = if (c.isNull("presupuesto")) null else c.optDouble("presupuesto"), propia = c.optBoolean("propia"),
+        movimientos = c.optInt("movimientos"), totalMes = c.optDouble("totalMes", 0.0), cuantosMes = c.optInt("cuantosMes"),
+    )
+}
+
+fun resumenAnioDe(j: JSONObject): ResumenAnio {
+    val meses = j.optJSONArray("meses")?.objetos().orEmpty().map { MesResumen(it.optInt("mes"), it.optDouble("ingresos", 0.0), it.optDouble("gastos", 0.0)) }
+    val t = j.optJSONObject("totales")
+    return ResumenAnio(j.optInt("anio"), meses, t?.optDouble("ingresos", 0.0) ?: meses.sumOf { it.ingresos }, t?.optDouble("gastos", 0.0) ?: meses.sumOf { it.gastos })
 }

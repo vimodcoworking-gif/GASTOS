@@ -18,8 +18,8 @@ android {
         applicationId 'pe.duolab.gastos'
         minSdk 26
         targetSdk 36
-        versionCode 3
-        versionName '2.0'
+        versionCode 4
+        versionName '2.1'
         // Servidor de la API. Para probar con un servidor local: gradlew … -PapiBase=http://10.0.2.2:3000
         def apiBase = (project.findProperty('apiBase') ?: 'https://gastos-g63s.onrender.com').toString()
         buildConfigField 'String', 'API_BASE', "\"${apiBase}\""
@@ -77,4 +77,6 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.9.2'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'androidx.core:core-ktx:1.17.0'
+    implementation 'androidx.work:work-runtime-ktx:2.10.0'
 }

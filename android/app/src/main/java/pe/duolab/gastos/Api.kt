@@ -47,7 +47,34 @@ object Api {
     suspend fun get(ruta: String) = pedir("GET", ruta, null)
     suspend fun post(ruta: String, cuerpo: JSONObject = JSONObject()) = pedir("POST", ruta, cuerpo)
     suspend fun patch(ruta: String, cuerpo: JSONObject) = pedir("PATCH", ruta, cuerpo)
+    suspend fun put(ruta: String, cuerpo: JSONObject) = pedir("PUT", ruta, cuerpo)
     suspend fun delete(ruta: String) = pedir("DELETE", ruta, null)
+
+    /** Sube una imagen (captura de Yape o del banco) tal cual, como hace la web. */
+    suspend fun postImagen(ruta: String, bytes: ByteArray): JSONObject = withContext(Dispatchers.IO) {
+        val peticion = Request.Builder().url("$BASE/api$ruta").post(bytes.toRequestBody("image/jpeg".toMediaType())).build()
+        try {
+            cliente.newCall(peticion).execute().use { r ->
+                val json = runCatching { JSONObject(r.body?.string().orEmpty()) }.getOrNull()
+                if (!r.isSuccessful) throw ApiError(r.code, json?.optString("error")?.takeIf { it.isNotBlank() } ?: "Error del servidor (${r.code})")
+                json ?: JSONObject()
+            }
+        } catch (e: IOException) {
+            throw ApiError(0, "Sin conexión con DUOLAB. Revisa tu internet e inténtalo de nuevo.")
+        }
+    }
+
+    /** Descarga un archivo (el informe PDF) con la sesión de la app. */
+    suspend fun descargar(ruta: String): ByteArray = withContext(Dispatchers.IO) {
+        try {
+            cliente.newCall(Request.Builder().url("$BASE/api$ruta").build()).execute().use { r ->
+                if (!r.isSuccessful) throw ApiError(r.code, runCatching { JSONObject(r.body?.string().orEmpty()).optString("error") }.getOrNull()?.takeIf { it.isNotBlank() } ?: "No se pudo descargar (${r.code})")
+                r.body?.bytes() ?: ByteArray(0)
+            }
+        } catch (e: IOException) {
+            throw ApiError(0, "Sin conexión con DUOLAB. Revisa tu internet e inténtalo de nuevo.")
+        }
+    }
 
     private suspend fun pedir(metodo: String, ruta: String, cuerpo: JSONObject?): JSONObject = withContext(Dispatchers.IO) {
         val peticion = Request.Builder()

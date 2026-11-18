@@ -97,7 +97,10 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     private suspend fun cargarMesAhora() {
         val id = libroId ?: return
         val hasta = LocalDate.now().plusDays(30)
-        datos = datosMesDe(Api.get("/libros/$id/mes?mes=$mes&hasta=$hasta"))
+        val nuevos = datosMesDe(Api.get("/libros/$id/mes?mes=$mes&hasta=$hasta"))
+        datos = nuevos
+        // Lo que ya está en pantalla no se vuelve a avisar como notificación.
+        Avisos.marcarVistos(getApplication(), id, (nuevos.actual + nuevos.pendientes).map { it.id })
     }
 
     fun refrescar() {
@@ -130,6 +133,12 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun irAMes(nuevo: YearMonth) {
+        mes = nuevo
+        datos = null
+        refrescar()
+    }
+
     fun elegirLibro(id: String) {
         libroId = id
         prefs.edit().putString("libro", id).apply()
@@ -159,6 +168,141 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         Api.patch("/libros/${libroId ?: return@accion}/movimientos/${m.id}", JSONObject().put("pagado", true))
         aviso = if (m.esGasto) "Marcado como pagado" else "Marcado como cobrado"
         cargarMesAhora()
+    }
+
+    // ---------- tema ----------
+
+    /** null = como el teléfono; true/false = elegido en Más (igual que «Modo oscuro» en la web). */
+    var temaOscuro by mutableStateOf<Boolean?>(prefs.getString("tema", null)?.let { it == "oscuro" }); private set
+
+    fun cambiarTema(oscuro: Boolean) {
+        temaOscuro = oscuro
+        prefs.edit().putString("tema", if (oscuro) "oscuro" else "claro").apply()
+    }
+
+    // ---------- metas de ahorro ----------
+
+    var metas by mutableStateOf<List<Meta>?>(null); private set
+
+    fun cargarMetas() = viewModelScope.launch {
+        val id = libroId ?: return@launch
+        runCatching { metas = metasDe(Api.get("/libros/$id/metas")) }.onFailure { if (it is ApiError) aviso = it.message }
+    }
+
+    fun crearMeta(nombre: String, objetivo: Double, inicial: Double, fechaLimite: LocalDate?, alTerminar: () -> Unit) = accion {
+        val cuerpo = JSONObject().put("nombre", nombre.trim()).put("objetivo", objetivo)
+        if (inicial > 0) cuerpo.put("inicial", inicial)
+        if (fechaLimite != null) cuerpo.put("fechaLimite", fechaLimite.toString())
+        Api.post("/libros/${libroId ?: return@accion}/metas", cuerpo)
+        aviso = "Meta creada"
+        alTerminar()
+        metas = metasDe(Api.get("/libros/$libroId/metas"))
+    }
+
+    /** Aportar (monto > 0) o retirar (monto < 0); opcionalmente queda también como gasto o ingreso. */
+    fun moverMeta(meta: Meta, monto: Double, registrar: Boolean, alTerminar: () -> Unit) = accion {
+        Api.post("/libros/${libroId ?: return@accion}/metas/${meta.id}/aportes", JSONObject().put("monto", monto).put("registrar", registrar))
+        aviso = if (monto > 0) "Aporte guardado" else "Retiro guardado"
+        alTerminar()
+        metas = metasDe(Api.get("/libros/$libroId/metas"))
+        if (registrar) cargarMesAhora()
+    }
+
+    fun eliminarMeta(meta: Meta) = accion {
+        Api.delete("/libros/${libroId ?: return@accion}/metas/${meta.id}")
+        aviso = "Meta eliminada"
+        metas = metasDe(Api.get("/libros/$libroId/metas"))
+    }
+
+    // ---------- categorías y presupuestos ----------
+
+    var categorias by mutableStateOf<List<CategoriaMes>?>(null); private set
+
+    fun cargarCategorias() = viewModelScope.launch {
+        val id = libroId ?: return@launch
+        runCatching { categorias = categoriasMesDe(Api.get("/libros/$id/categorias?mes=$mes")) }.onFailure { if (it is ApiError) aviso = it.message }
+    }
+
+    fun guardarCategoria(nombre: String, tipo: String, presupuesto: Double?, antes: String?, alTerminar: () -> Unit) = accion {
+        val cuerpo = JSONObject().put("nombre", nombre.trim()).put("tipo", tipo).put("presupuesto", presupuesto ?: JSONObject.NULL)
+        if (antes != null) cuerpo.put("antes", antes)
+        Api.put("/libros/${libroId ?: return@accion}/categorias", cuerpo)
+        aviso = "Categoría guardada"
+        alTerminar()
+        categorias = categoriasMesDe(Api.get("/libros/$libroId/categorias?mes=$mes"))
+        cargarLibros()
+    }
+
+    // ---------- año ----------
+
+    var anio by mutableStateOf(LocalDate.now().year); private set
+    var resumenAnio by mutableStateOf<ResumenAnio?>(null); private set
+
+    fun cargarAnio(nuevo: Int = anio) = viewModelScope.launch {
+        anio = nuevo
+        resumenAnio = null
+        val id = libroId ?: return@launch
+        runCatching { resumenAnio = resumenAnioDe(Api.get("/libros/$id/resumen?anio=$nuevo")) }.onFailure { if (it is ApiError) aviso = it.message }
+    }
+
+    // ---------- asistente IA ----------
+
+    data class Mensaje(val deMi: Boolean, val texto: String)
+
+    var chat by mutableStateOf<List<Mensaje>>(emptyList()); private set
+    var pensando by mutableStateOf(false); private set
+
+    fun preguntar(texto: String) {
+        if (texto.isBlank() || pensando) return
+        chat = chat + Mensaje(true, texto.trim())
+        viewModelScope.launch {
+            pensando = true
+            try {
+                val r = Api.post("/ia/chat", JSONObject().put("mensaje", texto.trim()).put("libroId", libroId))
+                chat = chat + Mensaje(false, r.optString("texto"))
+                cargarMesAhora()
+            } catch (e: ApiError) {
+                chat = chat + Mensaje(false, e.message ?: "No se pudo responder.")
+            } finally {
+                pensando = false
+            }
+        }
+    }
+
+    // ---------- capturas de Yape, Plin o del banco ----------
+
+    var captura by mutableStateOf<List<MovCaptura>?>(null)
+    var notaCaptura by mutableStateOf("")
+    var leyendoCaptura by mutableStateOf(false); private set
+
+    fun leerCaptura(bytes: ByteArray) = viewModelScope.launch {
+        val id = libroId ?: return@launch
+        leyendoCaptura = true
+        try {
+            val r = Api.postImagen("/libros/$id/capturas", bytes)
+            val lista = r.optJSONArray("movimientos")?.objetos().orEmpty().map { MovCaptura(it, !it.optBoolean("yaAnotado")) }
+            notaCaptura = r.optString("nota")
+            if (lista.isEmpty()) aviso = notaCaptura.ifBlank { "No encontré pagos en la captura." } else captura = lista
+        } catch (e: ApiError) {
+            aviso = e.message
+        } finally {
+            leyendoCaptura = false
+        }
+    }
+
+    fun registrarCaptura() = accion {
+        val elegidos = captura.orEmpty().filter { it.elegido }
+        val lista = org.json.JSONArray().apply { elegidos.forEach { put(it.json) } }
+        val r = Api.post("/libros/${libroId ?: return@accion}/capturas/registrar", JSONObject().put("movimientos", lista))
+        aviso = r.optString("mensaje").lineSequence().firstOrNull()?.ifBlank { null } ?: "Registrado"
+        captura = null
+        cargarMesAhora()
+    }
+
+    // ---------- informe PDF ----------
+
+    fun descargarInforme(desde: LocalDate, hasta: LocalDate, alListo: (ByteArray) -> Unit) = accion {
+        alListo(Api.descargar("/libros/${libroId ?: return@accion}/informe.pdf?desde=$desde&hasta=$hasta"))
     }
 
     /** Ejecuta una acción con el indicador de «ocupado» y muestra el error del servidor si falla. */

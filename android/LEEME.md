@@ -2,7 +2,7 @@
 
 App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.0 (`versionCode` 3).
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.1 (`versionCode` 4).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
 > **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
@@ -12,20 +12,21 @@ App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`http
 | `web` | APK en `/descargas/duolab-gastos.apk` | No (Yape automático con MacroDroid) |
 | `play` | Play Store (`.aab`) | Sí: se conecta sola al entrar (pide el enlace personal a la API) |
 
-## Qué es nativo (fase 1)
+## Qué es nativo (versión 2.1: igual que la web)
 
-| Pantalla | Qué hace |
+El diseño copia la web en teléfono: mismos colores (tokens de `styles.css`), mismos iconos (trazos SVG de la web dibujados como vectores en `Iconos.kt`), cabecera con «+ Nuevo», barra inferior oscura flotante (Mes, Metas, Categorías, Asistente, Más) y modo claro u oscuro.
+
+| Vista | Qué hace (igual que la web) |
 | --- | --- |
-| **Entrar** | Correo y contraseña (`POST /auth/login`) o **Continuar con Google**: abre Chrome en `/api/auth/google?app=android`; al terminar, el servidor vuelve a la app con `duolab://login?codigo=…` (2 minutos, un solo uso) y la app lo canjea en `POST /api/auth/app/canjear`. La sesión es la cookie `sesion` (30 días), guardada en el teléfono. |
-| **Inicio** | Mes con ‹ ›, balance, gráfica de los últimos 7 días, botones Gasto e Ingreso, Ingresos, Gastos, Falta por pagar, Próximo mes, lo que falta pagar (con ✓) y los últimos movimientos. Deslizar hacia abajo actualiza. |
-| **Movimientos** | Movimientos del mes por día, con totales y filtro Todos / Gastos / Ingresos. |
-| **Pendientes** | Vencidos y próximos 30 días, con ✓ para marcar pagado o cobrado. |
-| **Formulario** | Nuevo, editar y eliminar: tipo, monto, descripción, fecha, categoría (las del libro), medio de pago, banco y pagado. |
-| **Más** | Cuenta, cambiar de libro, lectura automática (Play Store) y enlaces a lo que sigue en la web: calendario y gráficas, año, metas, categorías, asistente IA, informe PDF y compartir, Mi cuenta y administración. Cerrar sesión. |
+| **Entrar** | Correo y contraseña, o **Continuar con Google** (Chrome → `duolab://login?codigo=…` → `POST /api/auth/app/canjear`). Sesión de 30 días. |
+| **Mes** | Tarjeta oscura con ‹ mes ›, descarga del PDF, balance, barras de 7 días con la línea lima, botones Gasto, Ingreso y **Subir captura de Yape o banco**; Ingresos, Gastos, Falta por pagar, Próximo mes; segmentos **Calendario** (rejilla con lo gastado y puntos, día elegido con Gastaste/Recibiste y «+ Añadir en este día»), **Pendientes**, **Movimientos** (por día, filtro por medio de pago) y **Gráficas** (datos del mes, acumulado, por categoría y por medio). |
+| **Metas** | Metas con anillo de progreso, cuánto falta y al mes; crear, aportar y retirar (opcionalmente como gasto/ingreso). |
+| **Categorías** | Gastos e ingresos por categoría del mes, presupuesto con barra (naranja cerca del límite, roja si te pasas), crear y renombrar. |
+| **Asistente** | Chat con la IA (`POST /api/ia/chat`), con sugerencias. |
+| **Más** | Año, Informe PDF (descarga con la sesión y abre el visor), Compartir, Mi cuenta y Admin (estos tres en la web), modo oscuro, libro y cerrar sesión. |
+| **Notificaciones** | Pide el permiso al entrar. Cada 15 minutos (WorkManager) revisa si entraron movimientos nuevos por Gmail, MacroDroid, WhatsApp u otra persona del libro y los avisa. No avisa de lo que ya se vio en la app. |
 
-Al volver a la app se actualizan los datos. Tema claro u oscuro según el teléfono.
-
-**Pendiente (fases siguientes):** notificaciones push propias (Firebase Cloud Messaging; mientras tanto avisan WhatsApp y la web), subir capturas de Yape, calendario, gráficas, metas, categorías y asistente en nativo.
+**Pendiente:** Compartir, Mi cuenta y Admin nativos; notificaciones al instante (necesita Firebase Cloud Messaging); diseños de inicio alternativos.
 
 ## Código
 
@@ -34,7 +35,9 @@ Al volver a la app se actualizan los datos. Tema claro u oscuro según el teléf
 | `Api.kt` | Cliente OkHttp de la API y la cookie de sesión |
 | `Modelos.kt` | Usuario, libros, movimientos, totales y borrador del formulario (lectura del JSON) |
 | `AppVM.kt` | Estado de la app (ViewModel): sesión, libro, mes, datos y acciones |
-| `Pantallas.kt` | Entrar, estructura con barra inferior, Inicio, Movimientos, Pendientes y Más |
+| `Pantallas.kt`, `Principal.kt` | Entrar; cabecera, barra inferior, menú Más, captura y PDF |
+| `Mes.kt`, `Secciones.kt` | Vista Mes (tarjeta, tarjetas, segmentos, calendario, gráficas) y Metas, Categorías, Asistente, Año e Informe |
+| `Iconos.kt`, `Avisos.kt` | Iconos de la web; notificaciones (WorkManager) |
 | `Formulario.kt` | Formulario de movimiento (hoja inferior) |
 | `Componentes.kt` | Fila de movimiento, selector de mes, tarjetas y gráfica |
 | `Formato.kt`, `Tema.kt`, `MainActivity.kt` | Dinero y fechas en español, colores DUOLAB, actividad única |

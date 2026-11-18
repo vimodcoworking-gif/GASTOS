@@ -5,9 +5,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Colores de la marca DUOLAB (los mismos de la web).
+// Colores de la marca DUOLAB: los mismos tokens que public/styles.css (--t-fondo, --t-sup, --t-elev…).
 val Lima = Color(0xFFC6F432)
 val SobreLima = Color(0xFF141810)
 val FondoOscuro = Color(0xFF12150E)
@@ -18,28 +20,33 @@ val Rojo = Color(0xFFE5484D)
 val Verde = Color(0xFF3FAE5A)
 val Naranja = Color(0xFFF2A516)
 
-private val Oscuro = darkColorScheme(
-    primary = Lima, onPrimary = SobreLima,
-    secondary = Lima, onSecondary = SobreLima,
-    background = FondoOscuro, onBackground = Color(0xFFF3F6EE),
-    surface = FondoOscuro, onSurface = Color(0xFFF3F6EE),
-    surfaceVariant = PanelOscuro, onSurfaceVariant = Tenue,
-    surfaceContainer = PanelOscuro, surfaceContainerHigh = PanelOscuro2, surfaceContainerLow = PanelOscuro,
-    outline = Color(0xFF3A4031), error = Color(0xFFFF6B5B),
-)
+/** Tokens de la web para el tema activo. */
+data class Tokens(val fondo: Color, val sup: Color, val elev: Color, val tinta: Color, val tenue: Color, val linea: Color, val oscuro: Boolean)
 
-private val Claro = lightColorScheme(
-    primary = Color(0xFF4F6B00), onPrimary = Color.White,
-    primaryContainer = Lima, onPrimaryContainer = SobreLima,
-    secondary = Lima, onSecondary = SobreLima,
-    background = Color(0xFFEEF0E8), onBackground = Color(0xFF15180F),
-    surface = Color(0xFFEEF0E8), onSurface = Color(0xFF15180F),
-    surfaceVariant = Color.White, onSurfaceVariant = Color(0xFF656B5A),
-    surfaceContainer = Color.White, surfaceContainerHigh = Color(0xFFF0F2EA), surfaceContainerLow = Color.White,
-    outline = Color(0xFFD9DCD0), error = Rojo,
-)
+private val TokensOscuro = Tokens(FondoOscuro, PanelOscuro, PanelOscuro2, Color(0xFFF1F4EA), Color(0xFF959B8A), Color(0xFF30362A), true)
+private val TokensClaro = Tokens(Color(0xFFEEF0E8), Color.White, Color(0xFFF0F2EA), Color(0xFF151810), Color(0xFF656B5A), Color(0xFFE2E5D9), false)
+
+val LocalTokens = staticCompositionLocalOf { TokensClaro }
 
 @Composable
-fun DuolabTema(contenido: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Oscuro else Claro, content = contenido)
+fun DuolabTema(oscuroElegido: Boolean? = null, contenido: @Composable () -> Unit) {
+    val t = if (oscuroElegido ?: isSystemInDarkTheme()) TokensOscuro else TokensClaro
+    val esquema = if (t.oscuro) {
+        darkColorScheme(
+            primary = Lima, onPrimary = SobreLima, secondary = Lima, onSecondary = SobreLima,
+            background = t.fondo, onBackground = t.tinta, surface = t.fondo, onSurface = t.tinta,
+            surfaceVariant = t.sup, onSurfaceVariant = t.tenue, surfaceContainer = t.sup, surfaceContainerHigh = t.elev,
+            surfaceContainerLow = t.sup, surfaceContainerHighest = t.elev, outline = t.linea, outlineVariant = t.linea, error = Color(0xFFFF6B5B),
+        )
+    } else {
+        lightColorScheme(
+            primary = Color(0xFF4F6B00), onPrimary = Color.White, primaryContainer = Lima, onPrimaryContainer = SobreLima,
+            secondary = Lima, onSecondary = SobreLima, background = t.fondo, onBackground = t.tinta, surface = t.fondo, onSurface = t.tinta,
+            surfaceVariant = t.sup, onSurfaceVariant = t.tenue, surfaceContainer = t.sup, surfaceContainerHigh = t.elev,
+            surfaceContainerLow = t.sup, surfaceContainerHighest = t.elev, outline = t.linea, outlineVariant = t.linea, error = Rojo,
+        )
+    }
+    CompositionLocalProvider(LocalTokens provides t) {
+        MaterialTheme(colorScheme = esquema, content = contenido)
+    }
 }

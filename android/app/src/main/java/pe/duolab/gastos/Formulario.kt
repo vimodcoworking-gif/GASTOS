@@ -53,12 +53,12 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 /** Qué se está editando: un movimiento nuevo (con su tipo) o uno existente. */
-data class Edicion(val movimiento: Movimiento?, val tipo: String = "gasto")
+data class Edicion(val movimiento: Movimiento?, val tipo: String = "gasto", val fecha: LocalDate? = null)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FormularioMovimiento(vm: AppVM, edicion: Edicion, alCerrar: () -> Unit) {
-    val inicial = remember(edicion) { edicion.movimiento?.let(Borrador::de) ?: Borrador(tipo = edicion.tipo) }
+    val inicial = remember(edicion) { edicion.movimiento?.let(Borrador::de) ?: Borrador(tipo = edicion.tipo, fecha = edicion.fecha ?: LocalDate.now()) }
     var b by remember(edicion) { mutableStateOf(inicial) }
     var eligiendoFecha by remember { mutableStateOf(false) }
     var confirmarBorrar by remember { mutableStateOf(false) }

@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         recibir(intent)
-        setContent { DuolabTema { Raiz(vm) } }
+        setContent { DuolabTema(vm.temaOscuro) { Raiz(vm) } }
     }
 
     override fun onNewIntent(intent: Intent) {
