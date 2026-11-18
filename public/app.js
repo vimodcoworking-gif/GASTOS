@@ -2094,11 +2094,11 @@ function seccionAvisosTelefono() {
                 ]
               : [
                   !enApk() && [
-                    h('p', { class: 'tenue nota' }, 'La app abre DUOLAB a pantalla completa, desde su icono y con notificaciones.'),
+                    h('p', { class: 'tenue nota' }, 'App nativa de DUOLAB: tu mes, movimientos y pendientes, y añadir gastos o ingresos en segundos. Entras con tu correo o con Google.'),
                     h('ol', null,
                       h('li', null, 'Descarga el APK y ábrelo. Si Android lo pide, permite «Instalar apps desconocidas» para Chrome.'),
                       h('li', null, 'Si Play Protect avisa de una «app desconocida», elige «Más detalles» → «Instalar de todas formas».'),
-                      h('li', null, 'Ábrela desde el icono DUOLAB e inicia sesión.')),
+                      h('li', null, 'Ábrela desde el icono DUOLAB y entra con tu correo o con Google.')),
                     h('div', { class: 'form-linea' }, botonDescargarApk()),
                   ],
                   h('p', { class: 'tenue nota' }, h('b', null, 'Para que tus Yapes se registren solos'), ' usa MacroDroid (de Play Store): lee los avisos de Yape, Plin y tu banco y los manda a tu enlace.'),
@@ -3157,7 +3157,7 @@ async function abrirAvisoApp({ forzar = false } = {}) {
       h('div', { class: 'segmentos n3 pestanas-app', role: 'tablist' }, pestana('ios', 'iPhone / iPad'), pestana('android', 'Android'), pestana('pc', 'PC / Mac')),
       pasosInstalar(plataforma),
       plataforma === 'android' && h('div', { class: 'apk-oferta' },
-        h('p', null, h('b', null, 'O descarga la app Android (APK):'), ' DUOLAB con su propio icono, a pantalla completa y con notificaciones.'),
+        h('p', null, h('b', null, 'O descarga la app nativa para Android (APK):'), ' tu mes, movimientos y pendientes, y añadir gastos o ingresos en segundos.'),
         botonDescargarApk()),
       !esIOS && estadoPush === 'inactivo' && botonNotificar,
       h('div', { class: 'acciones' },

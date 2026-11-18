@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- La web sabe que esta versión tiene la lectura automática. -->
-    <string name="url_inicio" translatable="false">https://gastos-g63s.onrender.com/?app=android-play</string>
-</resources>

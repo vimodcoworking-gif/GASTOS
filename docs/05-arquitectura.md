@@ -101,7 +101,7 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 
 | Prefijo | Rutas principales |
 | --- | --- |
-| `/auth` | `POST registro, login, logout, olvide, restablecer` · `GET/PATCH yo` |
+| `/auth` | `POST registro, login, logout, olvide, restablecer` · `GET/PATCH yo` · `POST app/canjear` (código de un solo uso de la app Android) |
 | `/auth/google` | Entrar con Google, `callback`, `estado`; `gmail` (vincular, pausar, desvincular), `gmail/revisar`, `gmail/escanear`, `gmail/revisados` |
 | `/libros` | `GET/POST /libros`; en `/libros/:id`: `mes`, `movimientos`, `pendientes`, `resumen`, `miembros`, `informe.pdf`, `enviar`, `capturas`, `capturas/registrar`, `metas`, `categorias` |
 | `/avisos` | `enlace` (sesión) · `historial` (sesión) · `atajo` (sesión: enlace de iCloud del atajo) · `POST /:token` (sin sesión, para el teléfono; `?silencioso=1` responde sin mensaje si no hay nada nuevo) |
@@ -129,7 +129,7 @@ Fuera de `/api`: `GET /.well-known/assetlinks.json` (huella de la app Android, p
 
 ## App Android (`android/`)
 
-Proyecto Gradle (Java, sin Kotlin): Trusted Web Activity que abre la web con `?app=android`, servicio `LecturaAvisos` (lector de notificaciones de apps financieras con monto) y pantalla `ConfigurarActivity` (`duolab://configurar?enlace=…`). El APK firmado se sirve en `/descargas/duolab-gastos.apk` (el service worker no lo guarda). Ver [android/LEEME.md](../android/LEEME.md).
+App **nativa** en Kotlin con Jetpack Compose que usa la misma API (cookie `sesion` guardada en el teléfono). Dos versiones: `web` (APK en `/descargas/duolab-gastos.apk`, sin lectura de notificaciones) y `play` (Play Store, con `LecturaAvisos`). El acceso con Google abre Chrome en `/api/auth/google?app=android` y vuelve con `duolab://login?codigo=…`, que la app canjea en `POST /api/auth/app/canjear`. Ver [android/LEEME.md](../android/LEEME.md).
 
 ## Herramientas (`herramientas/`)
 

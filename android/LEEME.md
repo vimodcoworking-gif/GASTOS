@@ -1,44 +1,53 @@
-# App Android de DUOLAB (APK)
+# App Android de DUOLAB (nativa)
 
-App nativa mínima: abre la web de DUOLAB a pantalla completa (Trusted Web Activity, con la sesión, las notificaciones push y todo lo de la web). La versión de Play Store añade lo que la web no puede hacer: **leer las notificaciones de Yape, Plin y bancos** y mandarlas al enlace personal de cada usuario.
+App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-> **Play Protect:** desde 2025, Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**, «para proteger el dispositivo». Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
-
-| Versión (flavor) | Dónde | Lectura de notificaciones | Abre la web con |
-| --- | --- | --- | --- |
-| `web` | APK en `/descargas/duolab-gastos.apk` | No (Yape automático con MacroDroid) | `?app=android` |
-| `play` | Play Store (`.aab`) | Sí (`LecturaAvisos`, `ConfigurarActivity`, en `src/play/`) | `?app=android-play` |
-
-- Paquete: `pe.duolab.gastos` · Android 6 o posterior · ~1 MB.
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.0 (`versionCode` 3).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
-## Piezas
+> **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
 
-| Archivo | Qué hace |
+| Versión (flavor) | Dónde | Lectura de Yape, Plin y bancos |
+| --- | --- | --- |
+| `web` | APK en `/descargas/duolab-gastos.apk` | No (Yape automático con MacroDroid) |
+| `play` | Play Store (`.aab`) | Sí: se conecta sola al entrar (pide el enlace personal a la API) |
+
+## Qué es nativo (fase 1)
+
+| Pantalla | Qué hace |
 | --- | --- |
-| `src/main/AndroidManifest.xml` | `LauncherActivity` (androidbrowserhelper) abre la web; `DelegationService` muestra las notificaciones push con el nombre de la app. |
-| `src/play/AndroidManifest.xml` | Solo Play Store: `LecturaAvisos` (con `BIND_NOTIFICATION_LISTENER_SERVICE`) y `ConfigurarActivity`. |
-| `LecturaAvisos.java` | Servicio de escucha de notificaciones. Solo actúa con apps financieras (por el nombre del paquete: yape, bcp, bbva, interbank, scotiabank, banbif, pichincha, mibanco, falabella, ripley, caja, plin, tunki, mercadopago, banco, bank…) y solo si el aviso trae un monto (`S/`, `US$`, `$`, `PEN`, `USD`). Lo demás ni se lee ni sale del teléfono. |
-| `Enviador.java` | `POST` JSON `{titulo, texto, app}` a `/api/avisos/<token>` (el mismo formato que MacroDroid). Si no hay red o el servidor está despertando, guarda el aviso (hasta 30) y lo reintenta con el siguiente. La misma notificación actualizada en 2 minutos se manda una vez. |
-| `ConfigurarActivity.java` | Pantalla «Lectura de Yape»: recibe el enlace desde la web (`duolab://configurar?enlace=…`), muestra si está conectada y si tiene el permiso, y lleva a «Acceso a notificaciones», al ahorro de batería y a «Probar el envío». También se abre manteniendo pulsado el icono. |
+| **Entrar** | Correo y contraseña (`POST /auth/login`) o **Continuar con Google**: abre Chrome en `/api/auth/google?app=android`; al terminar, el servidor vuelve a la app con `duolab://login?codigo=…` (2 minutos, un solo uso) y la app lo canjea en `POST /api/auth/app/canjear`. La sesión es la cookie `sesion` (30 días), guardada en el teléfono. |
+| **Inicio** | Mes con ‹ ›, balance, gráfica de los últimos 7 días, botones Gasto e Ingreso, Ingresos, Gastos, Falta por pagar, Próximo mes, lo que falta pagar (con ✓) y los últimos movimientos. Deslizar hacia abajo actualiza. |
+| **Movimientos** | Movimientos del mes por día, con totales y filtro Todos / Gastos / Ingresos. |
+| **Pendientes** | Vencidos y próximos 30 días, con ✓ para marcar pagado o cobrado. |
+| **Formulario** | Nuevo, editar y eliminar: tipo, monto, descripción, fecha, categoría (las del libro), medio de pago, banco y pagado. |
+| **Más** | Cuenta, cambiar de libro, lectura automática (Play Store) y enlaces a lo que sigue en la web: calendario y gráficas, año, metas, categorías, asistente IA, informe PDF y compartir, Mi cuenta y administración. Cerrar sesión. |
 
-La web detecta la app por `?app=android` o `?app=android-play` (lo guarda en `localStorage` `apk`: `web` o `play`). Solo en la versión `play` ofrece **Conectar** (sola la primera vez y en Mi cuenta), que abre `intent://configurar?enlace=…#Intent;scheme=duolab;package=pe.duolab.gastos;…`. El servidor ya registra, avisa por push y WhatsApp y evita duplicados con el correo.
+Al volver a la app se actualizan los datos. Tema claro u oscuro según el teléfono.
 
-## Sin barra de direcciones
+**Pendiente (fases siguientes):** notificaciones push propias (Firebase Cloud Messaging; mientras tanto avisan WhatsApp y la web), subir capturas de Yape, calendario, gráficas, metas, categorías y asistente en nativo.
 
-Android comprueba `https://gastos-g63s.onrender.com/.well-known/assetlinks.json` (lo sirve `server/index.js`) con la huella SHA-256 de la firma. Huella actual:
+## Código
 
-`C9:78:E0:7F:66:60:89:37:51:58:F2:49:3B:D7:65:B1:1B:82:7B:95:5F:22:7D:D3:36:8F:43:B5:15:EA:BE:98`
-
-Si cambia la firma, se pone la nueva en la variable `ANDROID_SHA256` de Render.
+| Archivo (`app/src/main/java/pe/duolab/gastos/`) | Qué es |
+| --- | --- |
+| `Api.kt` | Cliente OkHttp de la API y la cookie de sesión |
+| `Modelos.kt` | Usuario, libros, movimientos, totales y borrador del formulario (lectura del JSON) |
+| `AppVM.kt` | Estado de la app (ViewModel): sesión, libro, mes, datos y acciones |
+| `Pantallas.kt` | Entrar, estructura con barra inferior, Inicio, Movimientos, Pendientes y Más |
+| `Formulario.kt` | Formulario de movimiento (hoja inferior) |
+| `Componentes.kt` | Fila de movimiento, selector de mes, tarjetas y gráfica |
+| `Formato.kt`, `Tema.kt`, `MainActivity.kt` | Dinero y fechas en español, colores DUOLAB, actividad única |
+| `src/web/…/Lectura.kt` | Versión web: sin lectura |
+| `src/play/…` | `Lectura.kt`, `LecturaAvisos.java` (servicio de notificaciones: solo apps financieras y avisos con monto), `Enviador.java` (POST a `/api/avisos/<token>` con reintentos), `ConfigurarActivity.java` (permiso, batería y prueba) y su `AndroidManifest.xml` |
 
 ## Firma (importante)
 
-La firma está **fuera del repositorio**: `C:\Users\JANCA\.duolab\duolab-release.jks` y `keystore.properties` (con la contraseña). **Guarda una copia segura**: sin la misma firma, una versión nueva no se instala encima de la anterior (habría que desinstalar) y cambiaría la huella de `assetlinks.json`. Otra ruta: variable `DUOLAB_KEYSTORE` con la ruta del `keystore.properties`.
+La firma está **fuera del repositorio**: `C:\Users\JANCA\.duolab\duolab-release.jks` y `keystore.properties` (con la contraseña). **Guarda una copia segura**: sin la misma firma, una versión nueva no se instala encima de la anterior. Otra ruta: variable `DUOLAB_KEYSTORE` con la ruta del `keystore.properties`.
 
 ## Compilar una versión nueva
 
-Requiere Android Studio (su JDK) y el SDK de Android.
+Requiere Android Studio (su JDK) y el SDK de Android. La primera vez descarga Kotlin 2.2.10 y Compose (BOM 2025.08.00).
 
 1. Sube `versionCode` (y `versionName`) en `app/build.gradle`.
 2. En esta carpeta (PowerShell):
@@ -47,6 +56,6 @@ Requiere Android Studio (su JDK) y el SDK de Android.
    .\gradlew.bat assembleWebRelease bundlePlayRelease
    ```
 3. Web: copia `app/build/outputs/apk/web/release/app-web-release.apk` a `public/descargas/duolab-gastos.apk`, sube la caché de `public/sw.js` y publica.
-4. Play Store: sube `app/build/outputs/bundle/playRelease/app-play-release.aab` en Play Console (la última está guardada en `C:\Users\JANCA\.duolab\play\`). En la ficha hay que declarar el uso del acceso a notificaciones (registrar los pagos que el usuario recibe y envía).
+4. Play Store: sube `app/build/outputs/bundle/playRelease/app-play-release.aab` en Play Console. En la ficha hay que declarar el uso del acceso a notificaciones (registrar los pagos que el usuario recibe y envía).
 
 `local.properties` (ruta del SDK) no se sube: `sdk.dir=C:/Users/<usuario>/AppData/Local/Android/Sdk`.

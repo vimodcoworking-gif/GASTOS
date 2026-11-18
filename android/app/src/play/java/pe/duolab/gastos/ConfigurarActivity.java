@@ -70,7 +70,7 @@ public class ConfigurarActivity extends Activity {
         boolean enlace = Enviador.enlaceValido(Enviador.enlace(this));
         boolean permiso = permisoActivo();
         estadoEnlace.setText(enlace ? "✓  Conectada a tu cuenta de DUOLAB"
-                : "✗  Falta conectar: abre DUOLAB → Mi cuenta → App Android → «Conectar lectura automática».");
+                : "✗  Falta conectar: abre DUOLAB y entra con tu cuenta (se conecta sola).");
         estadoEnlace.setTextColor(enlace ? LIMA : Color.rgb(255, 120, 100));
         estadoPermiso.setText(permiso ? "✓  Acceso a notificaciones activado"
                 : "✗  Falta el acceso a notificaciones: tócalo abajo y activa «DUOLAB».");

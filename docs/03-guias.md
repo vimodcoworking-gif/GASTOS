@@ -58,8 +58,9 @@ Opcional: el mismo atajo en **Ajustes → Accesibilidad → Tocar → Tocar atr�
 
 1. En el teléfono, abre DUOLAB en Chrome → Mi cuenta → Yape, Plin y avisos del teléfono → **Descargar app Android (APK)** (o <https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk>).
 2. Ábrelo e instala. Si Android lo pide, permite **«Instalar apps desconocidas»** para Chrome. Si Play Protect avisa de una «app desconocida», **Más detalles → Instalar de todas formas**.
-3. Abre **DUOLAB** desde el icono e inicia sesión.
-4. Para que los Yapes se registren solos, configura **MacroDroid** (abajo).
+3. Abre **DUOLAB** desde el icono y entra con tu correo o con **Continuar con Google** (se abre Chrome para elegir la cuenta y vuelve sola a la app).
+4. Desliza hacia abajo en cualquier pantalla para actualizar. Lo que no está en la app (calendario, gráficas, metas, informe, Mi cuenta) se abre desde **Más**.
+5. Para que los Yapes se registren solos, configura **MacroDroid** (abajo).
 
 > **Play Protect:** desde 2025, Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**, «para proteger el dispositivo». Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
 

@@ -3,8 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { config } from './config.js';
-import { Usuario, Libro } from './models.js';
-import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
+import { Usuario, Libro, CorreoVisto } from './models.js';
+import { createHash, randomInt, randomBytes, timingSafeEqual } from 'node:crypto';
 import { ErrorHttp, texto } from './errores.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { correoDisponible, enviarCorreo } from './correo.js';
@@ -21,6 +21,12 @@ export function iniciarSesion(res, usuario) {
     secure: config.produccion,
     maxAge: DURACION_MS,
   });
+}
+
+// App Android: tras entrar con Google en Chrome, vuelve a la app con este código (2 minutos, un solo uso),
+// que la app cambia por su propia sesión en POST /api/auth/app/canjear.
+export function codigoParaApp(usuario) {
+  return jwt.sign({ id: usuario.id, uso: 'app', jti: randomBytes(12).toString('hex') }, config.jwtSecret, { expiresIn: '2m' });
 }
 
 export async function esAdmin(usuario) {
@@ -164,6 +170,24 @@ rutasAuth.post('/login', limite, async (req, res) => {
     // El mismo mensaje exista o no la cuenta; la pista de Google sirve a quien se registró con ella.
     throw new ErrorHttp(401, `Correo o contraseña incorrectos${config.google.clienteId ? '. Si creaste la cuenta con Google, usa «Continuar con Google».' : ''}`);
   }
+  await exigirLicencia(usuario);
+  iniciarSesion(res, usuario);
+  res.json({ usuario: await publico(usuario) });
+});
+
+rutasAuth.post('/app/canjear', limite, async (req, res) => {
+  let datos;
+  try {
+    datos = jwt.verify(String(req.body?.codigo ?? ''), config.jwtSecret);
+  } catch {
+    throw new ErrorHttp(401, 'El código caducó. Vuelve a entrar con Google.');
+  }
+  if (datos.uso !== 'app' || !datos.jti) throw new ErrorHttp(401, 'Código no válido.');
+  // Un solo uso: el segundo intento con el mismo código choca con el registro del primero.
+  const nuevo = await CorreoVisto.updateOne({ _id: `codigo-app:${datos.jti}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
+  if (!nuevo.upsertedCount) throw new ErrorHttp(401, 'Ese código ya se usó. Vuelve a entrar con Google.');
+  const usuario = await Usuario.findById(datos.id);
+  if (!usuario) throw new ErrorHttp(401, 'La cuenta ya no existe.');
   await exigirLicencia(usuario);
   iniciarSesion(res, usuario);
   res.json({ usuario: await publico(usuario) });

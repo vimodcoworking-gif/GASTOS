@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { config } from './config.js';
 import { Usuario, Libro, Movimiento, CorreoVisto, CorreoRevisado, Ajuste } from './models.js';
 import { ErrorHttp } from './errores.js';
-import { iniciarSesion, idDeSesion, publico, requiereSesion } from './auth.js';
+import { iniciarSesion, idDeSesion, publico, requiereSesion, codigoParaApp } from './auth.js';
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
 import { librosDe, libroActivo, registrarMovimiento, hoyLocal, puedeEscribir, leerAvisoDePago } from './bot.js';
 import { notificarMensaje } from './push.js';
@@ -54,13 +54,15 @@ rutasGoogle.get('/estado', (req, res) => res.json({ disponible: googleDisponible
 rutasGoogle.get('/', (req, res) => {
   if (!googleDisponible()) return res.redirect(`/?errorGoogle=${encodeURIComponent('El acceso con Google no está configurado.')}`);
   const modo = req.query.modo === 'gmail' ? 'gmail' : 'entrar';
+  // Desde la app Android: al terminar vuelve a la app (duolab://login) con un código de un solo uso.
+  const app = modo === 'entrar' && req.query.app === 'android';
   const uid = idDeSesion(req);
   if (modo === 'gmail' && !uid) return res.redirect(`/?errorGoogle=${encodeURIComponent('Inicia sesión antes de vincular Gmail.')}`);
 
   const nonce = randomBytes(16).toString('hex');
   const redirectUri = `${urlBase(req)}${RUTA}/callback`;
   // El estado viaja firmado en una cookie: así la vuelta solo se acepta desde este mismo navegador.
-  res.cookie(COOKIE_ESTADO, jwt.sign({ nonce, modo, uid: modo === 'gmail' ? uid : undefined, redirectUri }, config.jwtSecret, { expiresIn: '10m' }), {
+  res.cookie(COOKIE_ESTADO, jwt.sign({ nonce, modo, app, uid: modo === 'gmail' ? uid : undefined, redirectUri }, config.jwtSecret, { expiresIn: '10m' }), {
     httpOnly: true,
     sameSite: 'lax',
     secure: config.produccion,
@@ -83,8 +85,10 @@ rutasGoogle.get('/', (req, res) => {
 });
 
 rutasGoogle.get('/callback', async (req, res) => {
-  const volver = (parametro, texto) => res.redirect(`/?${parametro}=${encodeURIComponent(texto)}`);
   let estado;
+  const volver = (parametro, texto) => (estado?.app
+    ? res.redirect(`duolab://login?${parametro === 'errorGoogle' ? 'error' : 'ok'}=${encodeURIComponent(texto)}`)
+    : res.redirect(`/?${parametro}=${encodeURIComponent(texto)}`));
   try {
     estado = jwt.verify(req.cookies[COOKIE_ESTADO] ?? '', config.jwtSecret);
   } catch {
@@ -155,6 +159,7 @@ rutasGoogle.get('/callback', async (req, res) => {
       nueva = true;
     }
     iniciarSesion(res, usuario);
+    if (estado.app) return res.redirect(`duolab://login?codigo=${encodeURIComponent(codigoParaApp(usuario))}`);
     return volver('google', nueva ? 'nueva' : 'entrar');
   } catch (err) {
     console.error('Google:', err.message);

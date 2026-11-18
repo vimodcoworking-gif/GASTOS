@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 // La firma vive fuera del repositorio: %USERPROFILE%\.duolab\keystore.properties (o la ruta en DUOLAB_KEYSTORE).
@@ -15,15 +16,23 @@ android {
 
     defaultConfig {
         applicationId 'pe.duolab.gastos'
-        minSdk 23
+        minSdk 26
         targetSdk 36
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '2.0'
+        // Servidor de la API. Para probar con un servidor local: gradlew … -PapiBase=http://10.0.2.2:3000
+        def apiBase = (project.findProperty('apiBase') ?: 'https://gastos-g63s.onrender.com').toString()
+        buildConfigField 'String', 'API_BASE', "\"${apiBase}\""
+        manifestPlaceholders = [textoPlano: apiBase.startsWith('http:') ? 'true' : 'false']
     }
 
     // web: el APK que se descarga desde la web (sin lectura de notificaciones: Play Protect bloquea fuera de
     //      Play Store las apps con acceso a notificaciones).
     // play: para publicar en Play Store, con la lectura automática de Yape, Plin y bancos.
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
     flavorDimensions = ['canal']
     productFlavors {
         web { dimension 'canal' }
@@ -43,7 +52,10 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            // R8 reduce el APK (de ~7.7 MB a unos pocos MB) quitando lo que no se usa.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
     }
@@ -55,5 +67,14 @@ android {
 }
 
 dependencies {
-    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+    implementation platform('androidx.compose:compose-bom:2025.08.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.9.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
