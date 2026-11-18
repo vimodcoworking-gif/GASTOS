@@ -38,6 +38,7 @@ Aplicación web para llevar las finanzas personales o compartidas: gastos, ingre
 | IA (opcional) | Conversación en lenguaje natural con Claude o con modelos de NVIDIA. |
 | Administración | Uso del almacenamiento, alta y baja de usuarios, cambio de contraseñas, WhatsApp e IA. |
 | App instalable | Funciona como aplicación (PWA) en Android, iPhone y ordenador, en modo claro u oscuro. |
+| App Android nativa | APK en `/descargas/duolab-gastos.apk` (Kotlin + Jetpack Compose) con el diseño de la web, notificaciones al instante (Firebase) y actualizaciones desde la app. Ver [android/LEEME.md](android/LEEME.md). |
 
 ---
 

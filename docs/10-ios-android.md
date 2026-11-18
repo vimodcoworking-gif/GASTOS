@@ -34,7 +34,7 @@ No existe el disparador «al recibir una notificación».
 
 > **Play Protect:** desde 2025, Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**, «para proteger el dispositivo». Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
 
-- **App nativa** (Kotlin + Jetpack Compose, versión 2.1), APK en <https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk>: el mismo diseño que la web en teléfono — Mes con calendario, pendientes, movimientos y gráficas, subir captura de Yape, Metas, Categorías, Asistente IA, Año, Informe PDF, modo oscuro — y notificaciones de los movimientos que entran solos (cada 15 minutos). Compartir, Mi cuenta y Admin se abren en la web. Yape automático con **MacroDroid** (de Play Store).
+- **App nativa** (Kotlin + Jetpack Compose, versión 2.8), APK en <https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk>: toda la app es nativa y con el diseño de la web en teléfono (entrar, Mes y sus 5 diseños, Metas, Categorías, Asistente, Año, Informe PDF, Mi cuenta, Compartir, Admin, menú lateral y formulario iguales a la web), copia local para abrir sin conexión, aviso de actualizaciones y **notificaciones al instante** con Firebase (o cada 15 minutos si el servidor aún no lo tiene). Yape automático con **MacroDroid** (de Play Store).
 - **Versión de Play Store** (pendiente de publicar): además lee sola las notificaciones de Yape, Plin y bancos. Tras instalarla: abrir DUOLAB → **Conectar** → **Activar acceso a notificaciones**. Requiere cuenta de Google Play (US$ 25, un pago) y declarar el uso del acceso a notificaciones.
 
 Detalles técnicos, firma y cómo compilar: [android/LEEME.md](../android/LEEME.md).
@@ -53,5 +53,5 @@ Seguiría sin leer las notificaciones de Yape. Solo sumaría «Compartir → DUO
 
 ### Recomendación
 
-- **Android:** APK de la web + MacroDroid hoy; versión con lector propio cuando se publique en Play Store (fuera de Play Store la bloquea Play Protect).
+- **Android:** APK de la web + MacroDroid hoy, con Firebase configurado para recibir los avisos al instante; versión con lector propio por cable USB (`adb install`) o cuando se publique en Play Store (instalada desde Chrome o WhatsApp la bloquea Play Protect).
 - **iPhone:** seguir con la app web instalada + atajo automático al abrir Yape + correo de Yape + alertas de banco por correo.

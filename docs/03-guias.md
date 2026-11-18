@@ -20,6 +20,8 @@ Si cambia el logo o el nombre, una app ya instalada puede seguir mostrando los v
 
 En iPhone solo funcionan con la app **instalada desde Safari y abierta desde su icono** (iOS 16.4 o posterior). Si se negó el permiso: Ajustes → Notificaciones → DUOLAB.
 
+**App Android nativa:** pide el permiso al entrar (o **Mi cuenta → App y notificaciones → Activar notificaciones**). **Probar notificación** manda una de prueba. Si la tarjeta dice «al instante», los avisos llegan en segundos; si dice «cada 15 minutos», el administrador aún no configuró Firebase ([06 · Firebase](06-despliegue.md#firebase-notificaciones-al-instante-en-la-app-android)). En Honor, Huawei, Xiaomi u Oppo: Ajustes → Batería → Inicio de apps → DUOLAB → **Gestionar manualmente** (todo activado), para que el sistema no la cierre.
+
 ## iPhone: atajo «DUOLAB Yape» (automático al abrir Yape)
 
 Apple no deja que ninguna app lea las notificaciones de Yape. El atajo hace lo más cercano: **cada vez que se abre Yape** (también al tocar la notificación «Te yapearon»), espera 6 segundos, toma una captura de la lista de movimientos y la envía al enlace personal con `?silencioso=1`. Se registra todo lo nuevo, de cualquier monto, sin repetir; si no hay nada nuevo (pantalla de la clave, todo ya registrado) responde sin mensaje y el iPhone no muestra nada.
@@ -63,6 +65,16 @@ Opcional: el mismo atajo en **Ajustes → Accesibilidad → Tocar → Tocar atr�
 5. Para que los Yapes se registren solos, configura **MacroDroid** (abajo).
 
 > **Play Protect:** desde 2025, Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**, «para proteger el dispositivo». Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
+
+## Android: cómo leer los Yapes
+
+| Camino | Cómo | Costo |
+| --- | --- | --- |
+| **MacroDroid** (APK de la web) | MacroDroid, de Play Store, lee la notificación de Yape y la manda al enlace personal (pasos abajo y en Mi cuenta) | Gratis |
+| **Versión con lectura propia por cable USB** | Con depuración USB activada, `adb install duolab-completa.apk` (de `C:\Users\JANCA\.duolab\play\`). Play Protect no bloquea lo instalado por `adb` | Gratis |
+| **Play Store (Prueba interna)** | Subir `app-play-release.aab` a Play Console; hasta 100 personas lo instalan con un enlace | US$ 25 una vez |
+
+Instalar el APK con lectura desde Chrome o WhatsApp no funciona: Play Protect lo bloquea, y no hay que desactivarlo.
 
 ## Android: MacroDroid (Yape automático)
 

@@ -130,7 +130,7 @@ Fuera de `/api`: `GET /.well-known/assetlinks.json` (huella de la app Android, p
 
 ## App Android (`android/`)
 
-App **nativa** en Kotlin con Jetpack Compose que usa la misma API (cookie `sesion` guardada en el teléfono). Dos versiones: `web` (APK en `/descargas/duolab-gastos.apk`, sin lectura de notificaciones) y `play` (Play Store, con `LecturaAvisos`). El acceso con Google abre Chrome en `/api/auth/google?app=android` y vuelve con `duolab://login?codigo=…`, que la app canjea en `POST /api/auth/app/canjear`. Ver [android/LEEME.md](../android/LEEME.md).
+App **nativa** en Kotlin con Jetpack Compose que usa la misma API (cookie `sesion` guardada en el teléfono). Dos versiones: `web` (APK en `/descargas/duolab-gastos.apk`, sin lectura de notificaciones) y `play` (Play Store, con `LecturaAvisos`). El acceso con Google abre Chrome en `/api/auth/google?app=android` y vuelve con `duolab://login?codigo=…`, que la app canjea en `POST /api/auth/app/canjear`. Las notificaciones llegan por Firebase Cloud Messaging: el servidor guarda el código de cada teléfono (`tokenapps`) y `notificar()` en `push.js` envía a la vez web-push (navegadores) y FCM (app), firmando el acceso a Google con la cuenta de servicio (`jsonwebtoken`, RS256), sin librerías de Firebase en el servidor. Ver [android/LEEME.md](../android/LEEME.md).
 
 ## Herramientas (`herramientas/`)
 

@@ -18,6 +18,9 @@
 | «Ese código ya se usó» o «El código caducó» | El código de Google para la app vale una vez y 2 minutos | Volver a tocar «Continuar con Google» |
 | La app Android se cierra al abrirla (2.1) | El optimizador R8 quitaba piezas de WorkManager (notificaciones) | Corregido en 2.1.1 (`proguard-rules.pro`); volver a descargar el APK. Antes de publicar, probar siempre el APK final (release), no solo el de prueba |
 | «No se puede instalar» al actualizar el APK | La versión nueva está firmada con otra clave | Usar siempre la firma de `C:\Users\JANCA\.duolab\`; si se perdió, desinstalar y volver a instalar |
+| La app Android dice «Se revisa cada 15 minutos» | El servidor no tiene Firebase (`FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_GOOGLE_SERVICES`) o el teléfono no pudo registrarse | Configurar Firebase ([06](06-despliegue.md#firebase-notificaciones-al-instante-en-la-app-android)); luego cerrar y abrir la app dos veces. El teléfono necesita los servicios de Google |
+| Las notificaciones de la app Android llegan tarde o no llegan con la app cerrada | Ahorro de batería del teléfono (Honor, Huawei, Xiaomi, Oppo) | Ajustes → Batería → Inicio de apps → DUOLAB → Gestionar manualmente; Mi cuenta → **Probar notificación** |
+| `FCM sin acceso: …` en los logs de Render | La clave de cuenta de servicio está mal pegada, se revocó o es de otro proyecto | Generar una clave nueva en Firebase → Cuentas de servicio y pegarla entera en `FIREBASE_SERVICE_ACCOUNT` |
 | «Activa la IA» al subir una captura | IA desactivada | Admin → IA → elegir proveedor, clave y Activar |
 | Una captura HEIC no se lee | Formato no compatible | En el atajo, añadir «Convertir imagen» a JPEG |
 | No llega el recordatorio por WhatsApp | Bot desconectado o número no guardado | Admin → WhatsApp (conectar con QR); Mi cuenta → WhatsApp; **Probar** |
@@ -35,5 +38,5 @@
 - **Mi cuenta → Gmail → Diagnóstico de hoy**: el primer lugar a mirar; avisos de las últimas 24 horas, qué pasó con cada uno, IA, bot y teléfono.
 - **Mi cuenta → Últimos envíos**: todo lo que llegó del teléfono (7 días).
 - **Mi cuenta → Gmail → Ver correos revisados**: qué se decidió con cada correo (8 días).
-- **Render → Logs**: errores del servidor (`Aviso (captura)`, `Recordatorio a…`, `Push:`, `Corrección «…»`).
+- **Render → Logs**: errores del servidor (`Aviso (captura)`, `Recordatorio a…`, `Push:`, `FCM:`, `Corrección «…»`).
 - **`/api/version`**: qué versión está publicada.
