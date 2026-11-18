@@ -44,7 +44,7 @@ fun abrirEnWeb(contexto: Context, ruta: String) {
 }
 
 /** Reduce la captura como la web (lado mayor 1600 px, JPEG): la IA la lee igual y sube mucho más rápido. */
-private fun leerImagen(contexto: Context, uri: Uri): ByteArray? = runCatching {
+fun leerImagen(contexto: Context, uri: Uri): ByteArray? = runCatching {
     val original = contexto.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: return null
     val escala = minOf(1f, 1600f / maxOf(original.width, original.height))
     val img = if (escala < 1f) Bitmap.createScaledBitmap(original, (original.width * escala).toInt(), (original.height * escala).toInt(), true) else original

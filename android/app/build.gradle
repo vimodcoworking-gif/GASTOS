@@ -18,8 +18,8 @@ android {
         applicationId 'pe.duolab.gastos'
         minSdk 26
         targetSdk 36
-        versionCode 6
-        versionName '2.2'
+        versionCode 7
+        versionName '2.3'
         // Servidor de la API. Para probar con un servidor local: gradlew … -PapiBase=http://10.0.2.2:3000
         def apiBase = (project.findProperty('apiBase') ?: 'https://gastos-g63s.onrender.com').toString()
         buildConfigField 'String', 'API_BASE', "\"${apiBase}\""

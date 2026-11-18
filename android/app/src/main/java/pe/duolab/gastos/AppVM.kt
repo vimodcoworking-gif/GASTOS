@@ -117,6 +117,7 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     private suspend fun alEntrar() {
         cargarLibros()
         cargarMesAhora()
+        capturaPendiente?.let { capturaPendiente = null; leerCaptura(it) }
         conectarLectura()
     }
 
@@ -208,9 +209,9 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         cargarMesAhora()
     }
 
-    fun marcarPagado(m: Movimiento) = accion {
-        Api.patch("/libros/${libroId ?: return@accion}/movimientos/${m.id}", JSONObject().put("pagado", true))
-        aviso = if (m.esGasto) "Marcado como pagado" else "Marcado como cobrado"
+    fun marcarPagado(m: Movimiento, pagado: Boolean = true) = accion {
+        Api.patch("/libros/${libroId ?: return@accion}/movimientos/${m.id}", JSONObject().put("pagado", pagado))
+        aviso = if (!pagado) "Vuelve a estar pendiente" else if (m.esGasto) "Marcado como pagado" else "Marcado como cobrado"
         cargarMesAhora()
     }
 
@@ -332,6 +333,13 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         } finally {
             leyendoCaptura = false
         }
+    }
+
+    // Captura compartida a la app («Compartir → DUOLAB»): se lee al momento, o al entrar si aún no hay sesión.
+    private var capturaPendiente: ByteArray? = null
+
+    fun capturaCompartida(bytes: ByteArray) {
+        if (usuario != null && libroId != null) leerCaptura(bytes) else capturaPendiente = bytes
     }
 
     fun registrarCaptura() = accion {

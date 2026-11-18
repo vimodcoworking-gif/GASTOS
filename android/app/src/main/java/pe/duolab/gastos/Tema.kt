@@ -7,7 +7,14 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.material3.Typography
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.font.FontWeight
 
 // Colores de la marca DUOLAB: los mismos tokens que public/styles.css (--t-fondo, --t-sup, --t-elev…).
 val Lima = Color(0xFFC6F432)
@@ -28,6 +35,26 @@ private val TokensClaro = Tokens(Color(0xFFEEF0E8), Color.White, Color(0xFFF0F2E
 
 val LocalTokens = staticCompositionLocalOf { TokensClaro }
 
+/** Manrope, la misma letra de la web (Google Fonts, licencia OFL), en sus pesos 400 a 800. */
+@OptIn(ExperimentalTextApi::class)
+val Manrope = FontFamily(
+    listOf(400, 500, 600, 700, 800).map { w ->
+        Font(R.font.manrope, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+    } + Font(R.font.manrope, FontWeight.Black, variationSettings = FontVariation.Settings(FontVariation.weight(800))),
+)
+
+private fun TextStyle.conManrope() = copy(fontFamily = Manrope, letterSpacing = letterSpacing)
+
+private val TipografiaWeb = Typography().run {
+    Typography(
+        displayLarge.conManrope(), displayMedium.conManrope(), displaySmall.conManrope(),
+        headlineLarge.conManrope(), headlineMedium.conManrope(), headlineSmall.conManrope(),
+        titleLarge.conManrope(), titleMedium.conManrope(), titleSmall.conManrope(),
+        bodyLarge.conManrope(), bodyMedium.conManrope(), bodySmall.conManrope(),
+        labelLarge.conManrope(), labelMedium.conManrope(), labelSmall.conManrope(),
+    )
+}
+
 @Composable
 fun DuolabTema(oscuroElegido: Boolean? = null, contenido: @Composable () -> Unit) {
     val t = if (oscuroElegido ?: isSystemInDarkTheme()) TokensOscuro else TokensClaro
@@ -47,6 +74,6 @@ fun DuolabTema(oscuroElegido: Boolean? = null, contenido: @Composable () -> Unit
         )
     }
     CompositionLocalProvider(LocalTokens provides t) {
-        MaterialTheme(colorScheme = esquema, content = contenido)
+        MaterialTheme(colorScheme = esquema, typography = TipografiaWeb, content = contenido)
     }
 }

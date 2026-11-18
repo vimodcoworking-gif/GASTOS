@@ -2,7 +2,7 @@
 
 App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.2 (`versionCode` 6).
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.3 (`versionCode` 7).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
 > **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
@@ -26,6 +26,10 @@ Todo es nativo (Kotlin + Jetpack Compose) y con el diseño de la web en teléfon
 | **Administración** | Almacenamiento, usuarios (crear, eliminar), bot de WhatsApp con su **QR**, IA (proveedor, clave, modelo, probar) y atajo de iPhone. |
 | **Más** | Año, Informe PDF, Compartir, Mi cuenta, Admin, modo oscuro, libro, **+ Nuevo libro**, cerrar sesión. |
 | **Notificaciones** | Permiso al entrar; cada 15 minutos avisa de los movimientos que entran solos. |
+
+**Igual que la web:** letra **Manrope** (la de la web, `res/font/manrope.ttf`, licencia OFL en `manrope-OFL.txt`), calendario con su navegación, leyenda y el día de hoy elegido, ↶ «Deshacer» en lo pagado, filtros con el icono de cada medio, insignia de «Falta por pagar».
+
+**Compartir → DUOLAB:** la app aparece al compartir una imagen (constancia de Yape, Plin o del banco) y la lee al momento (o al entrar, si no había sesión).
 
 **Lectura de Yape:** solo en la versión `play` (Play Protect bloquea fuera de Play Store las apps con acceso a notificaciones). Para repartirla sin bloqueo: Play Console → **Prueba interna** (hasta 100 personas con un enlace) o instalarla por cable USB con `adb install`.
 

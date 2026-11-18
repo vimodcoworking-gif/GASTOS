@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -81,13 +83,15 @@ fun ChipMedio(m: Movimiento) {
         else -> Color(0xFF6B7280) to Color.White
     }
     val texto = if (m.entidad != null && medio in listOf("tarjeta", "transferencia", "otro")) m.entidad else nombreMedio(medio) ?: m.entidad.orEmpty()
-    Text(texto, color = tinta, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(fondo).padding(horizontal = 8.dp, vertical = 2.dp))
+    Row(Modifier.clip(RoundedCornerShape(50)).background(fondo).padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Iconos.deMedio(medio), null, tint = tinta, modifier = Modifier.size(12.dp))
+        Text(" $texto", color = tinta, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
 }
 
 /** Fila de movimiento de la web: descripción, fecha · categoría, chip del medio, estado, monto y ✓. */
 @Composable
-fun FilaWeb(m: Movimiento, moneda: String, alTocar: (() -> Unit)?, alPagar: (() -> Unit)?) {
+fun FilaWeb(m: Movimiento, moneda: String, alTocar: (() -> Unit)?, alPagar: (() -> Unit)?, alDeshacer: (() -> Unit)? = null) {
     val t = LocalTokens.current
     val hoy = LocalDate.now()
     Row(
@@ -117,6 +121,11 @@ fun FilaWeb(m: Movimiento, moneda: String, alTocar: (() -> Unit)?, alPagar: (() 
             Box(Modifier.size(42.dp).clip(CircleShape).background(Lima).clickable(onClick = alPagar), contentAlignment = Alignment.Center) {
                 Icon(Iconos.check, if (m.esGasto) "Pagar" else "Cobrar", tint = SobreLima, modifier = Modifier.size(20.dp))
             }
+        } else if (alDeshacer != null && m.pagado) {
+            Spacer(Modifier.width(10.dp))
+            Box(Modifier.size(42.dp).clip(CircleShape).background(t.elev).clickable(onClick = alDeshacer), contentAlignment = Alignment.Center) {
+                Icon(Iconos.deshacer, "Deshacer", modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
@@ -129,9 +138,10 @@ fun VistaMes(vm: AppVM, seccion: SeccionMes, alSeccion: (SeccionMes) -> Unit, al
     val actual = datos?.actual.orEmpty()
     val t = Totales.de(actual)
     val editar = vm.libro?.puedeEditar == true
-    var dia by rememberSaveable { mutableStateOf<String?>(null) }
+    // Como la web: en el mes en curso se ve el día de hoy; en otro mes, el mes entero.
+    var dia by rememberSaveable { mutableStateOf<String?>(LocalDate.now().toString()) }
     var filtro by rememberSaveable { mutableStateOf("") }
-    LaunchedEffect(vm.mes) { dia = null }
+    LaunchedEffect(vm.mes) { dia = if (vm.mes == YearMonth.now()) LocalDate.now().toString() else null }
 
     val pendientesVista = (if (vm.mes == YearMonth.now()) datos?.pendientes else actual.filter { !it.pagado }).orEmpty()
     val diseno = disenoEfectivo(vm.diseno, disenoRecomendado(actual, pendientesVista))
@@ -363,8 +373,11 @@ private fun TarjetasMes(vm: AppVM, actual: List<Movimiento>, t: Totales, alPendi
                 Text(if (pendientesGasto > 0) "$pendientesGasto pagos pendientes este mes" else "Nada pendiente este mes", color = Color(0xFFA7AE9B), fontSize = 11.sp)
             }
             if (pendientesGasto > 0) {
-                Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF3A2A22)).border(1.dp, Color(0xFFFF8A65).copy(alpha = 0.6f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                    Text("$pendientesGasto", color = Color(0xFFFF8A65), fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                Box(Modifier.size(54.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(44.dp).graphicsLayer(rotationZ = 14f).clip(RoundedCornerShape(13.dp)).border(1.5.dp, Color(0xFFFF8A65).copy(alpha = 0.45f), RoundedCornerShape(13.dp)))
+                    Box(Modifier.size(44.dp).graphicsLayer(rotationZ = -6f).clip(RoundedCornerShape(13.dp)).background(Color(0xFF3A2E22)).border(1.5.dp, Color(0xFFFF8A65).copy(alpha = 0.7f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+                        Text("$pendientesGasto", color = Color(0xFFFF8A65), fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                    }
                 }
             } else {
                 // Nada pendiente: el check en un cuadro lima, como la web.
@@ -435,7 +448,16 @@ private fun FiltroMedios(lista: List<Movimiento>, filtro: String, alCambiar: (St
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         opciones.forEach { (clave, nombre) ->
             val n = if (clave == "") lista.size else if (clave == "sin") lista.count { it.medio == null } else lista.count { it.medio == clave }
-            FilterChip(selected = filtro == clave, onClick = { alCambiar(clave) }, label = { Text("$nombre  $n", fontSize = 12.sp) }, colors = chipLima(), shape = RoundedCornerShape(50))
+            val t = LocalTokens.current
+            val activo = filtro == clave
+            Row(
+                Modifier.height(38.dp).clip(RoundedCornerShape(50)).background(if (activo) Lima else t.elev).clickable { alCambiar(clave) }.padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (clave != "" && clave != "sin") { Icon(Iconos.deMedio(clave), null, tint = if (activo) SobreLima else t.tinta, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(6.dp)) }
+                Text(nombre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (activo) SobreLima else t.tinta)
+                Text("  $n", fontSize = 11.sp, color = if (activo) SobreLima else t.tenue)
+            }
         }
     }
 }
@@ -445,17 +467,30 @@ private fun pasaFiltro(m: Movimiento, filtro: String) = filtro == "" || (filtro 
 private fun LazyListScope.calendario(
     vm: AppVM, actual: List<Movimiento>, dia: String?, alDia: (String?) -> Unit, filtro: String, alFiltro: (String) -> Unit, editar: Boolean, alEditar: (Edicion) -> Unit,
 ) {
-    item { Panel { Calendario(vm.mes, actual, dia, alDia) } }
+    item {
+        Panel {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
+                Box(Modifier.size(42.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Color.White).clickable { vm.cambiarMes(-1) }, contentAlignment = Alignment.Center) { Icon(Iconos.flechaIzq, "Mes anterior", tint = SobreLima, modifier = Modifier.size(18.dp)) }
+                Text(nombreMes(vm.mes), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                Box(Modifier.size(42.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Color.White).clickable { vm.cambiarMes(1) }, contentAlignment = Alignment.Center) { Icon(Iconos.flechaDer, "Mes siguiente", tint = SobreLima, modifier = Modifier.size(18.dp)) }
+            }
+            Calendario(vm.mes, actual, dia, alDia)
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFD32F2F)))
+                Text("  Pago pendiente      ", fontSize = 12.sp, color = LocalTokens.current.tenue)
+                Box(Modifier.size(7.dp).clip(CircleShape).background(LocalTokens.current.tenue))
+                Text("  Pagado o ingreso", fontSize = 12.sp, color = LocalTokens.current.tenue)
+            }
+        }
+    }
     item {
         Panel {
             val delDia = if (dia != null) actual.filter { it.fecha.toString() == dia } else emptyList()
             if (dia != null) {
                 val fecha = LocalDate.parse(dia)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(fechaLarga(fecha), fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                    Text("Ver todo ${nombreMesCorto(vm.mes).lowercase(ES)}", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(LocalTokens.current.elev).clickable { alDia(null) }.padding(horizontal = 12.dp, vertical = 8.dp))
-                }
+                Text(fechaLarga(fecha).replaceFirst(" ", ", "), fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                Text("Ver todo ${nombreMesCorto(vm.mes).lowercase(ES)}", fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(LocalTokens.current.elev).clickable { alDia(null) }.padding(horizontal = 14.dp, vertical = 9.dp))
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DatoDia("Gastaste", dinero(delDia.filter { it.esGasto }.sumOf { it.monto }, vm.moneda), Color(0xFFE5484D), Modifier.weight(1f))
@@ -466,7 +501,10 @@ private fun LazyListScope.calendario(
                 FiltroMedios(delDia, filtro, alFiltro)
                 val lista = delDia.filter { pasaFiltro(it, filtro) }
                 if (lista.isEmpty()) Text("No hay movimientos este día con ese filtro.", color = LocalTokens.current.tenue, modifier = Modifier.padding(vertical = 14.dp))
-                lista.forEach { m -> FilaWeb(m, vm.moneda, { alEditar(Edicion(m)) }, if (editar) ({ vm.marcarPagado(m) }) else null) }
+                lista.forEachIndexed { i, m ->
+                    if (i > 0) HorizontalDivider(color = LocalTokens.current.linea)
+                    FilaWeb(m, vm.moneda, { alEditar(Edicion(m)) }, if (editar) ({ vm.marcarPagado(m) }) else null, if (editar) ({ vm.marcarPagado(m, false) }) else null)
+                }
                 if (editar) {
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = { alEditar(Edicion(null, "gasto", fecha)) }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(50),
@@ -518,13 +556,13 @@ private fun Calendario(mes: YearMonth, actual: List<Movimiento>, dia: String?, a
                 val elegido = fecha.toString() == dia
                 Column(
                     Modifier.weight(1f).height(58.dp).clip(RoundedCornerShape(14.dp))
-                        .background(if (elegido) Lima else t.elev)
-                        .then(if (fecha == hoy) Modifier.border(1.5.dp, Lima, RoundedCornerShape(14.dp)) else Modifier)
+                        .background(if (elegido) Lima.copy(alpha = 0.16f) else t.elev)
+                        .then(if (elegido || fecha == hoy) Modifier.border(if (elegido) 2.dp else 1.5.dp, Lima, RoundedCornerShape(14.dp)) else Modifier)
                         .clickable { alDia(if (elegido) null else fecha.toString()) },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                 ) {
-                    Text("${fecha.dayOfMonth}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = if (elegido) SobreLima else t.tinta)
-                    if (gasto > 0) Text(montoCorto(gasto), fontSize = 9.sp, color = if (elegido) SobreLima else Color(0xFFE5484D), fontWeight = FontWeight.SemiBold)
+                    Text("${fecha.dayOfMonth}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = t.tinta)
+                    if (gasto > 0) Text(montoCorto(gasto), fontSize = 9.sp, color = Color(0xFFE5484D), fontWeight = FontWeight.SemiBold)
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.padding(top = 2.dp)) {
                         if (delDia.any { it.esGasto && !it.pagado }) Box(Modifier.size(5.dp).clip(CircleShape).background(Color(0xFFE5484D)))
                         if (delDia.any { (it.pagado || !it.esGasto) && !it.desdeCorreo }) Box(Modifier.size(5.dp).clip(CircleShape).background(t.tenue))
