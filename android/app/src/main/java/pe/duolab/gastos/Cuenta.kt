@@ -227,7 +227,7 @@ private fun Gmail(vm: AppVM, u: Usuario) {
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(t.elev).padding(10.dp)) {
                         Text(c.optString("asunto").ifBlank { "(sin asunto)" }, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 2)
                         Text(c.optString("resultado"), color = if (c.optBoolean("registrado")) Color(0xFF3E8E2F) else t.tenue, fontSize = 12.sp, maxLines = 3)
-                        if (!c.optBoolean("registrado")) Text("Volver a revisar", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp).clickable {
+                        if (!c.optBoolean("registrado")) Text("Volver a revisar", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp).toque {
                             vm.hacer {
                                 val r = Api.post("/auth/google/gmail/revisados/${Uri.encode(c.optString("id"))}/reintentar")
                                 vm.aviso = if (r.optInt("nuevos") > 0) "Registrado" else r.optString("resultado").ifBlank { "Revisado: no se registró" }
@@ -287,7 +287,7 @@ private fun AvisosTelefono(vm: AppVM) {
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Últimos envíos", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("Actualizar", fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).background(t.elev).clickable {
+            Text("Actualizar", fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).background(t.elev).toque {
                 vm.hacer { historial = Api.get("/avisos/historial").optJSONArray("avisos")?.objetos().orEmpty() }
             }.padding(horizontal = 12.dp, vertical = 7.dp))
         }

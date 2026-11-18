@@ -32,15 +32,36 @@ class AppVM(app: Application) : AndroidViewModel(app) {
 
     private var carga: Job? = null
 
+    // Copia local de lo último que se vio: la app abre al instante y se pone al día por detrás.
+    private val cache = app.getSharedPreferences("cache", Context.MODE_PRIVATE)
+    private fun claveMes(libro: String?, m: YearMonth) = "mes:$libro:$m"
+    private fun mesGuardado(libro: String? = libroId, m: YearMonth = mes) = cache.getString(claveMes(libro, m), null)?.let { runCatching { datosMesDe(JSONObject(it)) }.getOrNull() }
+
     init {
         Api.iniciar(app)
+        if (Api.haySesion()) {
+            runCatching {
+                cache.getString("yo", null)?.let { usuario = usuarioDe(JSONObject(it)) }
+                cache.getString("libros", null)?.let { j ->
+                    libros = librosDe(JSONObject(j))
+                    val guardado = prefs.getString("libro", null)
+                    libroId = libros.firstOrNull { it.id == guardado }?.id ?: libros.firstOrNull()?.id
+                }
+                datos = mesGuardado()
+                if (usuario != null && datos != null) arrancando = false
+            }
+        }
         viewModelScope.launch {
             if (Api.haySesion()) {
                 try {
-                    usuario = usuarioDe(Api.get("/auth/yo").getJSONObject("usuario"))
+                    fijarUsuario(Api.get("/auth/yo").getJSONObject("usuario"))
                     alEntrar()
                 } catch (e: ApiError) {
-                    if (e.codigo == 401) Api.olvidarSesion() else aviso = e.message
+                    if (e.codigo == 401) {
+                        Api.olvidarSesion()
+                        cache.edit().clear().apply()
+                        usuario = null
+                    } else if (usuario == null) aviso = e.message
                 }
             }
             arrancando = false
@@ -51,20 +72,20 @@ class AppVM(app: Application) : AndroidViewModel(app) {
 
     fun entrar(email: String, password: String) = accion {
         val r = Api.post("/auth/login", JSONObject().put("email", email.trim()).put("password", password))
-        usuario = usuarioDe(r.getJSONObject("usuario"))
+        fijarUsuario(r.getJSONObject("usuario"))
         alEntrar()
     }
 
     /** Vuelta del acceso con Google en Chrome: duolab://login?codigo=… */
     fun canjearCodigo(codigo: String) = accion {
         val r = Api.post("/auth/app/canjear", JSONObject().put("codigo", codigo))
-        usuario = usuarioDe(r.getJSONObject("usuario"))
+        fijarUsuario(r.getJSONObject("usuario"))
         alEntrar()
     }
 
     fun registrar(nombre: String, email: String, password: String, whatsapp: String) = accion {
         val r = Api.post("/auth/registro", JSONObject().put("nombre", nombre.trim()).put("email", email.trim()).put("password", password).put("whatsapp", whatsapp.trim()))
-        usuario = usuarioDe(r.getJSONObject("usuario"))
+        fijarUsuario(r.getJSONObject("usuario"))
         alEntrar()
     }
 
@@ -76,17 +97,23 @@ class AppVM(app: Application) : AndroidViewModel(app) {
 
     fun restablecer(email: String, codigo: String, password: String) = accion {
         val r = Api.post("/auth/restablecer", JSONObject().put("email", email.trim()).put("codigo", codigo.trim()).put("password", password))
-        usuario = usuarioDe(r.getJSONObject("usuario"))
+        fijarUsuario(r.getJSONObject("usuario"))
         aviso = "Contraseña cambiada"
         alEntrar()
     }
 
     fun refrescarUsuario() = viewModelScope.launch {
-        runCatching { usuario = usuarioDe(Api.get("/auth/yo").getJSONObject("usuario")) }
+        runCatching { fijarUsuario(Api.get("/auth/yo").getJSONObject("usuario")) }
+    }
+
+    /** Pone la cuenta y la guarda en el teléfono (para abrir al instante aunque el servidor tarde). */
+    private fun fijarUsuario(j: JSONObject) {
+        cache.edit().putString("yo", j.toString()).apply()
+        usuario = usuarioDe(j)
     }
 
     fun ponerUsuario(j: JSONObject) {
-        usuario = usuarioDe(j)
+        fijarUsuario(j)
     }
 
     // ---------- diseño de la pantalla de inicio (como el botón de cuadritos de la web) ----------
@@ -109,6 +136,7 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     fun cerrarSesion() {
         viewModelScope.launch { runCatching { Api.post("/auth/logout") } }
         Api.olvidarSesion()
+        cache.edit().clear().apply()
         usuario = null
         libros = emptyList()
         datos = null
@@ -134,7 +162,9 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     // ---------- datos ----------
 
     private suspend fun cargarLibros() {
-        libros = librosDe(Api.get("/libros"))
+        val j = Api.get("/libros")
+        cache.edit().putString("libros", j.toString()).apply()
+        libros = librosDe(j)
         val guardado = prefs.getString("libro", null)
         libroId = libros.firstOrNull { it.id == libroId || it.id == guardado }?.id ?: libros.firstOrNull()?.id
     }
@@ -142,10 +172,26 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     private suspend fun cargarMesAhora() {
         val id = libroId ?: return
         val hasta = LocalDate.now().plusDays(30)
-        val nuevos = datosMesDe(Api.get("/libros/$id/mes?mes=$mes&hasta=$hasta"))
-        datos = nuevos
+        val pedido = mes
+        val j = Api.get("/libros/$id/mes?mes=$pedido&hasta=$hasta")
+        cache.edit().putString(claveMes(id, pedido), j.toString()).apply()
+        val nuevos = datosMesDe(j)
+        if (pedido == mes && id == libroId) datos = nuevos
+        precargar(id, pedido)
         // Lo que ya está en pantalla no se vuelve a avisar como notificación.
         Avisos.marcarVistos(getApplication(), id, (nuevos.actual + nuevos.pendientes).map { it.id })
+    }
+
+    /** El mes anterior y el siguiente quedan guardados: cambiar de mes es instantáneo. */
+    private fun precargar(id: String, centro: YearMonth) {
+        viewModelScope.launch {
+            for (m in listOf(centro.minusMonths(1), centro.plusMonths(1))) {
+                runCatching {
+                    val j = Api.get("/libros/$id/mes?mes=$m&hasta=${LocalDate.now().plusDays(30)}")
+                    cache.edit().putString(claveMes(id, m), j.toString()).apply()
+                }
+            }
+        }
     }
 
     fun refrescar() {
@@ -166,28 +212,28 @@ class AppVM(app: Application) : AndroidViewModel(app) {
 
     fun cambiarMes(delta: Long) {
         mes = mes.plusMonths(delta)
-        datos = null
+        datos = mesGuardado()
         refrescar()
     }
 
     fun irAHoy() {
         if (mes != YearMonth.now()) {
             mes = YearMonth.now()
-            datos = null
+            datos = mesGuardado()
             refrescar()
         }
     }
 
     fun irAMes(nuevo: YearMonth) {
         mes = nuevo
-        datos = null
+        datos = mesGuardado()
         refrescar()
     }
 
     fun elegirLibro(id: String) {
         libroId = id
         prefs.edit().putString("libro", id).apply()
-        datos = null
+        datos = mesGuardado()
         refrescar()
     }
 

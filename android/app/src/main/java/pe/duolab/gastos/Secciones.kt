@@ -56,7 +56,7 @@ fun VistaMetas(vm: AppVM) {
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             CabeceraSeccion("Metas de ahorro", "Ahorra para lo que quieres, paso a paso") {
-                if (editar) Text("+ Nueva", fontWeight = FontWeight.Bold, color = SobreLima, modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).clickable { nueva = true }.padding(horizontal = 14.dp, vertical = 9.dp))
+                if (editar) Text("+ Nueva", fontWeight = FontWeight.Bold, color = SobreLima, modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).toque { nueva = true }.padding(horizontal = 14.dp, vertical = 9.dp))
             }
         }
         val metas = vm.metas
@@ -161,14 +161,14 @@ fun VistaCategorias(vm: AppVM) {
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             CabeceraSeccion("Categorías y presupuestos", nombreMes(vm.mes)) {
-                if (editar) Text("+ Nueva", fontWeight = FontWeight.Bold, color = SobreLima, modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).clickable { nueva = true }.padding(horizontal = 14.dp, vertical = 9.dp))
+                if (editar) Text("+ Nueva", fontWeight = FontWeight.Bold, color = SobreLima, modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).toque { nueva = true }.padding(horizontal = 14.dp, vertical = 9.dp))
             }
         }
         item {
             Row(Modifier.clip(RoundedCornerShape(50)).background(t.sup).padding(4.dp)) {
                 listOf("gasto" to "Gastos", "ingreso" to "Ingresos").forEach { (v, n) ->
                     Text(n, fontWeight = FontWeight.Bold, color = if (tipo == v) SobreLima else t.tinta, textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (tipo == v) Lima else Color.Transparent).clickable { tipo = v }.padding(vertical = 10.dp))
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (tipo == v) Lima else Color.Transparent).toque { tipo = v }.padding(vertical = 10.dp))
                 }
             }
         }
@@ -176,7 +176,7 @@ fun VistaCategorias(vm: AppVM) {
         if (lista == null) item { Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Lima) } }
         else if (lista.isEmpty()) item { Panel { Text("Aún no hay categorías de ${if (tipo == "gasto") "gastos" else "ingresos"}.", color = t.tenue) } }
         else items(lista, key = { it.tipo + it.nombre }) { c ->
-            Panel(Modifier.clickable(enabled = editar) { editando = c }) {
+            Panel(Modifier.toque(habilitado = editar) { editando = c }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(12.dp).clip(CircleShape).background(c.color?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() } ?: Lima))
                     Spacer(Modifier.width(10.dp))
@@ -241,7 +241,7 @@ fun VistaAsistente(vm: AppVM) {
                 Panel {
                     Text("Prueba con:", fontWeight = FontWeight.Bold)
                     listOf("¿Cuánto gasté este mes?", "¿En qué gasto más?", "¿Qué pagos tengo pendientes?", "Envíame el resumen por WhatsApp").forEach { s ->
-                        Text("“$s”", modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(t.elev).clickable { vm.preguntar(s) }.padding(horizontal = 12.dp, vertical = 8.dp))
+                        Text("“$s”", modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(t.elev).toque { vm.preguntar(s) }.padding(horizontal = 12.dp, vertical = 8.dp))
                     }
                 }
             }
@@ -273,8 +273,8 @@ fun VistaAnio(vm: AppVM) {
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             CabeceraSeccion("Resumen del ${vm.anio}") {
-                Text("‹", fontSize = 26.sp, modifier = Modifier.clickable { vm.cargarAnio(vm.anio - 1) }.padding(horizontal = 12.dp))
-                Text("›", fontSize = 26.sp, modifier = Modifier.clickable { vm.cargarAnio(vm.anio + 1) }.padding(horizontal = 12.dp))
+                Text("‹", fontSize = 26.sp, modifier = Modifier.toque { vm.cargarAnio(vm.anio - 1) }.padding(horizontal = 12.dp))
+                Text("›", fontSize = 26.sp, modifier = Modifier.toque { vm.cargarAnio(vm.anio + 1) }.padding(horizontal = 12.dp))
             }
         }
         if (r == null) item { Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Lima) } }
@@ -294,7 +294,7 @@ fun VistaAnio(vm: AppVM) {
                     val maximo = r.meses.maxOfOrNull { maxOf(it.ingresos, it.gastos) }?.coerceAtLeast(1.0) ?: 1.0
                     r.meses.forEach { m ->
                         val ym = YearMonth.of(r.anio, m.mes)
-                        Row(Modifier.fillMaxWidth().clickable { vm.irAMes(ym) }.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().toque { vm.irAMes(ym) }.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(nombreMesCorto(ym).take(3), fontWeight = FontWeight.Bold, modifier = Modifier.width(40.dp))
                             Column(Modifier.weight(1f)) {
                                 Box(Modifier.fillMaxWidth((m.ingresos / maximo).toFloat().coerceAtLeast(0.01f)).height(8.dp).clip(RoundedCornerShape(50)).background(Color(0xFF55A630)))
@@ -325,7 +325,7 @@ fun VistaInforme(vm: AppVM, alPdf: (ByteArray, String) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CabeceraSeccion("Informe PDF", "Resumen y lista completa del periodo")
         opciones.forEach { (nombre, rango) ->
-            Panel(Modifier.clickable(enabled = !vm.ocupado) { vm.descargarInforme(rango.first, rango.second) { alPdf(it, "DUOLAB-${rango.first}-a-${rango.second}.pdf") } }) {
+            Panel(Modifier.toque(habilitado = !vm.ocupado) { vm.descargarInforme(rango.first, rango.second) { alPdf(it, "DUOLAB-${rango.first}-a-${rango.second}.pdf") } }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconoCaja(Iconos.descargar, Lima, SobreLima)
                     Spacer(Modifier.width(12.dp))
@@ -354,7 +354,7 @@ fun DialogoCaptura(vm: AppVM) {
                 Text(if (repetidos > 0) "Marca los que quieras registrar. $repetidos ya estaba${if (repetidos == 1) "" else "n"} en el libro y van sin marcar." else "Marca los que quieras registrar.", fontSize = 13.sp, color = LocalTokens.current.tenue)
                 if (vm.notaCaptura.isNotBlank()) Text(vm.notaCaptura, fontSize = 12.sp, color = LocalTokens.current.tenue, modifier = Modifier.padding(top = 6.dp))
                 lista.forEachIndexed { i, m ->
-                    Row(Modifier.fillMaxWidth().clickable { vm.captura = lista.toMutableList().also { it[i] = m.copy(elegido = !m.elegido) } }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().toque { vm.captura = lista.toMutableList().also { it[i] = m.copy(elegido = !m.elegido) } }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(m.elegido, { vm.captura = lista.toMutableList().also { l -> l[i] = m.copy(elegido = it) } })
                         Column(Modifier.weight(1f)) {
                             Text(m.descripcion, fontWeight = FontWeight.SemiBold, maxLines = 1)

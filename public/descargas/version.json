@@ -1,6 +1,6 @@
 {
-  "versionCode": 9,
-  "versionName": "2.5",
-  "notas": "Las tarjetas ahora dicen «Ingresos del mes» y «Gastos del mes», con cuánto recibiste, pagaste y lo que falta.",
+  "versionCode": 10,
+  "versionName": "2.6",
+  "notas": "Más rápida: abre al instante con tus datos aunque no haya conexión y cambia de mes sin esperar. Botones con toque suave como en iPhone, transiciones fluidas e icono adaptable al estilo de tu teléfono.",
   "apk": "/descargas/duolab-gastos.apk"
 }

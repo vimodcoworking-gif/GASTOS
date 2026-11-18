@@ -2,4 +2,5 @@
 <resources>
     <color name="fondo">#12150E</color>
     <color name="lima">#C6F432</color>
+    <color name="icono_fondo">#000000</color>
 </resources>

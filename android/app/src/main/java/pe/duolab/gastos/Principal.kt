@@ -9,6 +9,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,21 +96,25 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End,
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
                 if (vista == Vista.MES) {
-                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(t.sup).clickable { disenos = true }, contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(t.sup).toque { disenos = true }, contentAlignment = Alignment.Center) {
                         Icon(Iconos.diseno, "Diseño de inicio", modifier = Modifier.size(20.dp))
                     }
                     Spacer(Modifier.width(8.dp))
                 }
                 if (editar) {
                     Text("+ Nuevo", fontWeight = FontWeight.Bold, color = SobreLima, fontSize = 15.sp, maxLines = 1, softWrap = false,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).clickable { edicion = Edicion(null, "gasto") }.padding(horizontal = 14.dp, vertical = 10.dp))
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).toque { edicion = Edicion(null, "gasto") }.padding(horizontal = 14.dp, vertical = 10.dp))
                 }
             }
         },
     ) { relleno ->
         Box(Modifier.padding(top = relleno.calculateTopPadding()).fillMaxSize()) {
             PullToRefreshBox(isRefreshing = vm.cargando, onRefresh = vm::refrescar, modifier = Modifier.fillMaxSize()) {
-                when (vista) {
+                AnimatedContent(
+                    targetState = vista,
+                    transitionSpec = { (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 }) togetherWith fadeOut(tween(120)) },
+                    label = "vista",
+                ) { v -> when (v) {
                     Vista.MES -> VistaMes(vm, seccion, { seccion = it }, { edicion = it }, pedirCaptura, { vista = Vista.INFORME })
                     Vista.METAS -> VistaMetas(vm)
                     Vista.CATEGORIAS -> VistaCategorias(vm)
@@ -113,7 +124,7 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
                     Vista.CUENTA -> VistaCuenta(vm)
                     Vista.COMPARTIR -> VistaCompartir(vm)
                     Vista.ADMIN -> VistaAdmin(vm)
-                }
+                } }
             }
             BarraInferior(vista, { vista = it }, { menu = true }, Modifier.align(Alignment.BottomCenter))
         }
@@ -141,8 +152,10 @@ private fun BarraInferior(vista: Vista, alElegir: (Vista) -> Unit, alMas: () -> 
 
 @Composable
 private fun BotonBarra(icono: ImageVector, descripcion: String, activo: Boolean, alTocar: () -> Unit) {
-    Box(Modifier.size(50.dp).clip(CircleShape).background(if (activo) Lima else Color.Transparent).clickable(onClick = alTocar), contentAlignment = Alignment.Center) {
-        Icon(icono, descripcion, tint = if (activo) SobreLima else Color(0xFFDFE5D6), modifier = Modifier.size(22.dp))
+    val fondo by animateColorAsState(if (activo) Lima else Color.Transparent, tween(220), label = "barra")
+    val tinta by animateColorAsState(if (activo) SobreLima else Color(0xFFDFE5D6), tween(220), label = "barra-icono")
+    Box(Modifier.size(50.dp).toque(escala = 0.88f, alTocar = alTocar).clip(CircleShape).background(fondo), contentAlignment = Alignment.Center) {
+        Icon(icono, descripcion, tint = tinta, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -201,7 +214,7 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
                     vm.libros.forEach { l ->
                         Text((if (l.id == vm.libroId) "✓  " else "     ") + "${l.nombre} · ${l.moneda}" + if (l.rol != "propietario") "  (de ${l.propietario})" else "",
                             fontWeight = if (l.id == vm.libroId) FontWeight.Bold else FontWeight.Normal,
-                            modifier = Modifier.fillMaxWidth().clickable { vm.elegirLibro(l.id); libros = false; alCerrar() }.padding(vertical = 12.dp))
+                            modifier = Modifier.fillMaxWidth().toque { vm.elegirLibro(l.id); libros = false; alCerrar() }.padding(vertical = 12.dp))
                     }
                 }
             },
@@ -249,7 +262,7 @@ private fun Grupo(titulo: String) {
 @Composable
 private fun ItemMenu(icono: ImageVector, titulo: String, nota: String, alTocar: () -> Unit) {
     val t = LocalTokens.current
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(t.sup).clickable(onClick = alTocar).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(t.sup).toque(alTocar = alTocar).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         IconoCaja(icono, t.elev, t.tinta, 36, 12)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

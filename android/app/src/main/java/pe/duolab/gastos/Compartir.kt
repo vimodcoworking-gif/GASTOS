@@ -79,13 +79,13 @@ fun VistaCompartir(vm: AppVM) {
                         }
                         if (esDueno || !propietario) Text(m.optString("rol").replaceFirstChar { it.uppercase() }, color = t.tenue, fontSize = 12.sp)
                         else {
-                            Text(if (m.optString("rol") == "editor") "Editor" else "Lector", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clickable {
+                            Text(if (m.optString("rol") == "editor") "Editor" else "Lector", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.toque {
                                 vm.hacer {
                                     Api.patch("/libros/${libro.id}/miembros/${m.optString("id")}", JSONObject().put("rol", if (m.optString("rol") == "editor") "lector" else "editor"))
                                     miembros = Api.get("/libros/${libro.id}/miembros").optJSONArray("miembros")?.objetos().orEmpty()
                                 }
                             }.padding(6.dp))
-                            Text("Quitar", color = Color(0xFFE5484D), fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clickable {
+                            Text("Quitar", color = Color(0xFFE5484D), fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.toque {
                                 vm.hacer {
                                     Api.delete("/libros/${libro.id}/miembros/${m.optString("id")}")
                                     miembros = Api.get("/libros/${libro.id}/miembros").optJSONArray("miembros")?.objetos().orEmpty()
@@ -223,7 +223,7 @@ private fun UsuariosAdmin(vm: AppVM, usuarios: List<JSONObject>?, alCambiar: (Li
                     Text(u.optString("nombre"), fontWeight = FontWeight.SemiBold)
                     Text("${u.optString("email")} · ${u.optInt("libros")} libros", color = t.tenue, fontSize = 12.sp)
                 }
-                if (u.optString("id") != vm.usuario?.id) Text("Eliminar", color = Color(0xFFE5484D), fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.clickable { borrar = u }.padding(6.dp))
+                if (u.optString("id") != vm.usuario?.id) Text("Eliminar", color = Color(0xFFE5484D), fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.toque { borrar = u }.padding(6.dp))
             }
         }
         Text("Crear usuario", fontWeight = FontWeight.Bold)
@@ -274,7 +274,7 @@ private fun IaAdmin(vm: AppVM, ia: JSONObject?, alCambiar: (JSONObject) -> Unit)
         val modelos = prov?.optJSONObject("modelos")
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             modelos?.keys()?.asSequence()?.take(12)?.forEach { id ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (modelo == id) Lima.copy(alpha = 0.35f) else t.elev).clickable { modelo = id }.padding(10.dp)) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (modelo == id) Lima.copy(alpha = 0.35f) else t.elev).toque { modelo = id }.padding(10.dp)) {
                     Text(modelos.optString(id), fontSize = 13.sp)
                 }
             }

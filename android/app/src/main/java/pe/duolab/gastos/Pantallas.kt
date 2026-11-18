@@ -83,19 +83,19 @@ fun Campo(
 
 @Composable
 fun BotonLima(texto: String, modifier: Modifier = Modifier, habilitado: Boolean = true, alTocar: () -> Unit) {
-    Button(
-        onClick = alTocar, enabled = habilitado, modifier = modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(50),
-        colors = ButtonDefaults.buttonColors(containerColor = Lima, contentColor = SobreLima, disabledContainerColor = Lima.copy(alpha = 0.4f), disabledContentColor = SobreLima.copy(alpha = 0.6f)),
-    ) { Text(texto, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+    Box(
+        modifier.fillMaxWidth().height(52.dp).toque(habilitado, alTocar = alTocar).clip(RoundedCornerShape(50)).background(if (habilitado) Lima else Lima.copy(alpha = 0.4f)),
+        contentAlignment = Alignment.Center,
+    ) { Text(texto, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (habilitado) SobreLima else SobreLima.copy(alpha = 0.6f)) }
 }
 
 @Composable
 fun BotonSuave(texto: String, modifier: Modifier = Modifier, peligro: Boolean = false, habilitado: Boolean = true, alTocar: () -> Unit) {
     val t = LocalTokens.current
-    Button(
-        onClick = alTocar, enabled = habilitado, modifier = modifier.height(46.dp), shape = RoundedCornerShape(50),
-        colors = ButtonDefaults.buttonColors(containerColor = t.elev, contentColor = if (peligro) Color(0xFFE5484D) else t.tinta),
-    ) { Text(texto, fontWeight = FontWeight.SemiBold) }
+    Box(
+        modifier.height(46.dp).toque(habilitado, alTocar = alTocar).clip(RoundedCornerShape(50)).background(t.elev).padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(texto, fontWeight = FontWeight.SemiBold, color = (if (peligro) Color(0xFFE5484D) else t.tinta).copy(alpha = if (habilitado) 1f else 0.4f), maxLines = 1) }
 }
 
 private enum class ModoEntrar { ENTRAR, CREAR, OLVIDE, CODIGO }
@@ -140,7 +140,7 @@ fun PantallaEntrar(vm: AppVM) {
             }
             if (modo == ModoEntrar.ENTRAR) {
                 Text("¿Olvidaste tu contraseña?", color = t.tinta, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().clickable { modo = ModoEntrar.OLVIDE }.padding(6.dp))
+                    modifier = Modifier.fillMaxWidth().toque { modo = ModoEntrar.OLVIDE }.padding(6.dp))
             }
             if (modo == ModoEntrar.ENTRAR || modo == ModoEntrar.CREAR) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -150,7 +150,7 @@ fun PantallaEntrar(vm: AppVM) {
                 }
                 Row(
                     Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(50)).background(Color.White).border(1.dp, t.linea, RoundedCornerShape(50))
-                        .clickable { contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Api.BASE + "/api/auth/google?app=android"))) },
+                        .toque { contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Api.BASE + "/api/auth/google?app=android"))) },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
                 ) {
                     Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
@@ -166,10 +166,10 @@ fun PantallaEntrar(vm: AppVM) {
             Text(
                 when (modo) { ModoEntrar.ENTRAR -> "Crear una"; else -> "Volver a entrar" },
                 fontWeight = FontWeight.Bold, color = t.tinta,
-                modifier = Modifier.clickable { modo = if (modo == ModoEntrar.ENTRAR) ModoEntrar.CREAR else ModoEntrar.ENTRAR }.padding(6.dp),
+                modifier = Modifier.toque { modo = if (modo == ModoEntrar.ENTRAR) ModoEntrar.CREAR else ModoEntrar.ENTRAR }.padding(6.dp),
             )
         }
-        Text("Política de privacidad · Términos de uso", color = t.tenue, fontSize = 12.sp, modifier = Modifier.padding(top = 18.dp).clickable {
+        Text("Política de privacidad · Términos de uso", color = t.tenue, fontSize = 12.sp, modifier = Modifier.padding(top = 18.dp).toque {
             contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Api.BASE + "/privacidad")))
         })
     }

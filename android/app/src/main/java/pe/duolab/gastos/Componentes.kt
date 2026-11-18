@@ -48,7 +48,7 @@ fun SelectorMes(mes: YearMonth, alCambiar: (Long) -> Unit, alHoy: () -> Unit, co
         IconButton(onClick = { alCambiar(-1) }) { Icon(Icons.Filled.KeyboardArrowLeft, "Mes anterior", tint = color) }
         Text(nombreMes(mes), color = color, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f), maxLines = 1)
         if (mes != YearMonth.now()) {
-            Text("Hoy", color = Lima, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = alHoy).padding(horizontal = 10.dp, vertical = 6.dp))
+            Text("Hoy", color = Lima, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(50)).toque(alTocar = alHoy).padding(horizontal = 10.dp, vertical = 6.dp))
         }
         IconButton(onClick = { alCambiar(1) }) { Icon(Icons.Filled.KeyboardArrowRight, "Mes siguiente", tint = color) }
     }
@@ -64,7 +64,7 @@ fun FilaMovimiento(m: Movimiento, moneda: String, alTocar: (() -> Unit)?, alPaga
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .then(if (alTocar != null) Modifier.clickable(onClick = alTocar) else Modifier)
+            .then(if (alTocar != null) Modifier.toque(alTocar = alTocar) else Modifier)
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Box(

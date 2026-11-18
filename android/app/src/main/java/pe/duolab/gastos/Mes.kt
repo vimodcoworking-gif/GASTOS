@@ -58,7 +58,7 @@ fun IconoCaja(icono: ImageVector, fondo: Color, tinta: Color, lado: Int = 34, ra
 @Composable
 private fun BotonCirculo(icono: ImageVector, descripcion: String, alTocar: () -> Unit) {
     Box(
-        Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape).clickable(onClick = alTocar),
+        Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape).toque(alTocar = alTocar),
         contentAlignment = Alignment.Center,
     ) { Icon(icono, descripcion, tint = TINTA_HEROE, modifier = Modifier.size(18.dp)) }
 }
@@ -95,7 +95,7 @@ fun FilaWeb(m: Movimiento, moneda: String, alTocar: (() -> Unit)?, alPagar: (() 
     val t = LocalTokens.current
     val hoy = LocalDate.now()
     Row(
-        Modifier.fillMaxWidth().then(if (alTocar != null) Modifier.clickable(onClick = alTocar) else Modifier).padding(vertical = 10.dp),
+        Modifier.fillMaxWidth().then(if (alTocar != null) Modifier.toque(alTocar = alTocar) else Modifier).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -118,12 +118,12 @@ fun FilaWeb(m: Movimiento, moneda: String, alTocar: (() -> Unit)?, alPagar: (() 
         Text((if (m.esGasto) "-" else "+") + dinero(m.monto, moneda), fontWeight = FontWeight.Bold, color = if (m.esGasto) t.tinta else Color(0xFF3E8E2F), fontSize = 15.sp)
         if (alPagar != null && !m.pagado) {
             Spacer(Modifier.width(10.dp))
-            Box(Modifier.size(42.dp).clip(CircleShape).background(Lima).clickable(onClick = alPagar), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(42.dp).clip(CircleShape).background(Lima).toque(alTocar = alPagar), contentAlignment = Alignment.Center) {
                 Icon(Iconos.check, if (m.esGasto) "Pagar" else "Cobrar", tint = SobreLima, modifier = Modifier.size(20.dp))
             }
         } else if (alDeshacer != null && m.pagado) {
             Spacer(Modifier.width(10.dp))
-            Box(Modifier.size(42.dp).clip(CircleShape).background(t.elev).clickable(onClick = alDeshacer), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(42.dp).clip(CircleShape).background(t.elev).toque(alTocar = alDeshacer), contentAlignment = Alignment.Center) {
                 Icon(Iconos.deshacer, "Deshacer", modifier = Modifier.size(18.dp))
             }
         }
@@ -221,7 +221,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
             BotonCirculo(Iconos.flechaDer, "Mes siguiente") { vm.cambiarMes(1) }
             if (!esMesActual) {
                 Text("Hoy", color = TINTA_HEROE, fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f)).clickable { vm.irAHoy() }.padding(horizontal = 12.dp, vertical = 9.dp))
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f)).toque { vm.irAHoy() }.padding(horizontal = 12.dp, vertical = 9.dp))
             }
             BotonCirculo(Iconos.descargar, "Descargar PDF del mes", alInforme)
         }
@@ -251,7 +251,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
                     .drawBehind {
                         drawRoundRect(Color.White.copy(alpha = 0.18f), style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))), cornerRadius = CornerRadius(size.height / 2))
                     }
-                    .clickable(onClick = alCaptura),
+                    .toque(alTocar = alCaptura),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
             ) {
                 Box(Modifier.size(26.dp).border(1.5.dp, Color(0xFFDFE5D6), CircleShape), contentAlignment = Alignment.Center) { Icon(Iconos.imagen, null, tint = Color(0xFFDFE5D6), modifier = Modifier.size(14.dp)) }
@@ -269,7 +269,7 @@ private fun PildoraHeroe(texto: String, icono: ImageVector, lima: Boolean, modif
         modifier.height(54.dp).clip(RoundedCornerShape(50))
             .background(if (lima) Lima else Color.White.copy(alpha = 0.05f))
             .then(if (lima) Modifier else Modifier.border(1.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(50)))
-            .clickable(onClick = alTocar),
+            .toque(alTocar = alTocar),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
     ) {
         Box(Modifier.size(28.dp).border(1.5.dp, tinta, CircleShape), contentAlignment = Alignment.Center) { Icon(icono, null, tint = tinta, modifier = Modifier.size(15.dp)) }
@@ -326,13 +326,16 @@ private fun GraficaHeroe(dias: List<Pair<LocalDate, Double>>, modifier: Modifier
 }
 
 @Composable
-private fun TarjetaWeb(titulo: String, valor: String, nota: String, icono: ImageVector, fondoIcono: Color, tintaIcono: Color, colorValor: Color, modifier: Modifier, progreso: Float? = null, colorBarra: Color = Lima) {
+private fun TarjetaWeb(titulo: String, valor: String, nota: String, icono: ImageVector, fondoIcono: Color, tintaIcono: Color, colorValor: Color, modifier: Modifier, progreso: Float? = null, colorBarra: Color = Lima, cargando: Boolean = false) {
     val t = LocalTokens.current
+    // Mientras llegan los datos (primera vez, sin copia en el teléfono) no se muestran ceros.
+    val valor = if (cargando) "…" else valor
+    val nota = if (cargando) "Cargando…" else nota
     Column(modifier.clip(RoundedCornerShape(24.dp)).background(t.sup).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconoCaja(icono, fondoIcono, tintaIcono, 30, 10)
-            Spacer(Modifier.width(8.dp))
-            Text(titulo, color = t.tinta, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            IconoCaja(icono, fondoIcono, tintaIcono, 24, 8)
+            Spacer(Modifier.width(6.dp))
+            Text(titulo, color = t.tinta, fontSize = 11.5.sp, letterSpacing = (-0.2).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
         }
         Spacer(Modifier.height(10.dp))
         Text(valor, color = colorValor, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, maxLines = 1)
@@ -350,6 +353,7 @@ private fun TarjetaWeb(titulo: String, valor: String, nota: String, icono: Image
 private fun TarjetasMes(vm: AppVM, actual: List<Movimiento>, t: Totales, alPendientes: () -> Unit) {
     val m = vm.moneda
     val pendientesGasto = actual.count { it.esGasto && !it.pagado }
+    val cargando = vm.datos == null
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TarjetaWeb("Ingresos del mes", dinero(t.ingresos, m),
@@ -358,18 +362,18 @@ private fun TarjetasMes(vm: AppVM, actual: List<Movimiento>, t: Totales, alPendi
                     t.ingresosPendientes > 0 -> "Recibiste ${dinero(t.ingresos - t.ingresosPendientes, m)} · faltan ${dinero(t.ingresosPendientes, m)}"
                     else -> "Ya recibiste todo"
                 },
-                Iconos.entrada, Color(0xFFE3F1DA), Color(0xFF3E8E2F), LocalTokens.current.tinta, Modifier.weight(1f), if (t.ingresos > 0) ((t.ingresos - t.ingresosPendientes) / t.ingresos).toFloat() else 0f, Color(0xFF55A630))
+                Iconos.entrada, Color(0xFFE3F1DA), Color(0xFF3E8E2F), LocalTokens.current.tinta, Modifier.weight(1f), if (t.ingresos > 0) ((t.ingresos - t.ingresosPendientes) / t.ingresos).toFloat() else 0f, Color(0xFF55A630), cargando)
             TarjetaWeb("Gastos del mes", dinero(t.gastos, m),
                 when {
                     t.gastos <= 0 -> "Aún no hay gastos este mes"
                     t.gastosPendientes > 0 -> "Pagaste ${dinero(t.gastos - t.gastosPendientes, m)} · faltan ${dinero(t.gastosPendientes, m)}"
                     else -> "Todo pagado"
                 },
-                Iconos.salida, Color(0xFFFDE2E2), Color(0xFFE5484D), LocalTokens.current.tinta, Modifier.weight(1f), if (t.gastos > 0) ((t.gastos - t.gastosPendientes) / t.gastos).toFloat() else 0f, Color(0xFFF04A50))
+                Iconos.salida, Color(0xFFFDE2E2), Color(0xFFE5484D), LocalTokens.current.tinta, Modifier.weight(1f), if (t.gastos > 0) ((t.gastos - t.gastosPendientes) / t.gastos).toFloat() else 0f, Color(0xFFF04A50), cargando)
         }
         // «Falta por pagar»: tarjeta oscura a todo el ancho con la insignia del número de pagos.
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF1F231A), Color(0xFF2B3024)))).clickable(onClick = alPendientes).padding(14.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF1F231A), Color(0xFF2B3024)))).toque(alTocar = alPendientes).padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -404,7 +408,7 @@ private fun TiraProximo(vm: AppVM) {
     val t = LocalTokens.current
     val p = Totales.de(vm.datos?.proximo.orEmpty())
     val siguiente = vm.mes.plusMonths(1)
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(t.sup).clickable { vm.cambiarMes(1) }.padding(horizontal = 14.dp, vertical = 12.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(t.sup).toque { vm.cambiarMes(1) }.padding(horizontal = 14.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconoCaja(Iconos.calendario, t.elev, t.tinta, 34, 11)
             Spacer(Modifier.width(10.dp))
@@ -434,7 +438,7 @@ private fun Segmentos(actual: SeccionMes, pendientes: Int, movimientos: Int, alE
                 fila.forEach { s ->
                     val activo = s == actual
                     Row(
-                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(16.dp)).background(if (activo) Lima else t.sup).clickable { alElegir(s) },
+                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(16.dp)).background(if (activo) Lima else t.sup).toque { alElegir(s) },
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
                     ) {
                         Text(s.titulo, fontWeight = if (activo) FontWeight.Bold else FontWeight.SemiBold, color = if (activo) SobreLima else t.tinta, fontSize = 14.sp)
@@ -461,7 +465,7 @@ private fun FiltroMedios(lista: List<Movimiento>, filtro: String, alCambiar: (St
             val t = LocalTokens.current
             val activo = filtro == clave
             Row(
-                Modifier.height(38.dp).clip(RoundedCornerShape(50)).background(if (activo) Lima else t.elev).clickable { alCambiar(clave) }.padding(horizontal = 14.dp),
+                Modifier.height(38.dp).clip(RoundedCornerShape(50)).background(if (activo) Lima else t.elev).toque { alCambiar(clave) }.padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (clave != "" && clave != "sin") { Icon(Iconos.deMedio(clave), null, tint = if (activo) SobreLima else t.tinta, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(6.dp)) }
@@ -480,9 +484,9 @@ private fun LazyListScope.calendario(
     item {
         Panel {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-                Box(Modifier.size(42.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Color.White).clickable { vm.cambiarMes(-1) }, contentAlignment = Alignment.Center) { Icon(Iconos.flechaIzq, "Mes anterior", tint = SobreLima, modifier = Modifier.size(18.dp)) }
+                Box(Modifier.size(42.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Color.White).toque { vm.cambiarMes(-1) }, contentAlignment = Alignment.Center) { Icon(Iconos.flechaIzq, "Mes anterior", tint = SobreLima, modifier = Modifier.size(18.dp)) }
                 Text(nombreMes(vm.mes), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-                Box(Modifier.size(42.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Color.White).clickable { vm.cambiarMes(1) }, contentAlignment = Alignment.Center) { Icon(Iconos.flechaDer, "Mes siguiente", tint = SobreLima, modifier = Modifier.size(18.dp)) }
+                Box(Modifier.size(42.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Color.White).toque { vm.cambiarMes(1) }, contentAlignment = Alignment.Center) { Icon(Iconos.flechaDer, "Mes siguiente", tint = SobreLima, modifier = Modifier.size(18.dp)) }
             }
             Calendario(vm.mes, actual, dia, alDia)
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -500,7 +504,7 @@ private fun LazyListScope.calendario(
                 val fecha = LocalDate.parse(dia)
                 Text(fechaLarga(fecha).replaceFirst(" ", ", "), fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
                 Text("Ver todo ${nombreMesCorto(vm.mes).lowercase(ES)}", fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(LocalTokens.current.elev).clickable { alDia(null) }.padding(horizontal = 14.dp, vertical = 9.dp))
+                    modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(LocalTokens.current.elev).toque { alDia(null) }.padding(horizontal = 14.dp, vertical = 9.dp))
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DatoDia("Gastaste", dinero(delDia.filter { it.esGasto }.sumOf { it.monto }, vm.moneda), Color(0xFFE5484D), Modifier.weight(1f))
@@ -568,7 +572,7 @@ private fun Calendario(mes: YearMonth, actual: List<Movimiento>, dia: String?, a
                     Modifier.weight(1f).height(58.dp).clip(RoundedCornerShape(14.dp))
                         .background(if (elegido) Lima.copy(alpha = 0.16f) else t.elev)
                         .then(if (elegido || fecha == hoy) Modifier.border(if (elegido) 2.dp else 1.5.dp, Lima, RoundedCornerShape(14.dp)) else Modifier)
-                        .clickable { alDia(if (elegido) null else fecha.toString()) },
+                        .toque { alDia(if (elegido) null else fecha.toString()) },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                 ) {
                     Text("${fecha.dayOfMonth}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = t.tinta)
@@ -671,7 +675,7 @@ private fun Graficas(vm: AppVM, actual: List<Movimiento>) {
                 Row(Modifier.clip(RoundedCornerShape(50)).background(t.elev).padding(3.dp)) {
                     listOf("gasto" to "Gastos", "ingreso" to "Ingresos").forEach { (v, n) ->
                         Text(n, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (tipo == v) SobreLima else t.tinta,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (tipo == v) Lima else Color.Transparent).clickable { tipo = v }.padding(horizontal = 10.dp, vertical = 6.dp))
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (tipo == v) Lima else Color.Transparent).toque { tipo = v }.padding(horizontal = 10.dp, vertical = 6.dp))
                     }
                 }
             }
@@ -807,7 +811,7 @@ fun DialogoDiseno(vm: AppVM, alCerrar: () -> Unit) {
                     Column(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (activo) Lima.copy(alpha = 0.25f) else t.elev)
                             .border(1.5.dp, if (activo) Lima else Color.Transparent, RoundedCornerShape(16.dp))
-                            .clickable {
+                            .toque {
                                 vm.elegirDiseno(d.id)
                                 vm.aviso = if (d.id == "auto") "Diseño automático: ahora «$nombreRecomendado»" else "Diseño «${d.nombre}» aplicado"
                                 alCerrar()
