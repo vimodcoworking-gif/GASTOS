@@ -62,6 +62,50 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         alEntrar()
     }
 
+    fun registrar(nombre: String, email: String, password: String, whatsapp: String) = accion {
+        val r = Api.post("/auth/registro", JSONObject().put("nombre", nombre.trim()).put("email", email.trim()).put("password", password).put("whatsapp", whatsapp.trim()))
+        usuario = usuarioDe(r.getJSONObject("usuario"))
+        alEntrar()
+    }
+
+    /** Pide el código para cambiar la contraseña (llega por WhatsApp o correo). */
+    fun olvide(email: String, alEnviar: () -> Unit) = accion {
+        aviso = Api.post("/auth/olvide", JSONObject().put("email", email.trim())).optString("mensaje")
+        alEnviar()
+    }
+
+    fun restablecer(email: String, codigo: String, password: String) = accion {
+        val r = Api.post("/auth/restablecer", JSONObject().put("email", email.trim()).put("codigo", codigo.trim()).put("password", password))
+        usuario = usuarioDe(r.getJSONObject("usuario"))
+        aviso = "Contraseña cambiada"
+        alEntrar()
+    }
+
+    fun refrescarUsuario() = viewModelScope.launch {
+        runCatching { usuario = usuarioDe(Api.get("/auth/yo").getJSONObject("usuario")) }
+    }
+
+    fun ponerUsuario(j: JSONObject) {
+        usuario = usuarioDe(j)
+    }
+
+    // ---------- diseño de la pantalla de inicio (como el botón de cuadritos de la web) ----------
+
+    var diseno by mutableStateOf(prefs.getString("disenoInicio", "auto") ?: "auto"); private set
+
+    fun elegirDiseno(id: String) {
+        diseno = id
+        prefs.edit().putString("disenoInicio", id).apply()
+    }
+
+    fun crearLibro(nombre: String, moneda: String, alTerminar: () -> Unit) = accion {
+        val r = Api.post("/libros", JSONObject().put("nombre", nombre.trim()).put("moneda", moneda))
+        cargarLibros()
+        r.optJSONObject("libro")?.optString("id")?.let { elegirLibro(it) }
+        aviso = "Libro creado"
+        alTerminar()
+    }
+
     fun cerrarSesion() {
         viewModelScope.launch { runCatching { Api.post("/auth/logout") } }
         Api.olvidarSesion()
@@ -306,6 +350,8 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     }
 
     /** Ejecuta una acción con el indicador de «ocupado» y muestra el error del servidor si falla. */
+    fun hacer(bloque: suspend () -> Unit) = accion(bloque)
+
     private fun accion(bloque: suspend () -> Unit) {
         if (ocupado) return
         viewModelScope.launch {

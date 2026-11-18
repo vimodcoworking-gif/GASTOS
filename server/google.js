@@ -51,13 +51,33 @@ export const rutasGoogle = Router();
 rutasGoogle.get('/estado', (req, res) => res.json({ disponible: googleDisponible(), minutos: config.minutosGmail }));
 
 // Lleva a la pantalla de Google. modo=entrar (iniciar sesión o crear cuenta) o modo=gmail (vincular el correo).
+const uidDeCodigoGmail = (token) => {
+  try {
+    const datos = jwt.verify(String(token ?? ''), config.jwtSecret);
+    return datos.uso === 'gmail-app' ? datos.id : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+// App Android: enlace para vincular Gmail en Chrome con la cuenta de la app.
+rutasGoogle.post('/app/enlace-gmail', requiereSesion, (req, res) => {
+  if (!googleDisponible()) throw new ErrorHttp(503, 'El acceso con Google no está configurado.');
+  const token = jwt.sign({ id: req.usuario.id, uso: 'gmail-app' }, config.jwtSecret, { expiresIn: '5m' });
+  res.json({ url: `${urlBase(req)}${RUTA}?modo=gmail&app=android&token=${encodeURIComponent(token)}` });
+});
+
 rutasGoogle.get('/', (req, res) => {
   if (!googleDisponible()) return res.redirect(`/?errorGoogle=${encodeURIComponent('El acceso con Google no está configurado.')}`);
   const modo = req.query.modo === 'gmail' ? 'gmail' : 'entrar';
-  // Desde la app Android: al terminar vuelve a la app (duolab://login) con un código de un solo uso.
-  const app = modo === 'entrar' && req.query.app === 'android';
-  const uid = idDeSesion(req);
-  if (modo === 'gmail' && !uid) return res.redirect(`/?errorGoogle=${encodeURIComponent('Inicia sesión antes de vincular Gmail.')}`);
+  // Desde la app Android: al terminar vuelve a la app (duolab://login). Para vincular Gmail, Chrome no tiene la
+  // sesión de la app: la persona llega con un código firmado de 5 minutos (POST /app/enlace-gmail).
+  const app = req.query.app === 'android';
+  const uid = app && modo === 'gmail' ? uidDeCodigoGmail(req.query.token) : idDeSesion(req);
+  if (modo === 'gmail' && !uid) {
+    const motivo = app ? 'El enlace caducó. Vuelve a tocar «Vincular Gmail» en la app.' : 'Inicia sesión antes de vincular Gmail.';
+    return res.redirect(app ? `duolab://login?error=${encodeURIComponent(motivo)}` : `/?errorGoogle=${encodeURIComponent(motivo)}`);
+  }
 
   const nonce = randomBytes(16).toString('hex');
   const redirectUri = `${urlBase(req)}${RUTA}/callback`;

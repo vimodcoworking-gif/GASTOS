@@ -102,7 +102,7 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 | Prefijo | Rutas principales |
 | --- | --- |
 | `/auth` | `POST registro, login, logout, olvide, restablecer` · `GET/PATCH yo` · `POST app/canjear` (código de un solo uso de la app Android) |
-| `/auth/google` | Entrar con Google, `callback`, `estado`; `gmail` (vincular, pausar, desvincular), `gmail/revisar`, `gmail/escanear`, `gmail/revisados` |
+| `/auth/google` | Entrar con Google (`?app=android` vuelve a la app), `app/enlace-gmail` (código de 5 min para vincular Gmail desde la app), `callback`, `estado`; `gmail` (vincular, pausar, desvincular), `gmail/revisar`, `gmail/escanear`, `gmail/revisados` |
 | `/libros` | `GET/POST /libros`; en `/libros/:id`: `mes`, `movimientos`, `pendientes`, `resumen`, `miembros`, `informe.pdf`, `enviar`, `capturas`, `capturas/registrar`, `metas`, `categorias` |
 | `/avisos` | `enlace` (sesión) · `historial` (sesión) · `atajo` (sesión: enlace de iCloud del atajo) · `POST /:token` (sin sesión, para el teléfono; `?silencioso=1` responde sin mensaje si no hay nada nuevo) |
 | `/push` | `clave`, `suscribir`, `prueba` |

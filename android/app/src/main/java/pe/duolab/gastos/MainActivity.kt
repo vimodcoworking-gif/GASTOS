@@ -34,6 +34,10 @@ class MainActivity : ComponentActivity() {
         if (datos.scheme != "duolab" || datos.host != "login") return
         datos.getQueryParameter("codigo")?.let { vm.canjearCodigo(it) }
         datos.getQueryParameter("error")?.let { vm.aviso = it }
+        if (datos.getQueryParameter("ok") == "gmail") {
+            vm.aviso = "Gmail vinculado: tus avisos de pago se registrarán solos"
+            vm.refrescarUsuario()
+        }
         setIntent(Intent(this, MainActivity::class.java))
     }
 }

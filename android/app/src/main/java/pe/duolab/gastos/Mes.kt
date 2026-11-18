@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -132,24 +133,60 @@ fun VistaMes(vm: AppVM, seccion: SeccionMes, alSeccion: (SeccionMes) -> Unit, al
     var filtro by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(vm.mes) { dia = null }
 
+    val pendientesVista = (if (vm.mes == YearMonth.now()) datos?.pendientes else actual.filter { !it.pagado }).orEmpty()
+    val diseno = disenoEfectivo(vm.diseno, disenoRecomendado(actual, pendientesVista))
+    val tenue = LocalTokens.current.tenue
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Heroe(vm, actual, t, editar, alEditar, alCaptura, alInforme) }
-        item { TarjetasMes(vm, actual, t) { alSeccion(SeccionMes.PENDIENTES) } }
-        item { TiraProximo(vm) }
-        item { Segmentos(seccion, (if (vm.mes == YearMonth.now()) datos?.pendientes else actual.filter { !it.pagado })?.size ?: 0, actual.size, alSeccion) }
-        if (datos == null) {
-            item { Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Lima) } }
-        } else when (seccion) {
-            SeccionMes.CALENDARIO -> calendario(vm, actual, dia, { dia = it }, filtro, { filtro = it }, editar, alEditar)
-            SeccionMes.PENDIENTES -> pendientes(vm, editar, alEditar)
-            SeccionMes.MOVIMIENTOS -> movimientos(vm, actual, filtro, { filtro = it }, editar, alEditar)
-            SeccionMes.GRAFICAS -> item { Graficas(vm, actual) }
+        val heroe: LazyListScope.() -> Unit = { item { Heroe(vm, actual, t, editar, alEditar, alCaptura, alInforme, sinGrafica = diseno == "simple") } }
+        val tarjetas: LazyListScope.() -> Unit = { item { TarjetasMes(vm, actual, t) { alSeccion(SeccionMes.PENDIENTES) } } }
+        val tira: LazyListScope.() -> Unit = { item { TiraProximo(vm) } }
+        val pestanas: LazyListScope.() -> Unit = {
+            item { Segmentos(seccion, pendientesVista.size, actual.size, alSeccion) }
+            if (datos == null) {
+                item { Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Lima) } }
+            } else when (seccion) {
+                SeccionMes.CALENDARIO -> calendario(vm, actual, dia, { dia = it }, filtro, { filtro = it }, editar, alEditar)
+                SeccionMes.PENDIENTES -> pendientes(vm, editar, alEditar)
+                SeccionMes.MOVIMIENTOS -> movimientos(vm, actual, filtro, { filtro = it }, editar, alEditar)
+                SeccionMes.GRAFICAS -> item { Graficas(vm, actual) }
+            }
+        }
+        // Mismo orden que los diseños de inicio de la web.
+        when (diseno) {
+            "resumen" -> { tarjetas(); heroe(); pestanas(); tira() }
+            "pagos" -> {
+                tarjetas()
+                item {
+                    Panel {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Lo que falta pagar o cobrar", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                            Text(if (pendientesVista.isEmpty()) "todo al día" else "${pendientesVista.size} pendientes", color = tenue, fontSize = 12.sp)
+                        }
+                        if (pendientesVista.isEmpty()) Text("¡Todo al día! No hay nada pendiente.", color = tenue, modifier = Modifier.padding(vertical = 12.dp))
+                        pendientesVista.take(6).forEach { m -> FilaWeb(m, vm.moneda, { alEditar(Edicion(m)) }, if (editar) ({ vm.marcarPagado(m) }) else null) }
+                    }
+                }
+                heroe(); tira(); pestanas()
+            }
+            "simple" -> {
+                heroe(); tarjetas()
+                item {
+                    Panel {
+                        Text("Últimos movimientos", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        val ultimos = actual.sortedByDescending { it.fecha }.take(8)
+                        if (ultimos.isEmpty()) Text("Aún no hay movimientos este mes.", color = tenue, modifier = Modifier.padding(vertical = 12.dp))
+                        ultimos.forEach { m -> FilaWeb(m, vm.moneda, { alEditar(Edicion(m)) }, null) }
+                    }
+                }
+                pestanas(); tira()
+            }
+            else -> { heroe(); tarjetas(); tira(); pestanas() }
         }
     }
 }
 
 @Composable
-private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boolean, alEditar: (Edicion) -> Unit, alCaptura: () -> Unit, alInforme: () -> Unit) {
+private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boolean, alEditar: (Edicion) -> Unit, alCaptura: () -> Unit, alInforme: () -> Unit, sinGrafica: Boolean = false) {
     val esMesActual = vm.mes == YearMonth.now()
     val fin = if (esMesActual) LocalDate.now() else vm.mes.atEndOfMonth()
     val semana = (6 downTo 0).map { fin.minusDays(it.toLong()) }.map { d -> d to actual.filter { it.esGasto && it.fecha == d }.sumOf { it.monto } }
@@ -191,7 +228,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
                 }
             }
         }
-        GraficaHeroe(semana, Modifier.padding(top = 16.dp))
+        if (!sinGrafica) GraficaHeroe(semana, Modifier.padding(top = 16.dp))
         if (editar) {
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -328,6 +365,11 @@ private fun TarjetasMes(vm: AppVM, actual: List<Movimiento>, t: Totales, alPendi
             if (pendientesGasto > 0) {
                 Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF3A2A22)).border(1.dp, Color(0xFFFF8A65).copy(alpha = 0.6f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
                     Text("$pendientesGasto", color = Color(0xFFFF8A65), fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                }
+            } else {
+                // Nada pendiente: el check en un cuadro lima, como la web.
+                Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Lima.copy(alpha = 0.12f)).border(1.dp, Lima.copy(alpha = 0.6f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(28.dp).border(1.5.dp, Color(0xFFDFE5D6), CircleShape), contentAlignment = Alignment.Center) { Icon(Iconos.check, null, tint = Color(0xFFDFE5D6), modifier = Modifier.size(16.dp)) }
                 }
             }
         }
@@ -671,4 +713,70 @@ private fun Leyenda(color: Color, texto: String) {
         Box(Modifier.size(10.dp).clip(CircleShape).background(color))
         Text("  $texto", fontSize = 12.sp, color = LocalTokens.current.tenue)
     }
+}
+
+
+// ---------- diseños de inicio (los mismos de la web) ----------
+
+data class Diseno(val id: String, val nombre: String, val texto: String)
+
+val DISENOS = listOf(
+    Diseno("auto", "Automático", "Se adapta solo a ti según tus movimientos y pendientes."),
+    Diseno("clasico", "Clásico", "Tarjeta del mes con la gráfica y los totales al lado."),
+    Diseno("resumen", "Resumen primero", "Ingresos, gastos, balance y pendientes de un vistazo, arriba."),
+    Diseno("pagos", "Pagos primero", "Lo que falta pagar o cobrar arriba, para no olvidar nada."),
+    Diseno("simple", "Sencillo", "Sin gráfica: balance, botones y tus últimos movimientos."),
+)
+
+/** El que mejor se adapta: pagos por hacer → pagos primero; muchos movimientos → resumen; pocos → sencillo. */
+fun disenoRecomendado(actual: List<Movimiento>, pendientes: List<Movimiento>): String {
+    val vencidos = pendientes.count { !it.fecha.isAfter(LocalDate.now()) }
+    return when {
+        pendientes.size >= 3 || vencidos >= 1 -> "pagos"
+        actual.size >= 40 -> "resumen"
+        actual.size < 10 -> "simple"
+        else -> "clasico"
+    }
+}
+
+fun disenoEfectivo(elegido: String, recomendado: String) = if (elegido == "auto" || DISENOS.none { it.id == elegido }) recomendado else elegido
+
+@Composable
+fun DialogoDiseno(vm: AppVM, alCerrar: () -> Unit) {
+    val t = LocalTokens.current
+    val actual = vm.datos?.actual.orEmpty()
+    val pendientes = (if (vm.mes == YearMonth.now()) vm.datos?.pendientes else actual.filter { !it.pagado }).orEmpty()
+    val recomendado = disenoRecomendado(actual, pendientes)
+    val nombreRecomendado = DISENOS.first { it.id == recomendado }.nombre
+    AlertDialog(
+        onDismissRequest = alCerrar,
+        title = { Text("Diseño de inicio", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Elige cómo quieres ver tu pantalla de inicio. Puedes cambiarlo cuando quieras.", color = t.tenue, fontSize = 13.sp)
+                DISENOS.forEach { d ->
+                    val activo = vm.diseno == d.id
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (activo) Lima.copy(alpha = 0.25f) else t.elev)
+                            .border(1.5.dp, if (activo) Lima else Color.Transparent, RoundedCornerShape(16.dp))
+                            .clickable {
+                                vm.elegirDiseno(d.id)
+                                vm.aviso = if (d.id == "auto") "Diseño automático: ahora «$nombreRecomendado»" else "Diseño «${d.nombre}» aplicado"
+                                alCerrar()
+                            }
+                            .padding(12.dp),
+                    ) {
+                        Text(d.nombre, fontWeight = FontWeight.Bold)
+                        if (d.id == recomendado) {
+                            Text("★ Recomendado para ti", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = SobreLima,
+                                modifier = Modifier.padding(vertical = 3.dp).clip(RoundedCornerShape(50)).background(Lima).padding(horizontal = 8.dp, vertical = 1.dp))
+                        }
+                        if (d.id == "auto") Text("Ahora: $nombreRecomendado", fontSize = 11.sp, color = t.tenue)
+                        Text(d.texto, color = t.tenue, fontSize = 12.sp)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = alCerrar) { Text("Cerrar") } },
+    )
 }

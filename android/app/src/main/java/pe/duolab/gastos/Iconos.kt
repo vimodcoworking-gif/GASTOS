@@ -56,4 +56,6 @@ object Iconos {
     val mas1 = icono("mas1", "M12 5v14M5 12h14")
     val enviar = icono("enviar", "M22 2 11 13", "M22 2 15 22l-4-9-9-4z")
     val cerrar = icono("cerrar", "M6 6l12 12M18 6 6 18")
+    val diseno = icono("diseno", "r 3 3 8 8 2", "r 13 3 8 5 2", "r 13 10 8 11 2", "r 3 13 8 8 2")
+    val libro = icono("libro", "M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z", "M8 7h6")
 }

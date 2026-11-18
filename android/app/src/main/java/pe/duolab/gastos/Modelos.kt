@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 
-data class Usuario(val id: String, val nombre: String, val email: String, val esAdmin: Boolean)
+data class Usuario(val id: String, val nombre: String, val email: String, val esAdmin: Boolean, val json: JSONObject = JSONObject())
 
 data class Categoria(val nombre: String, val tipo: String?)
 
@@ -87,7 +87,7 @@ fun JSONObject.texto(clave: String): String? = if (!has(clave) || isNull(clave))
 fun JSONArray.objetos(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
 
 fun usuarioDe(j: JSONObject) = Usuario(
-    id = j.optString("id"), nombre = j.optString("nombre"), email = j.optString("email"), esAdmin = j.optBoolean("esAdmin"),
+    id = j.optString("id"), nombre = j.optString("nombre"), email = j.optString("email"), esAdmin = j.optBoolean("esAdmin"), json = j,
 )
 
 fun librosDe(j: JSONObject): List<Libro> = j.optJSONArray("libros")?.objetos().orEmpty().map { l ->

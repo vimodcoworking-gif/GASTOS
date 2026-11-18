@@ -37,7 +37,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 /** Vistas de la app, las mismas que la web. */
-enum class Vista { MES, METAS, CATEGORIAS, ASISTENTE, ANIO, INFORME }
+enum class Vista { MES, METAS, CATEGORIAS, ASISTENTE, ANIO, INFORME, CUENTA, COMPARTIR, ADMIN }
 
 fun abrirEnWeb(contexto: Context, ruta: String) {
     contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Api.BASE + ruta)))
@@ -68,6 +68,7 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     var seccion by rememberSaveable { mutableStateOf(SeccionMes.CALENDARIO) }
     var edicion by remember { mutableStateOf<Edicion?>(null) }
     var menu by remember { mutableStateOf(false) }
+    var disenos by remember { mutableStateOf(false) }
     val editar = vm.libro?.puedeEditar == true
     val elegirCaptura = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) leerImagen(contexto, uri)?.let(vm::leerCaptura) ?: run { vm.aviso = "No se pudo abrir la imagen." }
@@ -82,11 +83,19 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
         snackbarHost = { SnackbarHost(avisos, Modifier.padding(bottom = 90.dp)) },
         topBar = {
             Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Image(painterResource(if (t.oscuro) R.drawable.logo_blanco else R.drawable.logo_negro), "DUOLAB", Modifier.height(28.dp))
-                Spacer(Modifier.weight(1f))
+                Image(painterResource(if (t.oscuro) R.drawable.logo_blanco else R.drawable.logo_negro), "DUOLAB", Modifier.height(21.dp))
+                Text(vm.libro?.let { "${it.nombre} · ${it.moneda}" }.orEmpty(), color = t.tenue, fontSize = 13.sp, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                if (vista == Vista.MES) {
+                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(t.sup).clickable { disenos = true }, contentAlignment = Alignment.Center) {
+                        Icon(Iconos.diseno, "Diseño de inicio", modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
                 if (editar) {
                     Text("+ Nuevo", fontWeight = FontWeight.Bold, color = SobreLima, fontSize = 15.sp, maxLines = 1, softWrap = false,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).clickable { edicion = Edicion(null, "gasto") }.padding(horizontal = 18.dp, vertical = 10.dp))
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).clickable { edicion = Edicion(null, "gasto") }.padding(horizontal = 14.dp, vertical = 10.dp))
                 }
             }
         },
@@ -100,6 +109,9 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
                     Vista.ASISTENTE -> VistaAsistente(vm)
                     Vista.ANIO -> VistaAnio(vm)
                     Vista.INFORME -> VistaInforme(vm) { bytes, nombre -> abrirPdf(contexto, bytes, nombre) }
+                    Vista.CUENTA -> VistaCuenta(vm)
+                    Vista.COMPARTIR -> VistaCompartir(vm)
+                    Vista.ADMIN -> VistaAdmin(vm)
                 }
             }
             BarraInferior(vista, { vista = it }, { menu = true }, Modifier.align(Alignment.BottomCenter))
@@ -108,6 +120,7 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     edicion?.let { e -> if (editar) FormularioMovimiento(vm, e) { edicion = null } else edicion = null }
     DialogoCaptura(vm)
     if (menu) MenuMas(vm, { menu = false }) { vista = it; menu = false }
+    if (disenos) DialogoDiseno(vm) { disenos = false }
 }
 
 /** Barra inferior flotante y oscura de la web: Mes, Metas, Categorías, Asistente y Más. */
@@ -121,7 +134,7 @@ private fun BarraInferior(vista: Vista, alElegir: (Vista) -> Unit, alMas: () -> 
         listOf(Vista.MES to Iconos.casa, Vista.METAS to Iconos.meta, Vista.CATEGORIAS to Iconos.categorias, Vista.ASISTENTE to Iconos.asistente).forEach { (v, icono) ->
             BotonBarra(icono, v.name, vista == v) { alElegir(v) }
         }
-        BotonBarra(Iconos.mas, "Más", vista == Vista.ANIO || vista == Vista.INFORME, alMas)
+        BotonBarra(Iconos.mas, "Más", vista in listOf(Vista.ANIO, Vista.INFORME, Vista.CUENTA, Vista.COMPARTIR, Vista.ADMIN), alMas)
     }
 }
 
@@ -140,6 +153,7 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
     val t = LocalTokens.current
     var libros by remember { mutableStateOf(false) }
     var salir by remember { mutableStateOf(false) }
+    var nuevoLibro by remember { mutableStateOf(false) }
     val u = vm.usuario ?: return
     ModalBottomSheet(onDismissRequest = alCerrar, containerColor = t.fondo) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -151,17 +165,18 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
             Grupo("Mis finanzas")
             ItemMenu(Iconos.categorias, "Año", "Ingresos y gastos de cada mes") { alVista(Vista.ANIO) }
             ItemMenu(Iconos.descargar, "Informe PDF", "Resumen y lista de cualquier periodo") { alVista(Vista.INFORME) }
-            ItemMenu(Iconos.enviar, "Compartir", "Estado de cuenta por WhatsApp o correo, invitar al libro") { abrirEnWeb(contexto, "/?vista=compartir") }
+            ItemMenu(Iconos.enviar, "Compartir", "Estado de cuenta por WhatsApp o correo, invitar al libro") { alVista(Vista.COMPARTIR) }
             Grupo("Herramientas")
             if (Lectura.disponible) ItemMenu(Iconos.imagen, "Lectura automática de Yape", "Registra solos los avisos de Yape, Plin y tu banco") { Lectura.abrir(contexto) }
-            ItemMenu(Iconos.billetera, "Mi cuenta", "WhatsApp, recordatorios, Gmail, Yape automático") { abrirEnWeb(contexto, "/?vista=cuenta") }
-            if (u.esAdmin) ItemMenu(Iconos.balanza, "Administración", "Usuarios, WhatsApp, IA, almacenamiento") { abrirEnWeb(contexto, "/?vista=admin") }
+            ItemMenu(Iconos.billetera, "Mi cuenta", "WhatsApp, recordatorios, Gmail, Yape automático") { alVista(Vista.CUENTA) }
+            if (u.esAdmin) ItemMenu(Iconos.balanza, "Administración", "Usuarios, WhatsApp, IA, almacenamiento") { alVista(Vista.ADMIN) }
             Grupo("Configuración")
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(t.sup).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Modo oscuro", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Switch(checked = t.oscuro, onCheckedChange = vm::cambiarTema, colors = SwitchDefaults.colors(checkedTrackColor = Lima, checkedThumbColor = SobreLima))
             }
-            ItemMenu(Iconos.billetera, "Libro", vm.libro?.let { "${it.nombre} · ${it.moneda}" } ?: "—") { libros = true }
+            ItemMenu(Iconos.libro, "Libro", vm.libro?.let { "${it.nombre} · ${it.moneda}" } ?: "—") { libros = true }
+            ItemMenu(Iconos.mas1, "+ Nuevo libro", "Por ejemplo «Casa», «Negocio» o «Viaje»") { nuevoLibro = true }
             ItemMenu(Iconos.cerrar, "Cerrar sesión", "Salir de esta cuenta en el teléfono") { salir = true }
         }
     }
@@ -179,6 +194,27 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
                 }
             },
             confirmButton = { TextButton(onClick = { libros = false }) { Text("Cerrar") } },
+        )
+    }
+    if (nuevoLibro) {
+        var nombre by remember { mutableStateOf("") }
+        var moneda by remember { mutableStateOf("PEN") }
+        AlertDialog(
+            onDismissRequest = { nuevoLibro = false },
+            title = { Text("Nuevo libro") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Un libro agrupa movimientos: por ejemplo «Personal», «Casa» o «Viaje».", color = t.tenue, fontSize = 13.sp)
+                    Campo("Nombre", nombre, { nombre = it.take(60) })
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("PEN" to "S/ Soles", "USD" to "US$ Dólares", "EUR" to "€ Euros").forEach { (v, n) ->
+                            FilterChip(selected = moneda == v, onClick = { moneda = v }, label = { Text(n, fontSize = 12.sp) }, colors = chipLima())
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(enabled = nombre.isNotBlank(), onClick = { vm.crearLibro(nombre, moneda) { nuevoLibro = false; alCerrar() } }) { Text("Crear") } },
+            dismissButton = { TextButton(onClick = { nuevoLibro = false }) { Text("Cancelar") } },
         )
     }
     if (salir) {
