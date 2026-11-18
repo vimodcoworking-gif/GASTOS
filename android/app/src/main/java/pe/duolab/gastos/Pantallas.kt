@@ -42,6 +42,8 @@ fun Raiz(vm: AppVM) {
             vm.aviso = null
         }
     }
+    var verActualizacion by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) { Actualizacion.encontrada = Actualizacion.buscar() }
     Box(Modifier.fillMaxSize().background(LocalTokens.current.fondo)) {
         when {
             vm.arrancando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -56,6 +58,7 @@ fun Raiz(vm: AppVM) {
         }
         if (vm.usuario == null) SnackbarHost(avisos, Modifier.align(Alignment.BottomCenter).padding(16.dp))
     }
+    if (verActualizacion && Actualizacion.encontrada != null) DialogoActualizacion { verActualizacion = false }
 }
 
 /** Campo como los de la web: etiqueta encima y caja redondeada. */

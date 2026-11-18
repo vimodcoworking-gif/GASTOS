@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.io.File
 
@@ -154,6 +155,7 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
     var libros by remember { mutableStateOf(false) }
     var salir by remember { mutableStateOf(false) }
     var nuevoLibro by remember { mutableStateOf(false) }
+    var buscarOtraVez by remember { mutableStateOf(false) }
     val u = vm.usuario ?: return
     ModalBottomSheet(onDismissRequest = alCerrar, containerColor = t.fondo) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -178,6 +180,16 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
             ItemMenu(Iconos.libro, "Libro", vm.libro?.let { "${it.nombre} · ${it.moneda}" } ?: "—") { libros = true }
             ItemMenu(Iconos.mas1, "+ Nuevo libro", "Por ejemplo «Casa», «Negocio» o «Viaje»") { nuevoLibro = true }
             ItemMenu(Iconos.cerrar, "Cerrar sesión", "Salir de esta cuenta en el teléfono") { salir = true }
+            if (Actualizacion.disponible) {
+                val alcance = rememberCoroutineScope()
+                ItemMenu(Iconos.descargar, "Buscar actualizaciones", "Versión ${BuildConfig.VERSION_NAME}") {
+                    alcance.launch {
+                        Actualizacion.encontrada = Actualizacion.buscar()
+                        if (Actualizacion.encontrada == null) vm.aviso = "Tienes la última versión (${BuildConfig.VERSION_NAME})"
+                        else { buscarOtraVez = true; alCerrar() }
+                    }
+                }
+            }
         }
     }
     if (libros) {
@@ -196,6 +208,7 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
             confirmButton = { TextButton(onClick = { libros = false }) { Text("Cerrar") } },
         )
     }
+    if (buscarOtraVez && Actualizacion.encontrada != null) DialogoActualizacion { buscarOtraVez = false }
     if (nuevoLibro) {
         var nombre by remember { mutableStateOf("") }
         var moneda by remember { mutableStateOf("PEN") }

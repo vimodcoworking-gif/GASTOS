@@ -104,6 +104,7 @@ object Avisos {
 
 class RevisarMovimientos(contexto: Context, parametros: WorkerParameters) : CoroutineWorker(contexto, parametros) {
     override suspend fun doWork(): Result = try {
+        Actualizacion.avisarSiHay(applicationContext)
         Avisos.revisar(applicationContext)
         Result.success()
     } catch (e: ApiError) {

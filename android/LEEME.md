@@ -2,7 +2,7 @@
 
 App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.3 (`versionCode` 7).
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.4 (`versionCode` 8).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
 > **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
@@ -28,6 +28,8 @@ Todo es nativo (Kotlin + Jetpack Compose) y con el diseño de la web en teléfon
 | **Notificaciones** | Permiso al entrar; cada 15 minutos avisa de los movimientos que entran solos. |
 
 **Igual que la web:** letra **Manrope** (la de la web, `res/font/manrope.ttf`, licencia OFL en `manrope-OFL.txt`), calendario con su navegación, leyenda y el día de hoy elegido, ↶ «Deshacer» en lo pagado, filtros con el icono de cada medio, insignia de «Falta por pagar».
+
+**Actualizaciones:** `Actualizacion.kt` lee `/descargas/version.json`; si `versionCode` es mayor que el instalado, muestra el aviso, descarga el APK y abre el instalador (pide una vez «Instalar apps desconocidas» para DUOLAB). Solo en la versión `web`; la de Play Store se actualiza por la tienda. En Más → «Buscar actualizaciones».
 
 **Compartir → DUOLAB:** la app aparece al compartir una imagen (constancia de Yape, Plin o del banco) y la lee al momento (o al entrar, si no había sesión).
 
@@ -66,7 +68,7 @@ Requiere Android Studio (su JDK) y el SDK de Android. La primera vez descarga Ko
    $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
    .\gradlew.bat assembleWebRelease bundlePlayRelease
    ```
-3. Web: copia `app/build/outputs/apk/web/release/app-web-release.apk` a `public/descargas/duolab-gastos.apk`, sube la caché de `public/sw.js` y publica.
+3. Web: copia `app/build/outputs/apk/web/release/app-web-release.apk` a `public/descargas/duolab-gastos.apk`, **pon el mismo `versionCode`, `versionName` y las novedades en `public/descargas/version.json`**, sube la caché de `public/sw.js` y publica. Desde la 2.4, las apps instaladas ven «Nueva actualización disponible» al abrirse (y una notificación en la revisión de cada 15 minutos), la descargan y abren el instalador de Android. La 2.3 y anteriores no tienen este aviso: hay que instalar la 2.4 a mano una vez.
 4. Play Store: sube `app/build/outputs/bundle/playRelease/app-play-release.aab` en Play Console. En la ficha hay que declarar el uso del acceso a notificaciones (registrar los pagos que el usuario recibe y envía).
 
 `local.properties` (ruta del SDK) no se sube: `sdk.dir=C:/Users/<usuario>/AppData/Local/Android/Sdk`.

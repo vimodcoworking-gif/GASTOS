@@ -4,6 +4,7 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-18 | (2.4) | App Android 2.4: aviso «Nueva actualización disponible», descarga e instalación de la versión nueva desde la app |
 | 2026-11-18 | (2.3) | App Android 2.3: letra Manrope y detalles iguales a la web (calendario, filtros, deshacer, insignia) y «Compartir → DUOLAB» para constancias de Yape |
 | 2026-11-18 | `0aaf15b` | App Android 2.2 toda nativa: entrar, crear cuenta, recuperar contraseña, Mi cuenta (Gmail, recordatorios, Yape), Compartir, Administración, diseños de inicio |
 | 2026-11-18 | `05c38e8` | App Android 2.1.1: corrige el cierre al abrir |
