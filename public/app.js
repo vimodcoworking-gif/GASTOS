@@ -3246,12 +3246,16 @@ function pantallaYape() {
 const APK_URL = '/descargas/duolab-gastos.apk';
 // Dos versiones: «web» (el APK de esta web, sin lectura de notificaciones: fuera de Play Store, Google Play
 // Protect bloquea las apps con acceso a notificaciones) y «play» (Play Store, con la lectura automática).
-var enApk = () => Boolean(guardado.leer('apk'));
-var apkConLector = () => ['play', '1'].includes(guardado.leer('apk'));
+// La app nativa (2.0) ya no abre esta web como app: la marca «apk» que dejó la versión anterior (que se
+// abría dentro de Chrome) escondía la descarga en el navegador. Se borra y la descarga se ofrece siempre.
+var enApk = () => false;
+var apkConLector = () => false;
 function marcarSiEsApk() {
-  const app = new URLSearchParams(location.search).get('app');
-  if (app === 'android-play') guardado.poner('apk', 'play');
-  else if (app === 'android' || (!enApk() && document.referrer.startsWith('android-app://pe.duolab.gastos'))) guardado.poner('apk', 'web');
+  try {
+    localStorage.removeItem('apk');
+  } catch {
+    // Sin almacenamiento: nada que borrar.
+  }
 }
 const intentConectar = (enlace) => `intent://configurar?enlace=${encodeURIComponent(enlace)}#Intent;scheme=duolab;package=pe.duolab.gastos;S.browser_fallback_url=${encodeURIComponent(location.origin + APK_URL)};end`;
 // Abre la pantalla «Lectura de Yape» de la app con el enlace de esta cuenta (el enlace se pide antes, para
