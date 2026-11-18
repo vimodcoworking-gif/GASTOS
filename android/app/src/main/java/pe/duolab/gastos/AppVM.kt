@@ -125,6 +125,13 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("disenoInicio", id).apply()
     }
 
+    /** Moneda del libro (solo la cambia su propietario), como el selector «Moneda» del menú de la web. */
+    fun cambiarMoneda(moneda: String) = accion {
+        Api.patch("/libros/${libroId ?: return@accion}", JSONObject().put("moneda", moneda))
+        cargarLibros()
+        aviso = "Moneda cambiada a $moneda"
+    }
+
     fun crearLibro(nombre: String, moneda: String, alTerminar: () -> Unit) = accion {
         val r = Api.post("/libros", JSONObject().put("nombre", nombre.trim()).put("moneda", moneda))
         cargarLibros()

@@ -61,6 +61,12 @@ object Iconos {
     val banco = icono("banco", "M3 21h18", "M5 21V11M9.5 21V11M14.5 21V11M19 21V11", "M2 11 12 4l10 7z")
     val billete = icono("billete", "r 2 6 20 12 2", "c 12 12 2.5", "M6 12h.01M18 12h.01")
     fun deMedio(medio: String?) = when (medio) { "yape" -> movil; "plin" -> enviar; "tarjeta" -> tarjeta; "transferencia" -> banco; "efectivo" -> billete; else -> mas }
+    val documento = icono("documento", "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z", "M14 3v5h5", "M9 13h6M9 17h4")
+    val compartir = icono("compartir", "c 18 5 2.5", "c 6 12 2.5", "c 18 19 2.5", "m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4")
+    val persona = icono("persona", "c 12 8 4", "M4 21a8 8 0 0 1 16 0")
+    val escudo = icono("escudo", "M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z")
+    val luna = icono("luna", "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z")
+    val salir = icono("salir", "M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3", "M10 17l-5-5 5-5", "M5 12h11")
     val deshacer = icono("deshacer", "M9 14 4 9l5-5", "M4 9h10.5a5.5 5.5 0 0 1 0 11H11")
     val diseno = icono("diseno", "r 3 3 8 8 2", "r 13 3 8 5 2", "r 13 10 8 11 2", "r 3 13 8 8 2")
     val libro = icono("libro", "M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z", "M8 7h6")

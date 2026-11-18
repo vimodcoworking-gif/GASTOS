@@ -77,6 +77,7 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     var edicion by remember { mutableStateOf<Edicion?>(null) }
     var menu by remember { mutableStateOf(false) }
     var disenos by remember { mutableStateOf(false) }
+    var actualizacionPedida by remember { mutableStateOf(true) }
     val editar = vm.libro?.puedeEditar == true
     val elegirCaptura = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) leerImagen(contexto, uri)?.let(vm::leerCaptura) ?: run { vm.aviso = "No se pudo abrir la imagen." }
@@ -84,6 +85,7 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     val pedirCaptura = { elegirCaptura.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
     PedirPermisoNotificaciones()
     // «Atrás» vuelve al Mes antes de salir, como en la web instalada.
+    BackHandler(enabled = menu) { menu = false }
     BackHandler(enabled = vista != Vista.MES) { vista = Vista.MES }
 
     Scaffold(
@@ -131,8 +133,21 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     }
     edicion?.let { e -> if (editar) FormularioMovimiento(vm, e) { edicion = null } else edicion = null }
     DialogoCaptura(vm)
-    if (menu) MenuMas(vm, { menu = false }) { vista = it; menu = false }
-    if (disenos) DialogoDiseno(vm) { disenos = false }
+    var nuevoLibroLateral by remember { mutableStateOf(false) }
+    var salirLateral by remember { mutableStateOf(false) }
+    MenuLateral(vm, menu, { menu = false }, { vista = it; menu = false }, { nuevoLibroLateral = true; menu = false }, { salirLateral = true; menu = false })
+    if (nuevoLibroLateral) DialogoNuevoLibro(vm) { nuevoLibroLateral = false }
+    if (salirLateral) {
+        AlertDialog(
+            onDismissRequest = { salirLateral = false },
+            title = { Text("¿Cerrar sesión?") },
+            text = { Text("Tendrás que volver a entrar con tu correo o con Google.") },
+            confirmButton = { TextButton(onClick = { salirLateral = false; vm.cerrarSesion() }) { Text("Cerrar sesión", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { salirLateral = false }) { Text("Cancelar") } },
+        )
+    }
+    if (Actualizacion.encontrada != null && actualizacionPedida) DialogoActualizacion { actualizacionPedida = false }
+    if (disenos) DialogoDisenoWeb(vm) { disenos = false }
 }
 
 /** Barra inferior flotante y oscura de la web: Mes, Metas, Categorías, Asistente y Más. */
@@ -270,4 +285,27 @@ private fun ItemMenu(icono: ImageVector, titulo: String, nota: String, alTocar: 
             Text(nota, color = t.tenue, fontSize = 12.sp, maxLines = 2)
         }
     }
+}
+
+
+@Composable
+private fun DialogoNuevoLibro(vm: AppVM, alCerrar: () -> Unit) {
+    val t = LocalTokens.current
+    var nombre by remember { mutableStateOf("") }
+    var moneda by remember { mutableStateOf("PEN") }
+    AlertDialog(
+        onDismissRequest = alCerrar,
+        containerColor = t.sup,
+        title = { Text("Nuevo libro", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Un libro agrupa movimientos: por ejemplo «Personal», «Casa» o «Viaje».", color = t.tenue, fontSize = 13.sp)
+                Campo("Nombre", nombre, { nombre = it.take(60) })
+                Text("Moneda", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Selector(moneda, MONEDAS) { moneda = it }
+            }
+        },
+        confirmButton = { TextButton(enabled = nombre.isNotBlank(), onClick = { vm.crearLibro(nombre, moneda, alCerrar) }) { Text("Guardar", fontWeight = FontWeight.Bold) } },
+        dismissButton = { TextButton(onClick = alCerrar) { Text("Cancelar") } },
+    )
 }

@@ -1,6 +1,6 @@
 {
-  "versionCode": 10,
-  "versionName": "2.6",
-  "notas": "Más rápida: abre al instante con tus datos aunque no haya conexión y cambia de mes sin esperar. Botones con toque suave como en iPhone, transiciones fluidas e icono adaptable al estilo de tu teléfono.",
+  "versionCode": 11,
+  "versionName": "2.7",
+  "notas": "Menús iguales a la web: menú lateral con tu libro y moneda, «Diseño de inicio» con miniaturas y el formulario de movimiento completo (recordatorio por WhatsApp y repetir).",
   "apk": "/descargas/duolab-gastos.apk"
 }

@@ -61,6 +61,10 @@ data class Borrador(
     val medio: String = "",
     val entidad: String = "",
     val pagado: Boolean = true,
+    // Como el formulario de la web: recordatorio por WhatsApp ("" = según mi ajuste) y repetición.
+    val recordar: String = "",
+    val repetir: String = "no",
+    val veces: String = "11",
 ) {
     fun aJson(): JSONObject = JSONObject()
         .put("tipo", tipo)
@@ -71,6 +75,10 @@ data class Borrador(
         .put("medio", medio)
         .put("entidad", entidad.trim())
         .put("pagado", pagado)
+        .apply {
+            if (!pagado) put("recordar", recordar.toIntOrNull() ?: JSONObject.NULL)
+            if (repetir != "no") { put("repetir", repetir); put("veces", veces.toIntOrNull() ?: 1) }
+        }
 
     companion object {
         fun de(m: Movimiento) = Borrador(
