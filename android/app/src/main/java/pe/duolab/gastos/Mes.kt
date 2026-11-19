@@ -326,20 +326,23 @@ private fun GraficaHeroe(dias: List<Pair<LocalDate, Double>>, modifier: Modifier
 }
 
 @Composable
-private fun TarjetaWeb(titulo: String, valor: String, nota: String, icono: ImageVector, fondoIcono: Color, tintaIcono: Color, colorValor: Color, modifier: Modifier, progreso: Float? = null, colorBarra: Color = Lima, cargando: Boolean = false) {
+internal fun TarjetaWeb(titulo: String, valor: String, nota: String, icono: ImageVector, fondoIcono: Color, tintaIcono: Color, colorValor: Color, modifier: Modifier, progreso: Float? = null, colorBarra: Color = Lima, cargando: Boolean = false, destacada: Boolean = false) {
     val t = LocalTokens.current
     // Mientras llegan los datos (primera vez, sin copia en el teléfono) no se muestran ceros.
     val valor = if (cargando) "…" else valor
     val nota = if (cargando) "Cargando…" else nota
-    Column(modifier.clip(RoundedCornerShape(24.dp)).background(t.sup).padding(14.dp)) {
+    val tinta = if (destacada) SobreLima else t.tinta
+    val tenue = if (destacada) Color(0xFF3D4A12) else t.tenue
+    Column(modifier.clip(RoundedCornerShape(24.dp)).background(if (destacada) Lima else t.sup).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconoCaja(icono, fondoIcono, tintaIcono, 24, 8)
+            IconoCaja(icono, if (destacada) SobreLima.copy(alpha = 0.12f) else fondoIcono, if (destacada) SobreLima else tintaIcono, 24, 8)
             Spacer(Modifier.width(6.dp))
-            Text(titulo, color = t.tinta, fontSize = 11.5.sp, letterSpacing = (-0.2).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+            Text(titulo, color = tinta, fontSize = 11.5.sp, letterSpacing = (-0.2).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
         }
         Spacer(Modifier.height(10.dp))
-        Text(valor, color = colorValor, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, maxLines = 1)
-        Text(nota, color = t.tenue, fontSize = 11.sp, maxLines = 2, lineHeight = 14.sp)
+        // Sin cortar en el espacio de «S/ 11,342.48»: si no cabe, la letra se achica.
+        TextoAjustable(valor, color = if (destacada) SobreLima else colorValor, maximo = 19)
+        Text(nota, color = tenue, fontSize = 11.sp, maxLines = 2, lineHeight = 14.sp)
         if (progreso != null) {
             Spacer(Modifier.height(8.dp))
             Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)).background(t.linea)) {
@@ -830,5 +833,16 @@ fun DialogoDiseno(vm: AppVM, alCerrar: () -> Unit) {
             }
         },
         confirmButton = { TextButton(onClick = alCerrar) { Text("Cerrar") } },
+    )
+}
+
+
+/** Texto de una línea que achica la letra hasta caber (montos largos en tarjetas angostas). */
+@Composable
+fun TextoAjustable(texto: String, color: Color, maximo: Int, minimo: Int = 11, peso: FontWeight = FontWeight.ExtraBold, modifier: Modifier = Modifier) {
+    var tam by remember(texto) { mutableStateOf(maximo.toFloat()) }
+    Text(
+        texto, color = color, fontWeight = peso, fontSize = tam.sp, maxLines = 1, softWrap = false, modifier = modifier,
+        onTextLayout = { if (it.hasVisualOverflow && tam > minimo) tam = (tam - 1f).coerceAtLeast(minimo.toFloat()) },
     )
 }

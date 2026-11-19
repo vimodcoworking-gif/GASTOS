@@ -2,7 +2,7 @@
 
 App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.8 (`versionCode` 12).
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.9 (`versionCode` 13).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
 > **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
@@ -21,7 +21,8 @@ Todo es nativo (Kotlin + Jetpack Compose) y con el diseño de la web en teléfon
 | **Entrar** | Entrar, **Crear cuenta** (nombre, correo, WhatsApp, contraseña), **¿Olvidaste tu contraseña?** (código por WhatsApp/correo y contraseña nueva) y **Continuar con Google**. |
 | **Mes** | Igual que la web, con los 5 **diseños de inicio** (Automático, Clásico, Resumen primero, Pagos primero, Sencillo). El botón de cuadritos abre la ventana «Diseño de inicio» de la web: miniatura de cada diseño, «Ahora: …» en Automático, «★ Recomendado para ti» y el elegido con borde lima. |
 | **Nuevo / Editar movimiento** | Los mismos campos y en el mismo orden que la web: Gasto/Ingreso, Descripción, Monto, Fecha (calendario), Categoría (con sugerencias), Medio de pago, Banco o entidad, «Ya está pagado», **Recordarme por WhatsApp** (si está pendiente), **Repetir** y «Cuántas veces más»; Eliminar al editar. |
-| **Metas, Categorías, Asistente, Año, Informe PDF** | Como en la web. |
+| **Metas, Categorías, Asistente, Informe PDF** | Como en la web. |
+| **Año** | Como la web: «‹ Año 2026 ›» (y «Este año»), tarjetas Ingresos, Gastos (con lo ya pagado), Balance (lima) y Falta por pagar, y las pestañas **Gráfica** (barras por mes, gastos rayados; toca un mes para abrirlo), **Por mes** (tabla con total) y **Categorías**. Los montos largos achican la letra (`TextoAjustable`) en vez de cortarse. |
 | **Mi cuenta** | Tus datos y WhatsApp, recordatorios de pago (y Probar), notificaciones del teléfono (estado «al instante» o «cada 15 minutos» y **Probar notificación**), **Gmail** (vincular con un código de 5 minutos `POST /api/auth/google/app/enlace-gmail`, revisar ahora, pausar, desvincular, escanear meses, correos revisados y volver a revisar), **Yape y avisos del teléfono** (enlace personal, MacroDroid o lectura automática en la versión de Play Store, últimos envíos). |
 | **Compartir** | Enviar el estado de cuenta por WhatsApp o correo; personas del libro (invitar, lector/editor, quitar). |
 | **Administración** | Almacenamiento, usuarios (crear, eliminar), bot de WhatsApp con su **QR**, IA (proveedor, clave, modelo, probar) y atajo de iPhone. |

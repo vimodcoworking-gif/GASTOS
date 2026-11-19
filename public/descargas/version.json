@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "2.8",
-  "notas": "Notificaciones al instante: en cuanto se registra un gasto o ingreso (Gmail, Yape, WhatsApp) o se acerca un pago, te llega el aviso. Nuevo botón «Probar notificación» en Mi cuenta.",
+  "versionCode": 13,
+  "versionName": "2.9",
+  "notas": "Año igual a la web: ingresos, gastos, balance y falta por pagar del año con sus montos completos, gráfica de barras por mes y pestañas Por mes y Categorías.",
   "apk": "/descargas/duolab-gastos.apk"
 }

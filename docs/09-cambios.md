@@ -4,6 +4,7 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-19 | (2.9) | App Android 2.9: vista Año igual a la web (cuatro tarjetas con montos completos, gráfica de barras con gastos rayados, Por mes y Categorías); los montos largos ya no se cortan en «S/» |
 | 2026-11-18 | (docs) | Docs: notificaciones al instante (Firebase), menús de la app, caminos para leer Yape en Android y problemas nuevos |
 | 2026-11-18 | (2.8) | Notificaciones al instante en la app Android con Firebase Cloud Messaging (se activa con dos variables en Render) y botón «Probar notificación» en Mi cuenta |
 | 2026-11-18 | (2.7) | App Android 2.7: menús iguales a la web: menú lateral (libro, moneda, cerrar sesión), «Diseño de inicio» con miniaturas y formulario de movimiento completo (recordatorio por WhatsApp, repetir) |

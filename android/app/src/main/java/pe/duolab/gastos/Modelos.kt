@@ -144,9 +144,23 @@ data class CategoriaMes(
     val propia: Boolean, val movimientos: Int, val totalMes: Double, val cuantosMes: Int,
 )
 
-data class MesResumen(val mes: Int, val ingresos: Double, val gastos: Double)
+data class MesResumen(
+    val mes: Int, val ingresos: Double, val gastos: Double,
+    val gastosPagados: Double = 0.0, val gastosPendientes: Double = 0.0, val ingresosPendientes: Double = 0.0,
+) {
+    val balance get() = ingresos - gastos
+}
 
-data class ResumenAnio(val anio: Int, val meses: List<MesResumen>, val ingresos: Double, val gastos: Double)
+data class CategoriaAnio(val tipo: String, val categoria: String, val total: Double)
+
+/** GET /libros/:id/resumen?anio=: los mismos datos que usa la vista Año de la web. */
+data class ResumenAnio(
+    val anio: Int, val meses: List<MesResumen>, val ingresos: Double, val gastos: Double,
+    val gastosPagados: Double = 0.0, val gastosPendientes: Double = 0.0, val ingresosPendientes: Double = 0.0,
+    val categorias: List<CategoriaAnio> = emptyList(),
+) {
+    val balance get() = ingresos - gastos
+}
 
 /** Movimiento leído de una captura, antes de registrarlo. */
 data class MovCaptura(val json: JSONObject, val elegido: Boolean) {
@@ -176,7 +190,18 @@ fun categoriasMesDe(j: JSONObject): List<CategoriaMes> = j.optJSONArray("categor
 }
 
 fun resumenAnioDe(j: JSONObject): ResumenAnio {
-    val meses = j.optJSONArray("meses")?.objetos().orEmpty().map { MesResumen(it.optInt("mes"), it.optDouble("ingresos", 0.0), it.optDouble("gastos", 0.0)) }
+    val meses = j.optJSONArray("meses")?.objetos().orEmpty().map {
+        MesResumen(it.optInt("mes"), it.optDouble("ingresos", 0.0), it.optDouble("gastos", 0.0),
+            it.optDouble("gastosPagados", 0.0), it.optDouble("gastosPendientes", 0.0), it.optDouble("ingresosPendientes", 0.0))
+    }
     val t = j.optJSONObject("totales")
-    return ResumenAnio(j.optInt("anio"), meses, t?.optDouble("ingresos", 0.0) ?: meses.sumOf { it.ingresos }, t?.optDouble("gastos", 0.0) ?: meses.sumOf { it.gastos })
+    return ResumenAnio(
+        anio = j.optInt("anio"), meses = meses,
+        ingresos = t?.optDouble("ingresos", 0.0) ?: meses.sumOf { it.ingresos },
+        gastos = t?.optDouble("gastos", 0.0) ?: meses.sumOf { it.gastos },
+        gastosPagados = t?.optDouble("gastosPagados", 0.0) ?: meses.sumOf { it.gastosPagados },
+        gastosPendientes = t?.optDouble("gastosPendientes", 0.0) ?: meses.sumOf { it.gastosPendientes },
+        ingresosPendientes = t?.optDouble("ingresosPendientes", 0.0) ?: meses.sumOf { it.ingresosPendientes },
+        categorias = j.optJSONArray("categorias")?.objetos().orEmpty().map { CategoriaAnio(it.optString("tipo"), it.optString("categoria").ifBlank { "General" }, it.optDouble("total", 0.0)) },
+    )
 }
