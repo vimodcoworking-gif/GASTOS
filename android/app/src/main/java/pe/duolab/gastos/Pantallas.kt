@@ -153,7 +153,7 @@ fun PantallaEntrar(vm: AppVM) {
                         .toque { contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Api.BASE + "/api/auth/google?app=android"))) },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
                 ) {
-                    Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.ic_google), "Google", Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Text("Continuar con Google", color = Color(0xFF1F1F1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }

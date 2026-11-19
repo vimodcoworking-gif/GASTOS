@@ -121,6 +121,37 @@ object Api {
         }
     }
 
+    @Volatile private var llamadaEventos: okhttp3.Call? = null
+
+    /**
+     * Escucha /api/eventos (Server-Sent Events) hasta que se corta la conexión. Llama a alEvento por cada
+     * evento («aviso», «cambio»…). El servidor manda un latido cada 25 s: si en 75 s no llega nada, se corta.
+     */
+    fun escucharEventos(alEvento: (String, JSONObject) -> Unit) {
+        val cliente = cliente.newBuilder().cache(null).readTimeout(75, TimeUnit.SECONDS).build()
+        val llamada = cliente.newCall(Request.Builder().url("$BASE/api/eventos").header("Accept", "text/event-stream").build())
+        llamadaEventos = llamada
+        llamada.execute().use { r ->
+            if (!r.isSuccessful) throw ApiError(r.code, "Eventos: ${r.code}")
+            val fuente = r.body?.source() ?: return
+            var evento = "message"
+            val datos = StringBuilder()
+            while (true) {
+                val linea = fuente.readUtf8Line() ?: break
+                when {
+                    linea.isEmpty() -> {
+                        if (datos.isNotEmpty()) runCatching { alEvento(evento, JSONObject(datos.toString())) }
+                        evento = "message"; datos.setLength(0)
+                    }
+                    linea.startsWith("event:") -> evento = linea.substringAfter(':').trim()
+                    linea.startsWith("data:") -> datos.append(linea.substringAfter(':').trim())
+                }
+            }
+        }
+    }
+
+    fun cerrarEventos() { runCatching { llamadaEventos?.cancel() } }
+
     /** Guarda solo la cookie de sesión de DUOLAB. */
     private class Galletas(private val prefs: SharedPreferences) : CookieJar {
         private val url: HttpUrl = BASE.toHttpUrl()

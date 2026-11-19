@@ -121,7 +121,10 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     // Al volver a la app (desde el inicio del teléfono o las apps recientes) se ponen al día los datos.
     LifecycleResumeEffect(Unit) {
         vm.alVolverALaApp()
-        onPauseOrDispose { }
+        TiempoReal.appVisible = true
+        // Con la sesión iniciada, el modo «tiempo real» queda escuchando para cuando la app se cierre.
+        TiempoReal.iniciar(contexto)
+        onPauseOrDispose { TiempoReal.appVisible = false }
     }
 
     Scaffold(
@@ -271,7 +274,7 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
                     Text(u.email, color = t.tenue, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     if (u.conGoogle) {
                         Row(Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).background(t.elev).padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                            Image(painterResource(R.drawable.ic_google), "Google", Modifier.size(13.dp))
                             Text("  Cuenta de Google", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = t.tenue)
                         }
                     }

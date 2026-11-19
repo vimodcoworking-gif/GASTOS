@@ -144,6 +144,7 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         val app = getApplication<Application>()
         // Primero se quita este teléfono de los avisos (hace falta la sesión), luego se cierra la sesión.
         viewModelScope.launch {
+            TiempoReal.detener(app)
             try { Push.quitar(app); runCatching { Api.post("/auth/logout") } } finally { Api.olvidarSesion() }
         }
         cache.edit().clear().apply()

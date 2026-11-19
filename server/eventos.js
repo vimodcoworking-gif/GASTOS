@@ -45,6 +45,17 @@ function escribir(res, evento, datos) {
   }
 }
 
+/**
+ * Manda un aviso (título y texto, como una notificación) a la app abierta o al modo «tiempo real» de la
+ * app Android de esa persona. Devuelve a cuántas conexiones llegó.
+ */
+export function avisarUsuario(usuarioId, datos) {
+  const lista = conexiones.get(String(usuarioId));
+  if (!lista?.size) return 0;
+  for (const res of lista) escribir(res, 'aviso', datos);
+  return lista.size;
+}
+
 // Varios cambios seguidos del mismo libro (una lista de 10 yapes) se avisan una sola vez.
 const pendientes = new Map();
 

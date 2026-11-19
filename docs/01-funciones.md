@@ -40,6 +40,8 @@ Avisan de cada movimiento registrado solo (correo, teléfono, capturas, otra per
 
 En la app Android, **Más → Configuración** permite elegir qué avisos llegan (movimientos, pagos por vencer, actualizaciones) y silenciarlos de noche; también el tema (Claro, Oscuro o Automático), la pestaña de inicio y qué apartados se ven en la barra.
 
+En la app Android, con **Avisos en tiempo real** (activado por defecto) los avisos llegan al instante aunque la app esté cerrada, también tras reiniciar el teléfono; se ve una notificación fija pequeña «DUOLAB te avisa al instante».
+
 En la **app Android nativa** llegan **al instante** (Firebase Cloud Messaging) cuando el servidor tiene Firebase configurado ([06 · Firebase](06-despliegue.md#firebase-notificaciones-al-instante-en-la-app-android)); si no, la app revisa cada 15 minutos. Mi cuenta dice cuál de los dos está activo.
 
 ## Tiempo real

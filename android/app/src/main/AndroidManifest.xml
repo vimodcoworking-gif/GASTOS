@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Instalar las actualizaciones que la app descarga (el sistema pide confirmar cada una). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Avisos en tiempo real con la app cerrada (Configuración → «Avisos en tiempo real»). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Volver a escuchar los avisos tras reiniciar el teléfono. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".DuolabApp"
@@ -44,6 +49,24 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- Avisos en tiempo real: queda conectado al servidor con una notificación fija. -->
+        <service
+            android:name=".ServicioTiempoReal"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Avisos al instante de pagos y movimientos registrados (yapes, bancos, recordatorios)" />
+        </service>
+        <receiver
+            android:name=".AlIniciarTelefono"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Avisos al instante (Firebase Cloud Messaging). -->
         <service

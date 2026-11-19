@@ -1,6 +1,6 @@
 {
-  "versionCode": 18,
-  "versionName": "2.14",
-  "notas": "Gestos del teléfono: atrás vuelve a la pantalla anterior (con la animación de Android), flecha de atrás arriba, desliza la tarjeta del mes o del año para cambiar, y tocar un mes en Año lo abre. Más rápida y liviana: usa menos datos y reintenta sola si el servidor está ocupado.",
+  "versionCode": 19,
+  "versionName": "2.15",
+  "notas": "Avisos en tiempo real con la app cerrada: tus yapes, gastos de Gmail y pagos por vencer llegan al instante, también después de reiniciar el teléfono. Se maneja en Configuración (con ayuda para quitar el ahorro de batería). Icono de Google con sus colores.",
   "apk": "/descargas/duolab-gastos.apk"
 }

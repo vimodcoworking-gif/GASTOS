@@ -152,7 +152,7 @@ private fun Encabezado(u: Usuario, contexto: Context, ir: (SeccionCuenta) -> Uni
         Text(u.email, color = t.tenue, fontSize = 13.sp, textAlign = TextAlign.Center)
         if (u.conGoogle) {
             Row(Modifier.padding(top = 8.dp).clip(RoundedCornerShape(50)).background(t.elev).padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.ic_google), "Google", Modifier.size(13.dp))
                 Text("  Cuenta de Google", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = t.tenue)
             }
         }

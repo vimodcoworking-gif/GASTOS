@@ -73,6 +73,15 @@ fun VistaConfiguracion(vm: AppVM, alDiseno: () -> Unit) {
                 }
                 Interruptor(Iconos.campana, "Recibir notificaciones", if (Push.activo(contexto)) "Llegan al instante" else "Se revisa cada 15 minutos", a.notificaciones) { cambiar(a.copy(notificaciones = it)) }
                 Separador()
+                Interruptor(Iconos.movil, "Avisos en tiempo real", "La app sigue activa en segundo plano y te avisa al instante (yapes, pagos…). Verás una notificación fija pequeña.", a.segundoPlano, habilitado = a.notificaciones) {
+                    cambiar(a.copy(segundoPlano = it))
+                    if (it) TiempoReal.iniciar(contexto) else TiempoReal.detener(contexto)
+                }
+                Separador()
+                Fila(Iconos.reloj, "Quitar el ahorro de batería", "Para que Android no cierre DUOLAB: elige «Sin restricciones»") { TiempoReal.abrirBateria(contexto) }
+                Separador()
+                Fila(Iconos.casa, "Inicio de apps (Honor, Huawei)", "«Gestionar manualmente» y activa las tres opciones") { TiempoReal.abrirInicioDeApps(contexto) }
+                Separador()
                 Interruptor(Iconos.billetera, "Movimientos que llegan solos", "Gmail, Yape, WhatsApp u otra persona del libro", a.movimientos, habilitado = a.notificaciones) { cambiar(a.copy(movimientos = it)) }
                 Separador()
                 Interruptor(Iconos.reloj, "Pagos por vencer", "Recordatorios de tus pagos pendientes", a.pagos, habilitado = a.notificaciones) { cambiar(a.copy(pagos = it)) }

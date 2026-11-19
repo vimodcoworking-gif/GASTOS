@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { Ajuste, SuscripcionPush, TokenApp, Usuario } from './models.js';
+import { avisarUsuario } from './eventos.js';
 import { ErrorHttp } from './errores.js';
 
 let claves = null;
@@ -111,8 +112,12 @@ async function enviarFcm(usuarioId, datos) {
  */
 export async function notificar(usuarioId, { titulo, cuerpo, url = '/', etiqueta } = {}) {
   try {
-    const contenido = { titulo: plano(titulo).slice(0, 80), cuerpo: plano(cuerpo).slice(0, 300), url, etiqueta: etiqueta ?? '' };
-    let enviadas = await enviarFcm(usuarioId, contenido).catch((err) => { console.error('FCM:', err.message); return 0; });
+    // La misma etiqueta en todos los caminos: si el aviso llega por Firebase y por tiempo real, el teléfono
+    // lo muestra una sola vez (el segundo reemplaza al primero).
+    const contenido = { titulo: plano(titulo).slice(0, 80), cuerpo: plano(cuerpo).slice(0, 300), url, etiqueta: etiqueta || `aviso-${Date.now()}` };
+    // Tiempo real: la app abierta o la app Android en segundo plano (sin depender de Firebase).
+    let enviadas = avisarUsuario(usuarioId, contenido);
+    enviadas += await enviarFcm(usuarioId, contenido).catch((err) => { console.error('FCM:', err.message); return 0; });
     const subs = await SuscripcionPush.find({ usuario: usuarioId }).lean();
     if (!subs.length) return enviadas;
     await clavesVapid();

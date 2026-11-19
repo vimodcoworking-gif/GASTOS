@@ -49,7 +49,8 @@ export async function conectar() {
     console.log('MongoDB no está configurado: iniciando uno local en', dbPath);
     console.log('(la primera vez descarga el binario de MongoDB y puede tardar unos minutos)');
     servidorLocal = await MongoMemoryServer.create({
-      instance: { dbPath, storageEngine: 'wiredTiger', dbName: 'gastos' },
+      // Hasta 60 s para arrancar: con el PC ocupado (emulador, compilación) 10 s no siempre alcanzan.
+      instance: { dbPath, storageEngine: 'wiredTiger', dbName: 'gastos', launchTimeout: 60_000 },
     });
     uri = servidorLocal.getUri('gastos');
   }

@@ -13,6 +13,8 @@ data class Ajustes(
     val pagos: Boolean = true,
     val actualizaciones: Boolean = true,
     val silencioNoche: Boolean = false,
+    /** Mantener la app activa en segundo plano para recibir los avisos al instante (servicio en primer plano). */
+    val segundoPlano: Boolean = true,
     val seccionInicio: String = SeccionMes.CALENDARIO.name,
     val verMetas: Boolean = true,
     val verCategorias: Boolean = true,
@@ -21,7 +23,7 @@ data class Ajustes(
     fun guardar(contexto: Context) {
         contexto.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean("notificaciones", notificaciones).putBoolean("movimientos", movimientos).putBoolean("pagos", pagos)
-            .putBoolean("actualizaciones", actualizaciones).putBoolean("silencioNoche", silencioNoche).putString("seccionInicio", seccionInicio)
+            .putBoolean("actualizaciones", actualizaciones).putBoolean("silencioNoche", silencioNoche).putBoolean("segundoPlano", segundoPlano).putString("seccionInicio", seccionInicio)
             .putBoolean("verMetas", verMetas).putBoolean("verCategorias", verCategorias).putBoolean("verAsistente", verAsistente)
             .apply()
     }
@@ -50,7 +52,7 @@ data class Ajustes(
             return Ajustes(
                 notificaciones = p.getBoolean("notificaciones", true), movimientos = p.getBoolean("movimientos", true),
                 pagos = p.getBoolean("pagos", true), actualizaciones = p.getBoolean("actualizaciones", true),
-                silencioNoche = p.getBoolean("silencioNoche", false),
+                silencioNoche = p.getBoolean("silencioNoche", false), segundoPlano = p.getBoolean("segundoPlano", true),
                 seccionInicio = p.getString("seccionInicio", null) ?: SeccionMes.CALENDARIO.name,
                 verMetas = p.getBoolean("verMetas", true), verCategorias = p.getBoolean("verCategorias", true), verAsistente = p.getBoolean("verAsistente", true),
             )
