@@ -1,6 +1,6 @@
 {
-  "versionCode": 16,
-  "versionName": "2.12",
-  "notas": "Mi cuenta ordenada: tu foto y el estado de WhatsApp, Gmail y notificaciones arriba, atajos a cada sección, y las opciones que se usan poco plegadas. Los botones ya no cortan el texto.",
+  "versionCode": 17,
+  "versionName": "2.13",
+  "notas": "Nueva sección Configuración: tema Claro, Oscuro o Automático (como tu teléfono), qué notificaciones recibir y silencio de noche, la pestaña que se abre al iniciar, qué apartados ver en la barra y borrar la copia del teléfono.",
   "apk": "/descargas/duolab-gastos.apk"
 }

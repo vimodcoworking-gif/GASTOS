@@ -88,7 +88,7 @@ fun MenuLateral(vm: AppVM, visible: Boolean, alCerrar: () -> Unit, alVista: (Vis
             GrupoMenu("Configuración")
             FilaMenu(Iconos.persona, "Mi cuenta") { alVista(Vista.CUENTA) }
             if (u.esAdmin) FilaMenu(Iconos.escudo, "Admin") { alVista(Vista.ADMIN) }
-            FilaMenu(Iconos.luna, if (t.oscuro) "Modo claro" else "Modo oscuro") { vm.cambiarTema(!t.oscuro) }
+            FilaMenu(Iconos.luna, if (t.oscuro) "Modo claro" else "Modo oscuro") { vm.elegirTema(if (t.oscuro) ModoTema.CLARO else ModoTema.OSCURO) }
             if (Actualizacion.disponible) FilaMenu(Iconos.descargar, "Buscar actualizaciones · ${BuildConfig.VERSION_NAME}") {
                 alcance.launch {
                     Actualizacion.encontrada = Actualizacion.buscar()

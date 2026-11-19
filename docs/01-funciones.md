@@ -38,6 +38,8 @@ Cada movimiento tiene: tipo (gasto o ingreso), descripción, monto, fecha, categ
 
 Avisan de cada movimiento registrado solo (correo, teléfono, capturas, otra persona del libro) y de los recordatorios. Se activan por dispositivo en **Mi cuenta → App y notificaciones**, donde **Probar notificación** manda una de prueba. En iPhone solo funcionan con la app instalada (iOS 16.4 o posterior).
 
+En la app Android, **Más → Configuración** permite elegir qué avisos llegan (movimientos, pagos por vencer, actualizaciones) y silenciarlos de noche; también el tema (Claro, Oscuro o Automático), la pestaña de inicio y qué apartados se ven en la barra.
+
 En la **app Android nativa** llegan **al instante** (Firebase Cloud Messaging) cuando el servidor tiene Firebase configurado ([06 · Firebase](06-despliegue.md#firebase-notificaciones-al-instante-en-la-app-android)); si no, la app revisa cada 15 minutos. Mi cuenta dice cuál de los dos está activo.
 
 ## Tiempo real

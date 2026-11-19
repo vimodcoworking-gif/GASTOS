@@ -45,7 +45,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 /** Vistas de la app, las mismas que la web. */
-enum class Vista { MES, METAS, CATEGORIAS, ASISTENTE, ANIO, INFORME, CUENTA, COMPARTIR, ADMIN }
+enum class Vista { MES, METAS, CATEGORIAS, ASISTENTE, ANIO, INFORME, CUENTA, COMPARTIR, ADMIN, CONFIGURACION }
 
 fun abrirEnWeb(contexto: Context, ruta: String) {
     contexto.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Api.BASE + ruta)))
@@ -73,7 +73,8 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     val contexto = LocalContext.current
     val t = LocalTokens.current
     var vista by rememberSaveable { mutableStateOf(Vista.MES) }
-    var seccion by rememberSaveable { mutableStateOf(SeccionMes.CALENDARIO) }
+    // La pestaña del inicio que se abre primero se elige en Configuración.
+    var seccion by rememberSaveable { mutableStateOf(vm.ajustes.seccion) }
     var edicion by remember { mutableStateOf<Edicion?>(null) }
     var menu by remember { mutableStateOf(false) }
     var disenos by remember { mutableStateOf(false) }
@@ -129,11 +130,12 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
                     Vista.CUENTA -> VistaCuenta(vm)
                     Vista.COMPARTIR -> VistaCompartir(vm)
                     Vista.ADMIN -> VistaAdmin(vm)
+                    Vista.CONFIGURACION -> VistaConfiguracion(vm) { disenos = true }
                 } }
             }
-            if (!lateral) BarraInferior(vista, { vista = it }, { menu = true }, Modifier.align(Alignment.BottomCenter))
+            if (!lateral) BarraInferior(vista, vm.ajustes, { vista = it }, { menu = true }, Modifier.align(Alignment.BottomCenter))
         }
-        if (lateral) BarraInferior(vista, { vista = it }, { menu = true }, Modifier.padding(top = relleno.calculateTopPadding()), vertical = true)
+        if (lateral) BarraInferior(vista, vm.ajustes, { vista = it }, { menu = true }, Modifier.padding(top = relleno.calculateTopPadding()), vertical = true)
     }
     edicion?.let { e -> if (editar) FormularioMovimiento(vm, e) { edicion = null } else edicion = null }
     DialogoCaptura(vm)
@@ -145,10 +147,17 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
 
 /** Barra inferior flotante y oscura de la web: Mes, Metas, Categorías, Asistente y Más. */
 @Composable
-private fun BarraInferior(vista: Vista, alElegir: (Vista) -> Unit, alMas: () -> Unit, modifier: Modifier, vertical: Boolean = false) {
+private fun BarraInferior(vista: Vista, ajustes: Ajustes, alElegir: (Vista) -> Unit, alMas: () -> Unit, modifier: Modifier, vertical: Boolean = false) {
     val baja = pantallaBaja()
-    val botones = listOf(Vista.MES to Iconos.casa, Vista.METAS to Iconos.meta, Vista.CATEGORIAS to Iconos.categorias, Vista.ASISTENTE to Iconos.asistente)
-    val enMas = vista in listOf(Vista.ANIO, Vista.INFORME, Vista.CUENTA, Vista.COMPARTIR, Vista.ADMIN)
+    // Mes y Más siempre; Metas, Categorías y Asistente se pueden quitar de la barra en Configuración.
+    val botones = listOfNotNull(
+        Vista.MES to Iconos.casa,
+        (Vista.METAS to Iconos.meta).takeIf { ajustes.verMetas },
+        (Vista.CATEGORIAS to Iconos.categorias).takeIf { ajustes.verCategorias },
+        (Vista.ASISTENTE to Iconos.asistente).takeIf { ajustes.verAsistente },
+    )
+    // Lo que no está en la barra se abre desde Más (la barra marca Más).
+    val enMas = botones.none { it.first == vista }
     if (vertical) {
         Column(
             modifier.fillMaxHeight().navigationBarsPadding().padding(start = 16.dp, top = 4.dp, bottom = 12.dp).width(60.dp).wrapContentHeight(Alignment.CenterVertically)
@@ -165,10 +174,8 @@ private fun BarraInferior(vista: Vista, alElegir: (Vista) -> Unit, alMas: () -> 
             .shadow(16.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(Color(0xFF141810)).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        listOf(Vista.MES to Iconos.casa, Vista.METAS to Iconos.meta, Vista.CATEGORIAS to Iconos.categorias, Vista.ASISTENTE to Iconos.asistente).forEach { (v, icono) ->
-            BotonBarra(icono, v.name, vista == v, baja) { alElegir(v) }
-        }
-        BotonBarra(Iconos.mas, "Más", vista in listOf(Vista.ANIO, Vista.INFORME, Vista.CUENTA, Vista.COMPARTIR, Vista.ADMIN), baja, alMas)
+        botones.forEach { (v, icono) -> BotonBarra(icono, v.name, vista == v, baja) { alElegir(v) } }
+        BotonBarra(Iconos.mas, "Más", enMas, baja, alMas)
     }
 }
 
@@ -255,13 +262,19 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
 
             SeccionMenu("Preferencias", listOfNotNull(
                 {
-                    Row(Modifier.fillMaxWidth().toque(escala = 0.99f) { vm.cambiarTema(!t.oscuro) }.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconoCaja(Iconos.luna, t.elev, t.tinta, 36, 11)
-                        Spacer(Modifier.width(12.dp))
-                        Text("Modo oscuro", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                        Switch(checked = t.oscuro, onCheckedChange = vm::cambiarTema, colors = SwitchDefaults.colors(checkedTrackColor = Lima, checkedThumbColor = SobreLima))
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconoCaja(Iconos.luna, t.elev, t.tinta, 36, 11)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text("Tema", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Text(if (vm.tema == ModoTema.AUTO) "Automático: como el teléfono" else vm.tema.nombre, color = t.tenue, fontSize = 12.sp)
+                            }
+                        }
+                        SelectorTema(vm.tema, Modifier.padding(top = 10.dp)) { vm.elegirTema(it) }
                     }
                 },
+                { FilaMenu(Iconos.diseno, "Configuración", "Notificaciones, inicio, barra y datos") { alVista(Vista.CONFIGURACION) } },
                 if (Actualizacion.disponible) ({
                     FilaMenu(Iconos.descargar, "Buscar actualizaciones", "Tienes la versión ${BuildConfig.VERSION_NAME}") {
                         alcance.launch {

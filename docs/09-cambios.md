@@ -4,6 +4,7 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-19 | (2.13) | App Android 2.13: tema Claro/Oscuro/Automático y nueva pantalla Configuración (notificaciones por tipo y silencio de noche, pestaña de inicio, apartados de la barra, copia local, acerca de) |
 | 2026-11-19 | (2.12) | App Android 2.12: Mi cuenta ordenada (cabecera con foto y estado, atajos a cada sección, mismas tarjetas, opciones poco usadas plegadas) y botones que achican el texto en vez de cortarlo |
 | 2026-11-19 | (2.11) | App Android 2.11: menú «Más» ordenado (perfil con la foto de Google, libro activo, Mis finanzas, Cuenta, Preferencias y Cerrar sesión aparte); el servidor guarda la foto de Google al entrar o vincular Gmail (`usuario.foto`) |
 | 2026-11-19 | (2.10) | App Android 2.10 adaptable: en tabletas y horizontal se centra (máx. 680 dp) y en horizontal la barra va al costado; con letra grande o pantalla pequeña nada se corta (letra hasta 1.3×, textos que se achican, títulos en dos líneas); el menú «Más» vuelve a la hoja con tarjetas grandes |

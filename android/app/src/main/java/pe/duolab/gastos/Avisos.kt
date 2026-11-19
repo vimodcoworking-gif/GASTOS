@@ -69,6 +69,8 @@ object Avisos {
     }
 
     private fun notificar(contexto: Context, libro: Libro, nuevos: List<Movimiento>) {
+        val ajustes = Ajustes.leer(contexto)
+        if (!ajustes.permite(TipoAviso.MOVIMIENTO)) return
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(contexto, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         crearCanal(contexto)
         val abrir = PendingIntent.getActivity(contexto, 0, Intent(contexto, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_IMMUTABLE)
@@ -85,6 +87,7 @@ object Avisos {
             .setContentText(texto.lineSequence().first())
             .setStyle(NotificationCompat.BigTextStyle().bigText(texto))
             .setSubText(libro.nombre)
+            .setSilent(ajustes.silenciarAhora())
             .setContentIntent(abrir)
             .setAutoCancel(true)
             .build()
@@ -93,6 +96,8 @@ object Avisos {
 
     /** Aviso que manda el servidor al instante (Firebase): movimiento registrado o pago por vencer. */
     fun mostrar(contexto: Context, titulo: String, cuerpo: String, etiqueta: String) {
+        val ajustes = Ajustes.leer(contexto)
+        if (!ajustes.permite(tipoDeEtiqueta(etiqueta))) return
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(contexto, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         crearCanal(contexto)
         val abrir = PendingIntent.getActivity(contexto, 0, Intent(contexto, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_IMMUTABLE)
@@ -102,6 +107,7 @@ object Avisos {
             .setContentTitle(titulo)
             .setContentText(cuerpo.lineSequence().firstOrNull().orEmpty())
             .setStyle(NotificationCompat.BigTextStyle().bigText(cuerpo))
+            .setSilent(ajustes.silenciarAhora())
             .setContentIntent(abrir)
             .setAutoCancel(true)
             .build()

@@ -68,6 +68,8 @@ object Actualizacion {
         val v = buscar() ?: return
         val prefs = contexto.getSharedPreferences("avisos", Context.MODE_PRIVATE)
         if (prefs.getInt("actualizacionAvisada", 0) >= v.codigo) return
+        // Configuración → «Actualizaciones de la app» apagado: no se avisa (el aviso al abrir la app sigue).
+        if (!Ajustes.leer(contexto).permite(TipoAviso.ACTUALIZACION)) return
         prefs.edit().putInt("actualizacionAvisada", v.codigo).apply()
         if (Build.VERSION.SDK_INT >= 26) {
             val gestor = contexto.getSystemService(NotificationManager::class.java)

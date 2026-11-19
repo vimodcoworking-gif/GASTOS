@@ -274,12 +274,33 @@ class AppVM(app: Application) : AndroidViewModel(app) {
 
     // ---------- tema ----------
 
-    /** null = como el teléfono; true/false = elegido en Más (igual que «Modo oscuro» en la web). */
-    var temaOscuro by mutableStateOf<Boolean?>(prefs.getString("tema", null)?.let { it == "oscuro" }); private set
+    /** Claro, Oscuro o Automático (como el teléfono). Sin elegir nada, Automático. */
+    var tema by mutableStateOf(ModoTema.de(prefs.getString("tema", null))); private set
 
-    fun cambiarTema(oscuro: Boolean) {
-        temaOscuro = oscuro
-        prefs.edit().putString("tema", if (oscuro) "oscuro" else "claro").apply()
+    /** null = como el teléfono; true/false = elegido. */
+    val temaOscuro: Boolean? get() = when (tema) { ModoTema.OSCURO -> true; ModoTema.CLARO -> false; ModoTema.AUTO -> null }
+
+    fun elegirTema(modo: ModoTema) {
+        tema = modo
+        prefs.edit().putString("tema", modo.clave).apply()
+    }
+
+    // ---------- configuración del teléfono (Más → Configuración) ----------
+
+    var ajustes by mutableStateOf(Ajustes.leer(app)); private set
+
+    fun cambiarAjustes(nuevo: Ajustes) {
+        ajustes = nuevo
+        nuevo.guardar(getApplication())
+    }
+
+    /** Borra la copia local (cuenta, libros y meses guardados) y vuelve a traer todo del servidor. */
+    fun borrarCopiaLocal() {
+        val yo = cache.getString("yo", null)
+        cache.edit().clear().apply()
+        yo?.let { cache.edit().putString("yo", it).apply() }
+        refrescar()
+        aviso = "Copia del teléfono borrada: datos actualizados"
     }
 
     // ---------- metas de ahorro ----------
