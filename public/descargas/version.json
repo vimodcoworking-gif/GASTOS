@@ -1,6 +1,6 @@
 {
-  "versionCode": 15,
-  "versionName": "2.11",
-  "notas": "Menú «Más» ordenado: tu foto de Google con nombre y correo, el libro activo con «Cambiar» y «+ Nuevo», y las opciones agrupadas en Mis finanzas, Cuenta y Preferencias. Cerrar sesión queda aparte.",
+  "versionCode": 16,
+  "versionName": "2.12",
+  "notas": "Mi cuenta ordenada: tu foto y el estado de WhatsApp, Gmail y notificaciones arriba, atajos a cada sección, y las opciones que se usan poco plegadas. Los botones ya no cortan el texto.",
   "apk": "/descargas/duolab-gastos.apk"
 }

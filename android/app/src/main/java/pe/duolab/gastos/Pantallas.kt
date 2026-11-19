@@ -86,7 +86,7 @@ fun BotonLima(texto: String, modifier: Modifier = Modifier, habilitado: Boolean 
     Box(
         modifier.fillMaxWidth().height(52.dp).toque(habilitado, alTocar = alTocar).clip(RoundedCornerShape(50)).background(if (habilitado) Lima else Lima.copy(alpha = 0.4f)),
         contentAlignment = Alignment.Center,
-    ) { Text(texto, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (habilitado) SobreLima else SobreLima.copy(alpha = 0.6f)) }
+    ) { TextoAjustable(texto, if (habilitado) SobreLima else SobreLima.copy(alpha = 0.6f), 16, 11, FontWeight.Bold, Modifier.padding(horizontal = 12.dp)) }
 }
 
 @Composable
@@ -95,7 +95,7 @@ fun BotonSuave(texto: String, modifier: Modifier = Modifier, peligro: Boolean = 
     Box(
         modifier.height(46.dp).toque(habilitado, alTocar = alTocar).clip(RoundedCornerShape(50)).background(t.elev).padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(texto, fontWeight = FontWeight.SemiBold, color = (if (peligro) Color(0xFFE5484D) else t.tinta).copy(alpha = if (habilitado) 1f else 0.4f), maxLines = 1) }
+    ) { TextoAjustable(texto, (if (peligro) Color(0xFFE5484D) else t.tinta).copy(alpha = if (habilitado) 1f else 0.4f), 15, 10, FontWeight.SemiBold) }
 }
 
 private enum class ModoEntrar { ENTRAR, CREAR, OLVIDE, CODIGO }

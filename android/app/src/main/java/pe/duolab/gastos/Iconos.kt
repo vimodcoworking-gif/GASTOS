@@ -69,5 +69,7 @@ object Iconos {
     val salir = icono("salir", "M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3", "M10 17l-5-5 5-5", "M5 12h11")
     val deshacer = icono("deshacer", "M9 14 4 9l5-5", "M4 9h10.5a5.5 5.5 0 0 1 0 11H11")
     val diseno = icono("diseno", "r 3 3 8 8 2", "r 13 3 8 5 2", "r 13 10 8 11 2", "r 3 13 8 8 2")
+    val campana = icono("campana", "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9", "M10.3 21a1.94 1.94 0 0 0 3.4 0")
+    val correo = icono("correo", "r 3 5 18 14 2", "m3 7 9 6 9-6")
     val libro = icono("libro", "M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z", "M8 7h6")
 }
