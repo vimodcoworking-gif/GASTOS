@@ -2,7 +2,7 @@
 
 App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.9 (`versionCode` 13).
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.10 (`versionCode` 14).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
 > **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
@@ -26,10 +26,16 @@ Todo es nativo (Kotlin + Jetpack Compose) y con el diseño de la web en teléfon
 | **Mi cuenta** | Tus datos y WhatsApp, recordatorios de pago (y Probar), notificaciones del teléfono (estado «al instante» o «cada 15 minutos» y **Probar notificación**), **Gmail** (vincular con un código de 5 minutos `POST /api/auth/google/app/enlace-gmail`, revisar ahora, pausar, desvincular, escanear meses, correos revisados y volver a revisar), **Yape y avisos del teléfono** (enlace personal, MacroDroid o lectura automática en la versión de Play Store, últimos envíos). |
 | **Compartir** | Enviar el estado de cuenta por WhatsApp o correo; personas del libro (invitar, lector/editor, quitar). |
 | **Administración** | Almacenamiento, usuarios (crear, eliminar), bot de WhatsApp con su **QR**, IA (proveedor, clave, modelo, probar) y atajo de iPhone. |
-| **Más** | Menú lateral como el «cajón» de la web: logo y ✕, nombre y correo; Mis finanzas (Año), Herramientas (Informe PDF, Compartir, Lectura de Yape en la versión `play`), Configuración (Mi cuenta, Admin, modo oscuro, Buscar actualizaciones); **Libro** (selector y «+» para crear) y **Moneda** (solo el propietario); **Cerrar sesión** (pide confirmar). El botón atrás lo cierra. |
+| **Más** | Hoja a pantalla completa con tarjetas grandes (elegida por el usuario en la 2.10, la misma de la 2.4): tu nombre y correo; Mis finanzas (Año, Informe PDF, Compartir), Herramientas (Lectura de Yape en la versión `play`, Mi cuenta, Administración), Configuración (Modo oscuro, Libro, + Nuevo libro, Cerrar sesión, Buscar actualizaciones). El menú lateral tipo web (`MenuLateral` en `Menus.kt`, 2.7–2.9) queda en el código sin usar. |
 | **Notificaciones** | Permiso al entrar. **Al instante** con Firebase Cloud Messaging cuando el servidor lo tiene configurado (ver abajo); si no, cada 15 minutos (WorkManager) avisa de los movimientos que entran solos. |
 
 **Igual que la web:** letra **Manrope** (la de la web, `res/font/manrope.ttf`, licencia OFL en `manrope-OFL.txt`), calendario con su navegación, leyenda y el día de hoy elegido, ↶ «Deshacer» en lo pagado, filtros con el icono de cada medio, insignia de «Falta por pagar».
+
+**Se adapta a la pantalla (2.10):** `Tema.kt` define `ANCHO_MAX` (680 dp), `ESCALA_LETRA_MAX` (1.3) y `pantallaBaja()`.
+- **Tabletas y horizontal:** la cabecera y el contenido se centran con 680 dp como máximo (como la web en PC); la barra inferior mide como mucho 440 dp; el menú lateral, 420 dp; la pantalla de entrar, 480 dp.
+- **Teléfono en horizontal** (alto < 520 dp y ancho ≥ 600 dp): la barra pasa a ser vertical, a la izquierda, para no tapar el contenido. Con poco alto la barra es más baja.
+- **Teléfonos pequeños y letra grande:** se respeta el tamaño de letra del teléfono hasta 1.3×. Los montos, el mes del inicio, «Subir captura…» y las pestañas achican la letra (`TextoAjustable` en `Mes.kt`) en vez de cortarse; los títulos de las tarjetas usan hasta dos líneas; los botones tienen alto mínimo en vez de alto fijo.
+- Para probar: `adb shell wm size 1600x2560` + `wm density 320` (tableta), `wm size 720x1600` + `wm density 360` + `settings put system font_scale 1.3` (pequeño con letra grande), `settings put system user_rotation 1` (horizontal); `wm size reset` y `wm density reset` para volver.
 
 **Rápida:** guarda en el teléfono la cuenta, los libros y cada mes visto (`cache` en `AppVM.kt`): abre al instante, también sin conexión, y precarga el mes anterior y el siguiente.
 

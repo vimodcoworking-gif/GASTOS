@@ -6,6 +6,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.material3.Typography
 import androidx.compose.ui.graphics.Color
@@ -73,7 +76,18 @@ fun DuolabTema(oscuroElegido: Boolean? = null, contenido: @Composable () -> Unit
             surfaceContainerLow = t.sup, surfaceContainerHighest = t.elev, outline = t.linea, outlineVariant = t.linea, error = Rojo,
         )
     }
-    CompositionLocalProvider(LocalTokens provides t) {
+    val densidad = LocalDensity.current
+    CompositionLocalProvider(LocalTokens provides t, LocalDensity provides Density(densidad.density, densidad.fontScale.coerceAtMost(ESCALA_LETRA_MAX))) {
         MaterialTheme(colorScheme = esquema, typography = TipografiaWeb, content = contenido)
     }
 }
+
+/** Tope del tamaño de letra del sistema: hasta aquí todo cabe; más allá las tarjetas de dos columnas se rompen. */
+const val ESCALA_LETRA_MAX = 1.3f
+
+/** Ancho máximo del contenido: en tabletas y en horizontal la app se centra como la web en PC, sin estirarse. */
+val ANCHO_MAX = 680.dp
+
+/** Pantalla baja (teléfono en horizontal): barra inferior más compacta para dejar sitio al contenido. */
+@Composable
+fun pantallaBaja() = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < 520

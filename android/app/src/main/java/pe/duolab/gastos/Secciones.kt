@@ -283,7 +283,7 @@ fun VistaAnio(vm: AppVM) {
             // .periodo de la web: botones redondos a los lados y el año al centro.
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(t.sup).padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 BotonRedondo("‹", "Año anterior") { vm.cargarAnio(vm.anio - 1) }
-                Text("Año ${vm.anio}", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { TextoAjustable("Año ${vm.anio}", t.tinta, 18, 12) }
                 if (vm.anio != anioActual) {
                     Text("Este año", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(end = 6.dp).clip(RoundedCornerShape(50)).background(t.elev).toque { vm.cargarAnio(anioActual) }.padding(horizontal = 12.dp, vertical = 8.dp))
@@ -313,8 +313,8 @@ fun VistaAnio(vm: AppVM) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SeccionAnio.entries.forEach { s ->
                     val activo = s == seccion
-                    Box(Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(16.dp)).background(if (activo) Lima else t.sup).toque { seccion = s }, contentAlignment = Alignment.Center) {
-                        Text(s.titulo, fontWeight = if (activo) FontWeight.Bold else FontWeight.SemiBold, color = if (activo) SobreLima else t.tinta, fontSize = 14.sp, maxLines = 1)
+                    Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(RoundedCornerShape(16.dp)).background(if (activo) Lima else t.sup).toque { seccion = s }.padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
+                        TextoAjustable(s.titulo, if (activo) SobreLima else t.tinta, 14, 10, if (activo) FontWeight.Bold else FontWeight.SemiBold)
                     }
                 }
             }

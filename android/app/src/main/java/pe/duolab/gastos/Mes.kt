@@ -216,7 +216,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
             ) {
                 Icon(Iconos.calendario, null, tint = Lima, modifier = Modifier.size(17.dp))
                 Spacer(Modifier.width(7.dp))
-                Text(nombreMesCorto(vm.mes).take(3) + " " + vm.mes.year, color = TINTA_HEROE, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                TextoAjustable(nombreMesCorto(vm.mes).take(3) + " " + vm.mes.year, TINTA_HEROE, 15, 10, FontWeight.Bold)
             }
             BotonCirculo(Iconos.flechaDer, "Mes siguiente") { vm.cambiarMes(1) }
             if (!esMesActual) {
@@ -231,7 +231,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
             }
             Spacer(Modifier.width(14.dp))
             Column {
-                Text(dinero(t.balance, vm.moneda), color = TINTA_HEROE, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, maxLines = 1)
+                TextoAjustable(dinero(t.balance, vm.moneda), TINTA_HEROE, 32, 18)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(if (t.balance < 0) Iconos.salida else Iconos.entrada, null, tint = if (t.balance < 0) Color(0xFFFF6B5B) else Lima, modifier = Modifier.size(14.dp))
                     Text(if (t.balance < 0) " Balance del mes: gastas más de lo que entra" else " Balance del mes: vas en positivo", color = Color(0xFFA7AE9B), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -247,7 +247,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
             }
             Spacer(Modifier.height(10.dp))
             Row(
-                Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(50))
+                Modifier.fillMaxWidth().heightIn(min = 46.dp).clip(RoundedCornerShape(50))
                     .drawBehind {
                         drawRoundRect(Color.White.copy(alpha = 0.18f), style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))), cornerRadius = CornerRadius(size.height / 2))
                     }
@@ -256,7 +256,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
             ) {
                 Box(Modifier.size(26.dp).border(1.5.dp, Color(0xFFDFE5D6), CircleShape), contentAlignment = Alignment.Center) { Icon(Iconos.imagen, null, tint = Color(0xFFDFE5D6), modifier = Modifier.size(14.dp)) }
                 Spacer(Modifier.width(10.dp))
-                Text(if (vm.leyendoCaptura) "Leyendo la captura…" else "Subir captura de Yape o banco", color = Color(0xFFDFE5D6), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                TextoAjustable(if (vm.leyendoCaptura) "Leyendo la captura…" else "Subir captura de Yape o banco", Color(0xFFDFE5D6), 14, 10, FontWeight.Bold, Modifier.padding(vertical = 10.dp))
             }
         }
     }
@@ -266,7 +266,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
 private fun PildoraHeroe(texto: String, icono: ImageVector, lima: Boolean, modifier: Modifier, alTocar: () -> Unit) {
     val tinta = if (lima) SobreLima else TINTA_HEROE
     Row(
-        modifier.height(54.dp).clip(RoundedCornerShape(50))
+        modifier.heightIn(min = 54.dp).clip(RoundedCornerShape(50))
             .background(if (lima) Lima else Color.White.copy(alpha = 0.05f))
             .then(if (lima) Modifier else Modifier.border(1.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(50)))
             .toque(alTocar = alTocar),
@@ -274,7 +274,7 @@ private fun PildoraHeroe(texto: String, icono: ImageVector, lima: Boolean, modif
     ) {
         Box(Modifier.size(28.dp).border(1.5.dp, tinta, CircleShape), contentAlignment = Alignment.Center) { Icon(icono, null, tint = tinta, modifier = Modifier.size(15.dp)) }
         Spacer(Modifier.width(10.dp))
-        Text(texto, color = tinta, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+        TextoAjustable(texto, tinta, 16, 11, modifier = Modifier.padding(vertical = 8.dp))
     }
 }
 
@@ -337,7 +337,7 @@ internal fun TarjetaWeb(titulo: String, valor: String, nota: String, icono: Imag
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconoCaja(icono, if (destacada) SobreLima.copy(alpha = 0.12f) else fondoIcono, if (destacada) SobreLima else tintaIcono, 24, 8)
             Spacer(Modifier.width(6.dp))
-            Text(titulo, color = tinta, fontSize = 11.5.sp, letterSpacing = (-0.2).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+            Text(titulo, color = tinta, fontSize = 11.5.sp, letterSpacing = (-0.2).sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 14.sp)
         }
         Spacer(Modifier.height(10.dp))
         // Sin cortar en el espacio de «S/ 11,342.48»: si no cabe, la letra se achica.
@@ -441,10 +441,10 @@ private fun Segmentos(actual: SeccionMes, pendientes: Int, movimientos: Int, alE
                 fila.forEach { s ->
                     val activo = s == actual
                     Row(
-                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(16.dp)).background(if (activo) Lima else t.sup).toque { alElegir(s) },
+                        Modifier.weight(1f).heightIn(min = 44.dp).clip(RoundedCornerShape(16.dp)).background(if (activo) Lima else t.sup).toque { alElegir(s) }.padding(horizontal = 6.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
                     ) {
-                        Text(s.titulo, fontWeight = if (activo) FontWeight.Bold else FontWeight.SemiBold, color = if (activo) SobreLima else t.tinta, fontSize = 14.sp)
+                        TextoAjustable(s.titulo, if (activo) SobreLima else t.tinta, 14, 10, if (activo) FontWeight.Bold else FontWeight.SemiBold)
                         val n = if (s == SeccionMes.PENDIENTES) pendientes else if (s == SeccionMes.MOVIMIENTOS) movimientos else 0
                         if (n > 0) {
                             Spacer(Modifier.width(6.dp))

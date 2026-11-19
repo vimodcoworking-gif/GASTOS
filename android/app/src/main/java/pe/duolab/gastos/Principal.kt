@@ -92,7 +92,8 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
         containerColor = t.fondo,
         snackbarHost = { SnackbarHost(avisos, Modifier.padding(bottom = 90.dp)) },
         topBar = {
-            Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.statusBarsPadding().fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            Row(Modifier.widthIn(max = ANCHO_MAX).fillMaxWidth().padding(horizontal = 16.dp, vertical = if (pantallaBaja()) 4.dp else 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Image(painterResource(if (t.oscuro) R.drawable.logo_blanco else R.drawable.logo_negro), "DUOLAB", Modifier.height(21.dp))
                 Text(vm.libro?.let { "${it.nombre} · ${it.moneda}" }.orEmpty(), color = t.tenue, fontSize = 13.sp, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -108,10 +109,12 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
                         modifier = Modifier.clip(RoundedCornerShape(50)).background(Lima).toque { edicion = Edicion(null, "gasto") }.padding(horizontal = 14.dp, vertical = 10.dp))
                 }
             }
+            }
         },
     ) { relleno ->
-        Box(Modifier.padding(top = relleno.calculateTopPadding()).fillMaxSize()) {
-            PullToRefreshBox(isRefreshing = vm.cargando, onRefresh = vm::refrescar, modifier = Modifier.fillMaxSize()) {
+        val lateral = pantallaBaja() && androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
+        Box(Modifier.padding(top = relleno.calculateTopPadding()).fillMaxSize().padding(start = if (lateral) 84.dp else 0.dp), contentAlignment = Alignment.TopCenter) {
+            PullToRefreshBox(isRefreshing = vm.cargando, onRefresh = vm::refrescar, modifier = Modifier.widthIn(max = ANCHO_MAX).fillMaxSize()) {
                 AnimatedContent(
                     targetState = vista,
                     transitionSpec = { (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 }) togetherWith fadeOut(tween(120)) },
@@ -128,48 +131,52 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
                     Vista.ADMIN -> VistaAdmin(vm)
                 } }
             }
-            BarraInferior(vista, { vista = it }, { menu = true }, Modifier.align(Alignment.BottomCenter))
+            if (!lateral) BarraInferior(vista, { vista = it }, { menu = true }, Modifier.align(Alignment.BottomCenter))
         }
+        if (lateral) BarraInferior(vista, { vista = it }, { menu = true }, Modifier.padding(top = relleno.calculateTopPadding()), vertical = true)
     }
     edicion?.let { e -> if (editar) FormularioMovimiento(vm, e) { edicion = null } else edicion = null }
     DialogoCaptura(vm)
-    var nuevoLibroLateral by remember { mutableStateOf(false) }
-    var salirLateral by remember { mutableStateOf(false) }
-    MenuLateral(vm, menu, { menu = false }, { vista = it; menu = false }, { nuevoLibroLateral = true; menu = false }, { salirLateral = true; menu = false })
-    if (nuevoLibroLateral) DialogoNuevoLibro(vm) { nuevoLibroLateral = false }
-    if (salirLateral) {
-        AlertDialog(
-            onDismissRequest = { salirLateral = false },
-            title = { Text("¿Cerrar sesión?") },
-            text = { Text("Tendrás que volver a entrar con tu correo o con Google.") },
-            confirmButton = { TextButton(onClick = { salirLateral = false; vm.cerrarSesion() }) { Text("Cerrar sesión", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = { salirLateral = false }) { Text("Cancelar") } },
-        )
-    }
+    // Menú «Más»: hoja con tarjetas grandes (el que eligió el usuario, el de la 2.4).
+    if (menu) MenuMas(vm, { menu = false }) { vista = it; menu = false }
     if (Actualizacion.encontrada != null && actualizacionPedida) DialogoActualizacion { actualizacionPedida = false }
     if (disenos) DialogoDisenoWeb(vm) { disenos = false }
 }
 
 /** Barra inferior flotante y oscura de la web: Mes, Metas, Categorías, Asistente y Más. */
 @Composable
-private fun BarraInferior(vista: Vista, alElegir: (Vista) -> Unit, alMas: () -> Unit, modifier: Modifier) {
+private fun BarraInferior(vista: Vista, alElegir: (Vista) -> Unit, alMas: () -> Unit, modifier: Modifier, vertical: Boolean = false) {
+    val baja = pantallaBaja()
+    val botones = listOf(Vista.MES to Iconos.casa, Vista.METAS to Iconos.meta, Vista.CATEGORIAS to Iconos.categorias, Vista.ASISTENTE to Iconos.asistente)
+    val enMas = vista in listOf(Vista.ANIO, Vista.INFORME, Vista.CUENTA, Vista.COMPARTIR, Vista.ADMIN)
+    if (vertical) {
+        Column(
+            modifier.fillMaxHeight().navigationBarsPadding().padding(start = 16.dp, top = 4.dp, bottom = 12.dp).width(60.dp).wrapContentHeight(Alignment.CenterVertically)
+                .shadow(16.dp, RoundedCornerShape(30.dp)).clip(RoundedCornerShape(30.dp)).background(Color(0xFF141810)).padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            botones.forEach { (v, icono) -> BotonBarra(icono, v.name, vista == v, true) { alElegir(v) } }
+            BotonBarra(Iconos.mas, "Más", enMas, true, alMas)
+        }
+        return
+    }
     Row(
-        modifier.navigationBarsPadding().padding(horizontal = 32.dp, vertical = 12.dp).fillMaxWidth().height(64.dp)
+        modifier.navigationBarsPadding().padding(horizontal = 32.dp, vertical = if (baja) 6.dp else 12.dp).widthIn(max = 440.dp).fillMaxWidth().height(if (baja) 52.dp else 64.dp)
             .shadow(16.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(Color(0xFF141810)).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         listOf(Vista.MES to Iconos.casa, Vista.METAS to Iconos.meta, Vista.CATEGORIAS to Iconos.categorias, Vista.ASISTENTE to Iconos.asistente).forEach { (v, icono) ->
-            BotonBarra(icono, v.name, vista == v) { alElegir(v) }
+            BotonBarra(icono, v.name, vista == v, baja) { alElegir(v) }
         }
-        BotonBarra(Iconos.mas, "Más", vista in listOf(Vista.ANIO, Vista.INFORME, Vista.CUENTA, Vista.COMPARTIR, Vista.ADMIN), alMas)
+        BotonBarra(Iconos.mas, "Más", vista in listOf(Vista.ANIO, Vista.INFORME, Vista.CUENTA, Vista.COMPARTIR, Vista.ADMIN), baja, alMas)
     }
 }
 
 @Composable
-private fun BotonBarra(icono: ImageVector, descripcion: String, activo: Boolean, alTocar: () -> Unit) {
+private fun BotonBarra(icono: ImageVector, descripcion: String, activo: Boolean, baja: Boolean, alTocar: () -> Unit) {
     val fondo by animateColorAsState(if (activo) Lima else Color.Transparent, tween(220), label = "barra")
     val tinta by animateColorAsState(if (activo) SobreLima else Color(0xFFDFE5D6), tween(220), label = "barra-icono")
-    Box(Modifier.size(50.dp).toque(escala = 0.88f, alTocar = alTocar).clip(CircleShape).background(fondo), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(if (baja) 42.dp else 50.dp).toque(escala = 0.88f, alTocar = alTocar).clip(CircleShape).background(fondo), contentAlignment = Alignment.Center) {
         Icon(icono, descripcion, tint = tinta, modifier = Modifier.size(22.dp))
     }
 }
@@ -185,7 +192,7 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
     var nuevoLibro by remember { mutableStateOf(false) }
     var buscarOtraVez by remember { mutableStateOf(false) }
     val u = vm.usuario ?: return
-    ModalBottomSheet(onDismissRequest = alCerrar, containerColor = t.fondo) {
+    ModalBottomSheet(onDismissRequest = alCerrar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = t.fondo) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(t.sup).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(CircleShape).background(Lima), contentAlignment = Alignment.Center) { Text(u.nombre.take(1).uppercase(), color = SobreLima, fontWeight = FontWeight.Bold, fontSize = 18.sp) }

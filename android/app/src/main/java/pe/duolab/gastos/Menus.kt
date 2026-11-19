@@ -68,7 +68,7 @@ fun MenuLateral(vm: AppVM, visible: Boolean, alCerrar: () -> Unit, alVista: (Vis
         exit = slideOutHorizontally(tween(200)) { -it },
     ) {
         Column(
-            Modifier.fillMaxHeight().fillMaxWidth(0.86f).background(t.sup).statusBarsPadding().navigationBarsPadding()
+            Modifier.fillMaxHeight().widthIn(max = 420.dp).fillMaxWidth(0.86f).background(t.sup).statusBarsPadding().navigationBarsPadding()
                 .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

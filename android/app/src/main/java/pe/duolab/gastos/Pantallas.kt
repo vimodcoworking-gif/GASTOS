@@ -115,7 +115,7 @@ fun PantallaEntrar(vm: AppVM) {
     val correoOk = email.contains("@") && email.contains(".")
 
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 28.dp),
+        Modifier.fillMaxSize().statusBarsPadding().imePadding().verticalScroll(rememberScrollState()).wrapContentWidth().widthIn(max = 480.dp).padding(horizontal = 20.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(24.dp))

@@ -1,6 +1,6 @@
 {
-  "versionCode": 13,
-  "versionName": "2.9",
-  "notas": "Año igual a la web: ingresos, gastos, balance y falta por pagar del año con sus montos completos, gráfica de barras por mes y pestañas Por mes y Categorías.",
+  "versionCode": 14,
+  "versionName": "2.10",
+  "notas": "Se adapta a tu pantalla: en teléfonos pequeños y con letra grande nada se corta, en tabletas se centra como la web y en horizontal la barra pasa al costado. El menú «Más» vuelve a ser la hoja con tarjetas grandes.",
   "apk": "/descargas/duolab-gastos.apk"
 }
