@@ -50,6 +50,8 @@ const usuarioSchema = new Schema(
     altaAdmin: { type: Boolean, default: false },
     // Identificador de la cuenta de Google vinculada («sub»), para poder entrar con ella.
     googleId: String,
+    // Foto de perfil de la cuenta de Google (solo URLs de googleusercontent.com), para el menú de la app.
+    foto: String,
     // Lectura de Gmail para registrar solos los gastos que llegan por correo (bancos, tiendas, apps).
     // «gmail» es la primera cuenta vinculada; «gmailExtra», las demás que se añadan.
     gmail: cuentaGmail(),

@@ -4,6 +4,7 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-19 | (2.11) | App Android 2.11: menú «Más» ordenado (perfil con la foto de Google, libro activo, Mis finanzas, Cuenta, Preferencias y Cerrar sesión aparte); el servidor guarda la foto de Google al entrar o vincular Gmail (`usuario.foto`) |
 | 2026-11-19 | (2.10) | App Android 2.10 adaptable: en tabletas y horizontal se centra (máx. 680 dp) y en horizontal la barra va al costado; con letra grande o pantalla pequeña nada se corta (letra hasta 1.3×, textos que se achican, títulos en dos líneas); el menú «Más» vuelve a la hoja con tarjetas grandes |
 | 2026-11-19 | (2.9) | App Android 2.9: vista Año igual a la web (cuatro tarjetas con montos completos, gráfica de barras con gastos rayados, Por mes y Categorías); los montos largos ya no se cortan en «S/» |
 | 2026-11-18 | (docs) | Docs: notificaciones al instante (Firebase), menús de la app, caminos para leer Yape en Android y problemas nuevos |

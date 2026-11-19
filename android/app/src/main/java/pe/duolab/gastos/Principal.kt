@@ -192,39 +192,97 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
     var nuevoLibro by remember { mutableStateOf(false) }
     var buscarOtraVez by remember { mutableStateOf(false) }
     val u = vm.usuario ?: return
+    val alcance = rememberCoroutineScope()
+    val libro = vm.libro
     ModalBottomSheet(onDismissRequest = alCerrar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = t.fondo) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(t.sup).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(44.dp).clip(CircleShape).background(Lima), contentAlignment = Alignment.Center) { Text(u.nombre.take(1).uppercase(), color = SobreLima, fontWeight = FontWeight.Bold, fontSize = 18.sp) }
-                Spacer(Modifier.width(12.dp))
-                Column { Text(u.nombre, fontWeight = FontWeight.Bold); Text(u.email, color = t.tenue, fontSize = 12.sp) }
+        Column(
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding().padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // Perfil: foto de Google, nombre y correo; toca para abrir Mi cuenta.
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(t.sup).toque { alVista(Vista.CUENTA) }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Avatar(u, 58)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(u.nombre, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(u.email, color = t.tenue, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    if (u.conGoogle) {
+                        Row(Modifier.padding(top = 6.dp).clip(RoundedCornerShape(50)).background(t.elev).padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                            Text("  Cuenta de Google", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = t.tenue)
+                        }
+                    }
+                }
+                Icon(Iconos.flechaDer, "Mi cuenta", tint = t.tenue, modifier = Modifier.size(18.dp))
             }
-            Grupo("Mis finanzas")
-            ItemMenu(Iconos.categorias, "Año", "Ingresos y gastos de cada mes") { alVista(Vista.ANIO) }
-            ItemMenu(Iconos.descargar, "Informe PDF", "Resumen y lista de cualquier periodo") { alVista(Vista.INFORME) }
-            ItemMenu(Iconos.enviar, "Compartir", "Estado de cuenta por WhatsApp o correo, invitar al libro") { alVista(Vista.COMPARTIR) }
-            Grupo("Herramientas")
-            if (Lectura.disponible) ItemMenu(Iconos.imagen, "Lectura automática de Yape", "Registra solos los avisos de Yape, Plin y tu banco") { Lectura.abrir(contexto) }
-            ItemMenu(Iconos.billetera, "Mi cuenta", "WhatsApp, recordatorios, Gmail, Yape automático") { alVista(Vista.CUENTA) }
-            if (u.esAdmin) ItemMenu(Iconos.balanza, "Administración", "Usuarios, WhatsApp, IA, almacenamiento") { alVista(Vista.ADMIN) }
-            Grupo("Configuración")
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(t.sup).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Modo oscuro", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Switch(checked = t.oscuro, onCheckedChange = vm::cambiarTema, colors = SwitchDefaults.colors(checkedTrackColor = Lima, checkedThumbColor = SobreLima))
-            }
-            ItemMenu(Iconos.libro, "Libro", vm.libro?.let { "${it.nombre} · ${it.moneda}" } ?: "—") { libros = true }
-            ItemMenu(Iconos.mas1, "+ Nuevo libro", "Por ejemplo «Casa», «Negocio» o «Viaje»") { nuevoLibro = true }
-            ItemMenu(Iconos.cerrar, "Cerrar sesión", "Salir de esta cuenta en el teléfono") { salir = true }
-            if (Actualizacion.disponible) {
-                val alcance = rememberCoroutineScope()
-                ItemMenu(Iconos.descargar, "Buscar actualizaciones", "Versión ${BuildConfig.VERSION_NAME}") {
-                    alcance.launch {
-                        Actualizacion.encontrada = Actualizacion.buscar()
-                        if (Actualizacion.encontrada == null) vm.aviso = "Tienes la última versión (${BuildConfig.VERSION_NAME})"
-                        else { buscarOtraVez = true; alCerrar() }
+
+            // Libro activo con sus dos acciones.
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(t.sup).padding(16.dp)) {
+                Text("LIBRO ACTIVO", color = t.tenue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconoCaja(Iconos.libro, Lima.copy(alpha = if (t.oscuro) 0.13f else 0.35f), if (t.oscuro) Lima else SobreLima, 42, 13)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(libro?.nombre ?: "—", fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
+                        Text(listOfNotNull(libro?.moneda, when (libro?.rol) { "propietario" -> "Eres el dueño"; "editor" -> "Puedes editar"; "lector" -> "Solo lectura"; else -> null }).joinToString(" · "),
+                            color = t.tenue, fontSize = 12.sp)
+                    }
+                }
+                Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.weight(1f).heightIn(min = 42.dp).clip(RoundedCornerShape(50)).background(t.elev).toque { libros = true }.padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                        TextoAjustable("Cambiar libro", t.tinta, 14, 10, FontWeight.SemiBold)
+                    }
+                    Box(Modifier.weight(1f).heightIn(min = 42.dp).clip(RoundedCornerShape(50)).background(Lima).toque { nuevoLibro = true }.padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                        TextoAjustable("+ Nuevo libro", SobreLima, 14, 10, FontWeight.Bold)
                     }
                 }
             }
+
+            SeccionMenu("Mis finanzas", listOf(
+                { FilaMenu(Iconos.categorias, "Año", "Ingresos y gastos de cada mes") { alVista(Vista.ANIO) } },
+                { FilaMenu(Iconos.documento, "Informe PDF", "Resumen de cualquier periodo") { alVista(Vista.INFORME) } },
+                { FilaMenu(Iconos.compartir, "Compartir", "Estado de cuenta e invitar al libro") { alVista(Vista.COMPARTIR) } },
+            ))
+
+            SeccionMenu("Cuenta", listOfNotNull(
+                { FilaMenu(Iconos.persona, "Mi cuenta", "WhatsApp, recordatorios, Gmail y Yape") { alVista(Vista.CUENTA) } },
+                if (Lectura.disponible) ({ FilaMenu(Iconos.imagen, "Lectura de Yape", "Registra solos tus Yapes, Plin y avisos del banco") { Lectura.abrir(contexto) } }) else null,
+                if (u.esAdmin) ({ FilaMenu(Iconos.escudo, "Administración", "Usuarios, WhatsApp, IA y almacenamiento") { alVista(Vista.ADMIN) } }) else null,
+            ))
+
+            SeccionMenu("Preferencias", listOfNotNull(
+                {
+                    Row(Modifier.fillMaxWidth().toque(escala = 0.99f) { vm.cambiarTema(!t.oscuro) }.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconoCaja(Iconos.luna, t.elev, t.tinta, 36, 11)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Modo oscuro", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        Switch(checked = t.oscuro, onCheckedChange = vm::cambiarTema, colors = SwitchDefaults.colors(checkedTrackColor = Lima, checkedThumbColor = SobreLima))
+                    }
+                },
+                if (Actualizacion.disponible) ({
+                    FilaMenu(Iconos.descargar, "Buscar actualizaciones", "Tienes la versión ${BuildConfig.VERSION_NAME}") {
+                        alcance.launch {
+                            Actualizacion.encontrada = Actualizacion.buscar()
+                            if (Actualizacion.encontrada == null) vm.aviso = "Tienes la última versión (${BuildConfig.VERSION_NAME})"
+                            else { buscarOtraVez = true; alCerrar() }
+                        }
+                    }
+                }) else null,
+            ))
+
+            // Cerrar sesión, aparte y en rojo, para no tocarlo sin querer.
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(t.sup).toque { salir = true }.padding(vertical = 15.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(Iconos.salir, null, tint = Color(0xFFD92D20), modifier = Modifier.size(19.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Cerrar sesión", color = Color(0xFFD92D20), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+            Text("DUOLAB Gastos · versión ${BuildConfig.VERSION_NAME}", color = t.tenue, fontSize = 11.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
     }
     if (libros) {
@@ -315,4 +373,34 @@ private fun DialogoNuevoLibro(vm: AppVM, alCerrar: () -> Unit) {
         confirmButton = { TextButton(enabled = nombre.isNotBlank(), onClick = { vm.crearLibro(nombre, moneda, alCerrar) }) { Text("Guardar", fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = alCerrar) { Text("Cancelar") } },
     )
+}
+
+
+@Composable
+private fun SeccionMenu(titulo: String, filas: List<@Composable () -> Unit>) {
+    val t = LocalTokens.current
+    if (filas.isEmpty()) return
+    Column {
+        Text(titulo.uppercase(), color = t.tenue, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(t.sup)) {
+            filas.forEachIndexed { i, fila ->
+                if (i > 0) HorizontalDivider(color = t.linea, modifier = Modifier.padding(start = 62.dp))
+                fila()
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilaMenu(icono: ImageVector, titulo: String, nota: String, alTocar: () -> Unit) {
+    val t = LocalTokens.current
+    Row(Modifier.fillMaxWidth().toque(escala = 0.99f, alTocar = alTocar).padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconoCaja(icono, t.elev, t.tinta, 36, 11)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(titulo, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
+            Text(nota, color = t.tenue, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+        Icon(Iconos.flechaDer, null, tint = t.tenue, modifier = Modifier.size(16.dp))
+    }
 }

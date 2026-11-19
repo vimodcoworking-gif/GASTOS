@@ -113,6 +113,8 @@ Todas bajo `/api`, con sesión salvo las indicadas.
 | `/admin` | `almacenamiento`, `usuarios`, `whatsapp`, `ia`, `atajo` (`GET/PUT`, enlace de iCloud del atajo) (solo administradores) |
 | `/version` | Versión publicada (sin sesión) |
 
+`GET /api/auth/yo` incluye `foto` (foto de la cuenta de Google, solo `googleusercontent.com`): se guarda al entrar con Google y al vincular Gmail; las cuentas con Gmail vinculado de antes la obtienen una vez por detrás.
+
 Fuera de `/api`: `GET /.well-known/assetlinks.json` (huella de la app Android, para abrirla sin barra de direcciones).
 
 ## App web (`public/`)

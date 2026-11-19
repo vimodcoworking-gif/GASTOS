@@ -44,6 +44,7 @@ export const publico = async (u) => ({
   esAdmin: await esAdmin(u),
   tienePassword: Boolean(u.passwordHash),
   google: Boolean(u.googleId),
+  foto: u.foto ?? '',
   gmail: u.gmail?.token ? vistaGmail(u.gmail, 'principal') : null,
   // Todos los Gmail vinculados, el principal primero.
   correos: [
@@ -305,5 +306,7 @@ rutasAuth.get('/yo', requiereSesion, async (req, res) => {
     res.clearCookie(COOKIE);
     throw new ErrorHttp(401, 'Inicia sesión para continuar');
   }
+  // Cuentas con Gmail vinculado de antes, sin foto guardada: se busca una vez por detrás (sale en la próxima carga).
+  if (!usuario.foto && usuario.gmail?.token) import('./google.js').then((m) => m.completarFoto(usuario)).catch(() => {});
   res.json({ usuario: await publico(usuario) });
 });

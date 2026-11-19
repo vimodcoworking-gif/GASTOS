@@ -152,6 +152,7 @@ rutasGoogle.get('/callback', async (req, res) => {
         if (cuentasDe(usuario).length >= MAX_CUENTAS) return volver('errorGoogle', `Puedes vincular como mucho ${MAX_CUENTAS} correos.`);
         usuario.gmailExtra.push({ ...datos, desde: new Date(), registrados: 0 });
       }
+      if (!usuario.foto) usuario.foto = fotoGoogle(perfil.picture);
       await usuario.save();
       for (const c of cuentasDe(usuario)) accesos.delete(claveDe(usuario, c));
       return volver('google', 'gmail');
@@ -178,6 +179,8 @@ rutasGoogle.get('/callback', async (req, res) => {
       await Libro.create({ nombre: 'Personal', propietario: usuario._id });
       nueva = true;
     }
+    const foto = fotoGoogle(perfil.picture);
+    if (foto && usuario.foto !== foto) await Usuario.updateOne({ _id: usuario._id }, { $set: { foto } });
     iniciarSesion(res, usuario);
     if (estado.app) return res.redirect(`duolab://login?codigo=${encodeURIComponent(codigoParaApp(usuario))}`);
     return volver('google', nueva ? 'nueva' : 'entrar');
@@ -392,6 +395,31 @@ function actualizarCuenta(usuario, cuenta, cambios) {
 
 // Accesos de una hora que da Google a partir del token guardado, recordados en memoria por cuenta.
 const accesos = new Map();
+
+/** URL de la foto de Google, en 192 px; solo se aceptan las de googleusercontent.com. */
+export function fotoGoogle(url) {
+  if (typeof url !== 'string' || !/^https:\/\/[a-z0-9-]+\.googleusercontent\.com\/[^\s"'<>]{5,500}$/i.test(url)) return undefined;
+  return /=s\d+(-c)?$/.test(url) ? url.replace(/=s\d+(-c)?$/, '=s192-c') : url;
+}
+
+// Una sola búsqueda por persona y arranque del servidor.
+const fotoPedida = new Set();
+
+/** Cuentas con Gmail vinculado antes de guardar la foto: la pide a Google con el acceso de Gmail (permiso «profile»). */
+export async function completarFoto(usuario) {
+  if (usuario.foto || fotoPedida.has(usuario.id)) return;
+  fotoPedida.add(usuario.id);
+  const cuenta = cuentasDe(usuario)[0];
+  if (!cuenta) return;
+  try {
+    const acceso = await accesoGmail(usuario, cuenta);
+    const perfil = await pedirGoogle('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${acceso}` } });
+    const foto = fotoGoogle(perfil.picture);
+    if (foto) await Usuario.updateOne({ _id: usuario._id }, { $set: { foto } });
+  } catch (err) {
+    console.error('Foto de Google:', err.message);
+  }
+}
 
 async function accesoGmail(usuario, cuenta) {
   const guardado = accesos.get(claveDe(usuario, cuenta));

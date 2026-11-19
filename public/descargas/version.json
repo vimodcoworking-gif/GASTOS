@@ -1,6 +1,6 @@
 {
-  "versionCode": 14,
-  "versionName": "2.10",
-  "notas": "Se adapta a tu pantalla: en teléfonos pequeños y con letra grande nada se corta, en tabletas se centra como la web y en horizontal la barra pasa al costado. El menú «Más» vuelve a ser la hoja con tarjetas grandes.",
+  "versionCode": 15,
+  "versionName": "2.11",
+  "notas": "Menú «Más» ordenado: tu foto de Google con nombre y correo, el libro activo con «Cambiar» y «+ Nuevo», y las opciones agrupadas en Mis finanzas, Cuenta y Preferencias. Cerrar sesión queda aparte.",
   "apk": "/descargas/duolab-gastos.apk"
 }

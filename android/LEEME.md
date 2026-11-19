@@ -2,7 +2,7 @@
 
 App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.10 (`versionCode` 14).
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.11 (`versionCode` 15).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
 > **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
@@ -26,7 +26,7 @@ Todo es nativo (Kotlin + Jetpack Compose) y con el diseño de la web en teléfon
 | **Mi cuenta** | Tus datos y WhatsApp, recordatorios de pago (y Probar), notificaciones del teléfono (estado «al instante» o «cada 15 minutos» y **Probar notificación**), **Gmail** (vincular con un código de 5 minutos `POST /api/auth/google/app/enlace-gmail`, revisar ahora, pausar, desvincular, escanear meses, correos revisados y volver a revisar), **Yape y avisos del teléfono** (enlace personal, MacroDroid o lectura automática en la versión de Play Store, últimos envíos). |
 | **Compartir** | Enviar el estado de cuenta por WhatsApp o correo; personas del libro (invitar, lector/editor, quitar). |
 | **Administración** | Almacenamiento, usuarios (crear, eliminar), bot de WhatsApp con su **QR**, IA (proveedor, clave, modelo, probar) y atajo de iPhone. |
-| **Más** | Hoja a pantalla completa con tarjetas grandes (elegida por el usuario en la 2.10, la misma de la 2.4): tu nombre y correo; Mis finanzas (Año, Informe PDF, Compartir), Herramientas (Lectura de Yape en la versión `play`, Mi cuenta, Administración), Configuración (Modo oscuro, Libro, + Nuevo libro, Cerrar sesión, Buscar actualizaciones). El menú lateral tipo web (`MenuLateral` en `Menus.kt`, 2.7–2.9) queda en el código sin usar. |
+| **Más** | Hoja a pantalla completa (2.11), en este orden: **perfil** (foto de la cuenta de Google o la inicial sobre un color, nombre, correo, «Cuenta de Google»; toca para Mi cuenta), **Libro activo** (moneda y rol, «Cambiar libro» y «+ Nuevo libro»), **Mis finanzas** (Año, Informe PDF, Compartir), **Cuenta** (Mi cuenta, Lectura de Yape en `play`, Administración), **Preferencias** (Modo oscuro, Buscar actualizaciones) y **Cerrar sesión** aparte en rojo. Cada grupo es una tarjeta con separadores (como Ajustes del iPhone). La foto la da el servidor (`usuario.foto`) y `Perfil.kt` la guarda en el teléfono. El menú lateral tipo web (`MenuLateral`, 2.7–2.9) queda sin usar: el usuario prefirió la hoja. |
 | **Notificaciones** | Permiso al entrar. **Al instante** con Firebase Cloud Messaging cuando el servidor lo tiene configurado (ver abajo); si no, cada 15 minutos (WorkManager) avisa de los movimientos que entran solos. |
 
 **Igual que la web:** letra **Manrope** (la de la web, `res/font/manrope.ttf`, licencia OFL en `manrope-OFL.txt`), calendario con su navegación, leyenda y el día de hoy elegido, ↶ «Deshacer» en lo pagado, filtros con el icono de cada medio, insignia de «Falta por pagar».
