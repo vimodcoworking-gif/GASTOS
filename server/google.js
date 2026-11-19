@@ -8,7 +8,7 @@ import { iniciarSesion, idDeSesion, publico, requiereSesion, codigoParaApp } fro
 import { cifrar, descifrar, leerGastoDeCorreo, explicarError } from './ia.js';
 import { librosDe, libroActivo, registrarMovimiento, hoyLocal, puedeEscribir, leerAvisoDePago } from './bot.js';
 import { notificarMensaje } from './push.js';
-import { leerCorreoYape, registrarAlBeneficiario } from './yape.js';
+import { leerCorreoYape, leerConstanciaBilletera, registrarAlBeneficiario } from './yape.js';
 import { whatsappConectado, enviarANumero } from './whatsapp.js';
 import { comprobarLicencia } from './licencias.js';
 import { convertir, ErrorCambio } from './cambio.js';
@@ -437,7 +437,7 @@ async function accesoGmail(usuario, cuenta) {
 }
 
 // Palabras de avisos de compra y pago; los demás correos ni se abren.
-const FILTRO = '{category:purchases from:yape from:plin from:bcp from:viabcp from:interbank from:bbva from:scotiabank from:bancodelanacion from:bn.com.pe from:mibanco from:pichincha from:banbif from:falabella from:ripley from:izipay from:niubiz from:culqi from:mercadopago from:paypal from:rappi from:uber from:didi from:cabify from:pedidosya from:netflix from:spotify from:sunat yape yapeo compra compraste consumo consumiste cargo cargos pago pagaste pagado yapeaste plin transferencia transferiste constancia operación operacion movimiento boleta factura recibo comprobante voucher pedido orden viaje suscripción suscripcion renovación cobro débito debito purchase receipt payment order invoice charged recibiste yapearon plinearon abono depósito deposito sueldo haberes remuneración devolución reembolso}';
+const FILTRO = '{category:purchases from:yape from:plin from:bcp from:viabcp from:interbank from:bbva from:scotiabank from:bancodelanacion from:bn.com.pe from:mibanco from:pichincha from:banbif from:falabella from:ripley from:izipay from:niubiz from:culqi from:mercadopago from:paypal from:rappi from:uber from:didi from:cabify from:pedidosya from:netflix from:spotify from:sunat yape yapeo compra compraste consumo consumiste cargo cargos pago pagaste pagado yapeaste plin plineaste plineo transferencia transferiste constancia operación operacion movimiento boleta factura recibo comprobante voucher pedido orden viaje suscripción suscripcion renovación cobro débito debito purchase receipt payment order invoice charged recibiste yapearon plinearon abono depósito deposito sueldo haberes remuneración devolución reembolso}';
 
 const base64url = (datos) => Buffer.from(datos.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
 
@@ -595,7 +595,14 @@ const dias = (a, b) => Math.abs(new Date(`${a}T00:00:00Z`) - new Date(`${b}T00:0
 async function interpretar(correo, monedaLibro, titular, nombre = '', whatsapp = '') {
   // Correos de Yape: se leen campo por campo (más rápido y sin errores de quién pagó a quién).
   const deYape = leerCorreoYape(correo, nombre, whatsapp);
-  if (deYape) return deYape;
+  // Constancias de Plin y Yape (Interbank, BBVA, Scotiabank, BCP, Yape…): enviados y recibidos, sin IA.
+  const deBilletera = leerConstanciaBilletera(correo);
+  if (deYape) {
+    // Si el correo de Yape no trae el nombre en campos («Yapeaste S/ 20 a Juan Pér*»), se toma de la frase.
+    if (/ Yape$/.test(deYape.descripcion) && deBilletera?.tipo === deYape.tipo && !/ (enviado|recibido)$/.test(deBilletera.descripcion)) deYape.descripcion = deBilletera.descripcion;
+    return deYape;
+  }
+  if (deBilletera && deBilletera.moneda === monedaLibro) return deBilletera;
   const esGasto = (g) => g?.tipo === 'gasto' || g?.esGasto === true;
   // Primero los lectores fijos (sin IA): los avisos con formato conocido se registran siempre, de cualquier
   // monto, aunque la IA esté caída o se equivoque. La IA queda para los correos que ninguno reconoce.

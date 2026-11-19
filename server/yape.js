@@ -133,3 +133,96 @@ export function beneficiarioDeDescripcion(descripcion) {
     .trim();
   return { beneficiario: /[a-záéíóúñ]{2,}/i.test(nombre) ? nombre : '', cel3 };
 }
+
+// ---------- constancias de Plin y Yape que mandan los bancos y Yape (sin IA) ----------
+
+const NOMBRE = String.raw`([A-Za-zÁÉÍÓÚÑáéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ'.*]*(?:\s+[A-Za-zÁÉÍÓÚÑáéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ'.*]*){0,4})`;
+// Lo que corta un nombre: la siguiente etiqueta del correo, un importe o una palabra de enlace.
+const FIN_NOMBRE = /\s+(?:por|con|a trav[eé]s|v[ií]a|el|en|desde|celular|n[uú]mero|nro|n[º°]|fecha|hora|monto|importe|banco|cuenta|operaci[oó]n|c[oó]digo|destino|mensaje|concepto|tu|su|de)\b.*$/i;
+const limpiarNombre = (t) => String(t ?? '').replace(FIN_NOMBRE, '').replace(/[.:,;]+$/, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+
+// Envío: «Realizaste un Plin», «Has enviado S/ 20 a…», «Monto enviado», «Destinatario: …».
+const ENVIO = /(realizaste (?:un|una) (?:plin|yape|yapeo|plineo|pago|transferencia|env[ií]o)|has (?:enviado|realizado|pagado|transferido|yapeado|plineado)|enviaste|transferiste|plineaste|yapeaste|pagaste|acabas de (?:yapear|plinear|enviar|pagar)|monto (?:enviado|transferido|pagado)|importe (?:enviado|transferido))/i;
+// Recepción: «Recibiste un Plin de…», «Has recibido S/ 20», «Te plinearon», «JUAN te envió…», «Monto recibido».
+const RECEPCION = /(recibiste (?:un[ao]? )?(?:plin|plineo|yape|yapeo|pago|transferencia|dinero|env[ií]o|S\/|US\$)|has recibido (?:un[ao]? )?(?:plin|plineo|yape|yapeo|pago|transferencia|dinero|env[ií]o|S\/|US\$)|te (?:plinearon|yapearon|enviaron|transfirieron|pagaron)|te (?:pline[oó]|yape[oó]|envi[oó]|transfiri[oó]|pag[oó])|monto recibido|importe recibido|(?:plin|yape|transferencia) recibid[oa])/i;
+
+/**
+ * Constancia de Plin o Yape de un banco (Interbank, BBVA, Scotiabank, BCP…) o de Yape, sin IA.
+ * Lee el importe de «Monto/Importe … S/ X» (o el primer importe del aviso), la dirección por las frases
+ * de envío o recepción del inicio del correo, la otra persona por «Destinatario/Beneficiario» u
+ * «Ordenante/Remitente» (o «a NOMBRE» / «de NOMBRE»), y la fecha y hora si vienen.
+ * Devuelve los datos del movimiento o null si no es una constancia reconocible.
+ */
+export function leerConstanciaBilletera(correo) {
+  const todo = `${correo.asunto}\n${correo.texto}`.replace(/[ \t]+/g, ' ');
+  const plano = todo.replace(/\s+/g, ' ');
+  // El aviso va al principio; el final suele traer textos legales («has recibido este correo porque…»).
+  const inicio = plano.slice(0, 900);
+  // Plin o Yape solo por el remitente, el asunto o el arranque del aviso (no por publicidad más abajo).
+  const cabecera = `${correo.remitente} ${correo.asunto} ${inicio.slice(0, 300)}`;
+  const billetera = /plin/i.test(cabecera) ? 'plin' : /yape/i.test(cabecera) ? 'yape' : /transferencia(?:s)? a celular|a un celular/i.test(cabecera) ? 'plin' : '';
+  if (!billetera) return null;
+  // Avisos que no son una operación hecha (códigos, claves, promociones, recordatorios).
+  if (/c[oó]digo de verificaci|clave|contrase[ñn]a|token|promo|oferta|sorteo|gana|descuento|cup[oó]n|recordatorio|vence|afiliaci|activa(?:ste)? tu|bienvenid/i.test(correo.asunto)) return null;
+
+  const recepcion = RECEPCION.test(inicio);
+  const envio = ENVIO.test(inicio);
+  if (!recepcion && !envio) return null;
+  // Si dice las dos cosas, manda la primera que aparece.
+  const esIngreso = recepcion && (!envio || inicio.search(RECEPCION) < inicio.search(ENVIO));
+
+  const conEtiqueta = /(?:monto|importe|total)(?:\s+(?:enviado|recibido|transferido|pagado|de\s+(?:la\s+)?operaci[oó]n|del\s+(?:plin|yape|pago|env[ií]o)))?\s*:?\s*(S\/\.?|US\$|USD|PEN)\s*([\d.,]+)/i.exec(plano);
+  const libre = /(S\/\.?|US\$)\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i.exec(inicio);
+  const importe = conEtiqueta ?? libre;
+  if (!importe) return null;
+  const numero = importe[2].replace(/[.,]$/, '');
+  const monto = Number(/^\d+,\d{1,2}$/.test(numero) ? numero.replace(',', '.') : numero.replace(/,/g, ''));
+  if (!(monto > 0)) return null;
+  const moneda = /^(US\$|USD)$/i.test(importe[1]) ? 'USD' : 'PEN';
+
+  // La otra persona.
+  const etiqueta = esIngreso
+    ? new RegExp(String.raw`(?:ordenante|remitente|enviado por|de parte de|nombre del (?:ordenante|remitente))\s*:?\s*${NOMBRE}`, 'i')
+    : new RegExp(String.raw`(?:destinatario|beneficiario|enviado a|para|nombre del (?:destinatario|beneficiario))\s*:?\s*${NOMBRE}`, 'i');
+  const frase = esIngreso
+    ? new RegExp(String.raw`(?:(?:recibiste|has recibido)[^!\n]{0,60}?\s+de\s+${NOMBRE}|^\s*${NOMBRE}\s+te\s+(?:pline[oó]|yape[oó]|envi[oó]|transfiri[oó]|pag[oó]))`, 'im')
+    : new RegExp(String.raw`(?:enviaste|has enviado|plineaste|yapeaste|pagaste|transferiste|realizaste un[ao]? (?:plin|yape|pago|transferencia)|has (?:pagado|transferido))[^!\n]{0,60}?\s+(?:a|para)\s+${NOMBRE}`, 'i');
+  const m = etiqueta.exec(plano) ?? frase.exec(inicio) ?? frase.exec(correo.texto.trim());
+  let otro = limpiarNombre(m?.[1] ?? m?.[2]);
+  if (/^(ti|usted|tu|su|el|la|un|una|celular|cuenta|yape|plin)$/i.test(otro)) otro = '';
+
+  // Fecha y hora: «19/11/2026 10:30 a. m.», «19-11-2026 - 22:15» o «19 de noviembre de 2026 a las 10:30 p. m.».
+  let fecha = correo.fecha;
+  let hora = '';
+  const num = /(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s*(?:[-–,]|a las)?\s*(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])?\.?\s*m?)?/i.exec(plano);
+  const txt = /(\d{1,2})\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|setiembre|septiembre|octubre|noviembre|diciembre)\s+(?:de\s+|del\s+)?(\d{4})(?:\s*(?:[-–,]|a las)?\s*(\d{1,2}):(\d{2})\s*([ap])?\.?\s*m?)?/i.exec(plano);
+  const poner = (d, mes, a, h, min, ap) => {
+    const f = `${a}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    // Solo fechas razonables (cerca de cuando llegó el correo).
+    if (Math.abs(new Date(`${f}T00:00:00Z`) - new Date(`${correo.fecha}T00:00:00Z`)) > 3 * 86400000) return;
+    fecha = f;
+    if (h !== undefined && min !== undefined) {
+      let hh = Number(h);
+      if (ap) hh = (hh % 12) + (ap.toLowerCase() === 'p' ? 12 : 0);
+      if (hh < 24) hora = `${String(hh).padStart(2, '0')}:${min}`;
+    }
+  };
+  if (num) poner(num[1], num[2], num[3], num[4], num[5], num[6]);
+  else if (txt) poner(txt[1], MESES[txt[2].toLowerCase()], txt[3], txt[4], txt[5], txt[6]);
+
+  const marca = billetera === 'plin' ? 'Plin' : 'Yape';
+  const tipo = esIngreso ? 'ingreso' : 'gasto';
+  return {
+    tipo,
+    monto,
+    moneda,
+    descripcion: (otro ? `${billetera === 'plin' ? 'Plineo' : 'Yapeo'} ${esIngreso ? 'de' : 'a'} ${otro}` : `${marca} ${esIngreso ? 'recibido' : 'enviado'}`).slice(0, 120),
+    categoria: 'Transferencias',
+    fecha,
+    hora,
+    medio: billetera,
+    pagado: true,
+    huella: huellaDe({ fecha, hora, tipo, monto }),
+    decidido: true,
+  };
+}

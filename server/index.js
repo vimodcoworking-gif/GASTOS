@@ -99,7 +99,9 @@ conectar()
       .then(() => corregirUnaVez('mantenimiento:compactar-v1', compactarUnaVez))
       .then(() => corregirUnaVez('correccion:yapes-correo-v3', corregirYapesDeCorreo))
       .then(() => corregirUnaVez('limpieza:registros-correo-v1', () => revisarRegistrosDeCorreo(new Date('2026-11-14T00:05:00Z'))))
-      .then(() => corregirUnaVez('correccion:avisos-recientes-v2', () => recuperarAvisosRecientes(7)));
+      .then(() => corregirUnaVez('correccion:avisos-recientes-v2', () => recuperarAvisosRecientes(7)))
+      // Lector nuevo de constancias de Plin y Yape: se vuelven a leer los correos del último mes que no se registraron.
+      .then(() => corregirUnaVez('correccion:plin-yape-v1', () => recuperarAvisosRecientes(30)));
     iniciarMantenimiento();
     // Revisión periódica del Gmail de quienes lo vincularon, para registrar sus gastos.
     iniciarRevisionGmail();

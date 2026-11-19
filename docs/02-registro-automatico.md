@@ -22,6 +22,7 @@ flowchart LR
 - Solo se abren correos de remitentes financieros y con palabras de pago (filtro `FILTRO` en `server/google.js`).
 - Cada correo se lee así, en este orden (los lectores fijos van primero: registran aunque la IA esté caída o se equivoque):
   1. **Correos de Yape** («Acabas de yapear»): lector exacto (`server/yape.js`). Toma monto, quién yapeó, beneficiario, fecha y hora.
+  2. **Constancias de Plin y Yape** de los bancos y de Yape, enviados **y** recibidos (`leerConstanciaBilletera` en `server/yape.js`): «Realizaste un Plin», «Has enviado S/ 20 a…», «Monto enviado/transferido/recibido», «Destinatario/Beneficiario», «Recibiste un Plin de…», «Has recibido…», «Te plinearon», «JUAN te plineó…», «Transferencia a celular» (Interbank, BBVA, Scotiabank, BCP, Yape…). Toma monto, dirección, la otra persona, fecha y hora, y marca el medio (Plin o Yape). No confunde códigos, promociones ni el texto legal «has recibido este correo…»; Plin o Yape solo se reconoce por el remitente, el asunto o el arranque del aviso (no por publicidad al final).
   2. **Consumo con tarjeta** («Realizaste un consumo de S/ X en …»), de cualquier monto.
   3. **Avisos de Yape y Plin** («Yapeaste», «te envió un pago», «te plinearon»).
   4. **Avisos de banco o billetera con una operación explícita** (`avisoFinancieroSinIa`): «Realizaste un pago», «Transferiste», «Recibiste un abono»…, hasta S/ 3,000. Nunca registra compras o traslados de deuda, pagos de tarjeta, préstamos ni transferencias entre cuentas propias.
