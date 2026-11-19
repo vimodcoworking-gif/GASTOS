@@ -1,5 +1,8 @@
 package pe.duolab.gastos
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -33,4 +36,27 @@ fun Modifier.toque(habilitado: Boolean = true, escala: Float = 0.96f, alTocar: (
             vibrar.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             alTocar()
         }
+}
+
+
+/**
+ * Deslizar a los lados (como pasar páginas): hacia la izquierda → siguiente, hacia la derecha → anterior.
+ * Hace falta recorrer 72 dp; vibra suave al cambiar. No choca con el gesto «atrás» del sistema, que nace en el borde.
+ */
+fun Modifier.deslizar(alSiguiente: () -> Unit, alAnterior: () -> Unit): Modifier = composed {
+    val vista = androidx.compose.ui.platform.LocalView.current
+    val umbral = with(androidx.compose.ui.platform.LocalDensity.current) { 72.dp.toPx() }
+    val siguiente by androidx.compose.runtime.rememberUpdatedState(alSiguiente)
+    val anterior by androidx.compose.runtime.rememberUpdatedState(alAnterior)
+    pointerInput(Unit) {
+        var total = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { total = 0f },
+            onDragEnd = {
+                if (total <= -umbral) { vista.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK); siguiente() }
+                else if (total >= umbral) { vista.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK); anterior() }
+            },
+            onHorizontalDrag = { cambio, dx -> total += dx; cambio.consume() },
+        )
+    }
 }

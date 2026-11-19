@@ -1,3 +1,4 @@
+import { turnoIa } from './limites.js';
 import { imagenParaIa } from './imagen.js';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
@@ -148,7 +149,7 @@ export async function iaDisponible() {
 
 // ---------- llamadas a los modelos ----------
 
-async function pedirAClaude(ajustes, { system, messages }) {
+async function pedirAClaudeDirecto(ajustes, { system, messages }) {
   const cliente = new Anthropic({ apiKey: ajustes.clave, maxRetries: 1, timeout: 60_000 });
   const base = { model: ajustes.modelo, max_tokens: 16000, output_config: { effort: 'low' }, messages, ...(system && { system }) };
   // Con respaldo, si el modelo declina por sus filtros de seguridad, la API reintenta sola con otro modelo.
@@ -161,7 +162,7 @@ async function pedirAClaude(ajustes, { system, messages }) {
 
 // La API de NVIDIA sigue el formato de «chat completions»: las instrucciones van como primer mensaje.
 // «maxTokens» y «esperaMs» permiten hacer pruebas cortas al buscar un modelo que responda.
-async function pedirANvidia(ajustes, { system, messages, maxTokens = 4096, esperaMs = 60_000 }, intento = 1, permitirSinRazonar = true) {
+async function pedirANvidiaDirecto(ajustes, { system, messages, maxTokens = 4096, esperaMs = 60_000 }, intento = 1, permitirSinRazonar = true) {
   // Los Nemotron «piensan» antes de responder y pueden tardar más de un minuto: aquí no hace falta.
   const sinRazonar = permitirSinRazonar && /nemotron/i.test(ajustes.modelo);
   const repetir = (otroIntento, conSinRazonar = permitirSinRazonar) =>
@@ -610,7 +611,7 @@ export async function leerComprobante(archivo, { hoy, moneda, titular = '', mens
 }
 
 // NVIDIA: se prueba cada modelo con visión hasta que uno responda.
-async function verConNvidia(ajustes, encabezado, imagen) {
+async function verConNvidiaDirecto(ajustes, encabezado, imagen) {
   const mensajes = [{
     role: 'user',
     content: [
@@ -667,3 +668,8 @@ export async function transcribir(buffer, mime = 'audio/ogg') {
   if (!res.ok) throw new Error(`El servicio de audio respondió ${res.status}${cuerpo?.error?.message ? `: ${cuerpo.error.message}` : ''}`);
   return String(cuerpo?.text ?? '').trim();
 }
+
+// Todas las llamadas a la IA pasan por la cola (como mucho 6 a la vez; ver limites.js).
+function pedirAClaude(...args) { return turnoIa(() => pedirAClaudeDirecto(...args)); }
+function pedirANvidia(...args) { return turnoIa(() => pedirANvidiaDirecto(...args)); }
+function verConNvidia(...args) { return turnoIa(() => verConNvidiaDirecto(...args)); }

@@ -1,6 +1,6 @@
 {
-  "versionCode": 17,
-  "versionName": "2.13",
-  "notas": "Nueva sección Configuración: tema Claro, Oscuro o Automático (como tu teléfono), qué notificaciones recibir y silencio de noche, la pestaña que se abre al iniciar, qué apartados ver en la barra y borrar la copia del teléfono.",
+  "versionCode": 18,
+  "versionName": "2.14",
+  "notas": "Gestos del teléfono: atrás vuelve a la pantalla anterior (con la animación de Android), flecha de atrás arriba, desliza la tarjeta del mes o del año para cambiar, y tocar un mes en Año lo abre. Más rápida y liviana: usa menos datos y reintenta sola si el servidor está ocupado.",
   "apk": "/descargas/duolab-gastos.apk"
 }

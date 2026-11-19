@@ -281,7 +281,7 @@ fun VistaAnio(vm: AppVM) {
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             // .periodo de la web: botones redondos a los lados y el año al centro.
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(t.sup).padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(t.sup).deslizar({ vm.cargarAnio(vm.anio + 1) }, { vm.cargarAnio(vm.anio - 1) }).padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 BotonRedondo("‹", "Año anterior") { vm.cargarAnio(vm.anio - 1) }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { TextoAjustable("Año ${vm.anio}", t.tinta, 18, 12) }
                 if (vm.anio != anioActual) {
@@ -321,8 +321,8 @@ fun VistaAnio(vm: AppVM) {
         }
         if (r == null) item { Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Lima) } }
         else when (seccion) {
-            SeccionAnio.GRAFICA -> item { GraficaAnio(r) { vm.irAMes(it) } }
-            SeccionAnio.MESES -> item { TablaMeses(r, m) { vm.irAMes(it) } }
+            SeccionAnio.GRAFICA -> item { GraficaAnio(r) { vm.irAMes(it); vm.vistaPedida = Vista.MES } }
+            SeccionAnio.MESES -> item { TablaMeses(r, m) { vm.irAMes(it); vm.vistaPedida = Vista.MES } }
             SeccionAnio.CATEGORIAS -> {
                 item { TablaCategoriasAnio("Gastos por categoría", r.categorias.filter { it.tipo == "gasto" }, r.gastos, m) }
                 item { TablaCategoriasAnio("Ingresos por categoría", r.categorias.filter { it.tipo == "ingreso" }, r.ingresos, m) }

@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import { config } from './config.js';
 import { conectar, desconectar, estadoBd } from './db.js';
 import { rutasAuth, requiereSesion, requiereAdmin } from './auth.js';
@@ -55,7 +56,13 @@ app.use('/api/auth', rutasAuth);
 app.use('/api/admin', requiereSesion, requiereAdmin, rutasAdmin);
 app.use('/api/push', requiereSesion, rutasPush);
 app.use('/api/eventos', requiereSesion, rutasEventos);
-app.use('/api', requiereSesion, rutasApi);
+// Límite general: 240 peticiones por minuto por persona (de sobra para usar la app; frena bucles y abusos
+// antes de que saturen la base). Las rutas pesadas tienen además sus propios límites.
+app.use('/api', requiereSesion, rateLimit({
+  windowMs: 60_000, limit: 240, standardHeaders: 'draft-7', legacyHeaders: false,
+  keyGenerator: (req) => req.usuario.id,
+  message: { error: 'Demasiadas peticiones seguidas. Espera un momento.' },
+}), rutasApi);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 app.use(express.static(publico, {
   // «/privacidad» y «/terminos» sirven privacidad.html y terminos.html.
@@ -71,6 +78,11 @@ app.use(manejarErrores);
 const servidor = app.listen(config.puerto, () => {
   console.log(`Registro de gastos escuchando en http://localhost:${config.puerto}`);
 });
+// Detrás del proxy de Render: las conexiones se mantienen abiertas más que el proxy (60 s) para que no
+// haya errores 502 al reutilizarlas; y una petición que no termina de llegar se corta a los 2 minutos.
+servidor.keepAliveTimeout = 65_000;
+servidor.headersTimeout = 66_000;
+servidor.requestTimeout = 120_000;
 prepararLicencias();
 conectar()
   .catch((err) => {

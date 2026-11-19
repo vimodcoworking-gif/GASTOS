@@ -2,6 +2,11 @@
 // imágenes de unos 180 KB (Claude, hasta 5 MB y como mucho 1568 px de lado). Se reducen y comprimen en JPEG
 // manteniendo el texto legible.
 import sharp from 'sharp';
+import { turnoImagen } from './limites.js';
+
+// Menos memoria retenida entre imágenes y un hilo por imagen (las imágenes ya se procesan de dos en dos).
+sharp.cache({ memory: 32, items: 20 });
+sharp.concurrency(1);
 
 // Tamaño máximo del archivo comprimido según el proveedor (NVIDIA cuenta el base64, que ocupa un 33 % más).
 const LIMITE = { nvidia: 130 * 1024, claude: 3.5 * 1024 * 1024 };
@@ -12,7 +17,11 @@ export class ErrorImagen extends Error {}
  * Devuelve { base64, mime: 'image/jpeg', ancho, alto, bytes } listo para la IA.
  * «proveedor»: 'nvidia' | 'claude' (por defecto, el más estricto).
  */
-export async function imagenParaIa(buffer, proveedor = 'nvidia') {
+export function imagenParaIa(buffer, proveedor = 'nvidia') {
+  return turnoImagen(() => prepararImagen(buffer, proveedor));
+}
+
+async function prepararImagen(buffer, proveedor) {
   let base;
   try {
     // rotate() aplica la orientación de la foto; se quita el canal alfa (fondo blanco) para JPEG.

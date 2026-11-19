@@ -121,6 +121,11 @@ export async function requiereSesion(req, res, next) {
 }
 
 const cuentasVistas = new Map();
+// Cada 10 minutos se olvidan las cuentas que ya caducaron, para que el mapa no crezca con cada persona.
+setInterval(() => {
+  const ahora = Date.now();
+  for (const [id, hasta] of cuentasVistas) if (hasta < ahora) cuentasVistas.delete(id);
+}, 10 * 60_000).unref();
 // Al eliminar una cuenta se olvida al instante, sin esperar al minuto.
 export const olvidarCuenta = (id) => cuentasVistas.delete(String(id));
 

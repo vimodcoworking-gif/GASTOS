@@ -1,3 +1,4 @@
+import { turnoPdf } from './limites.js';
 import express, { Router } from 'express';
 import { leerMedio, detectarMedio } from './medios.js';
 import mongoose from 'mongoose';
@@ -426,9 +427,14 @@ libro.get('/informe.pdf', async (req, res) => {
     .sort({ fecha: 1, createdAt: 1 })
     .limit(10000);
 
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="gastos_${fechaTexto(desde)}_a_${fechaTexto(hasta)}.pdf"`);
-  generarInforme(res, { libro: req.libro, desde, hasta, movimientos });
+  // Como mucho dos PDF a la vez (se generan en el hilo principal); el resto espera su turno.
+  await turnoPdf(() => new Promise((listo) => {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="gastos_${fechaTexto(desde)}_a_${fechaTexto(hasta)}.pdf"`);
+    res.on('finish', listo);
+    res.on('close', listo);
+    generarInforme(res, { libro: req.libro, desde, hasta, movimientos });
+  }));
 });
 
 // ---------- capturas de Yape, Plin o del banco subidas desde la app ----------

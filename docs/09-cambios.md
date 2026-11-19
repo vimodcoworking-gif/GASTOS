@@ -4,6 +4,7 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-19 | (2.14) | Gestos en la app Android (atrás a la pantalla anterior con animación predictiva, flecha arriba, deslizar mes/año, tocar un mes en Año lo abre) y optimización para muchas personas: colas para capturas, PDF e IA, límite de 240 peticiones/min por persona, Gmail de 4 en 4 sin tope, más conexiones a la base, tiempos del proxy; en la app caché HTTP, reintento y menos peticiones |
 | 2026-11-19 | (2.13) | App Android 2.13: tema Claro/Oscuro/Automático y nueva pantalla Configuración (notificaciones por tipo y silencio de noche, pestaña de inicio, apartados de la barra, copia local, acerca de) |
 | 2026-11-19 | (2.12) | App Android 2.12: Mi cuenta ordenada (cabecera con foto y estado, atajos a cada sección, mismas tarjetas, opciones poco usadas plegadas) y botones que achican el texto en vez de cortarlo |
 | 2026-11-19 | (2.11) | App Android 2.11: menú «Más» ordenado (perfil con la foto de Google, libro activo, Mis finanzas, Cuenta, Preferencias y Cerrar sesión aparte); el servidor guarda la foto de Google al entrar o vincular Gmail (`usuario.foto`) |

@@ -130,6 +130,19 @@ Fuera de `/api`: `GET /.well-known/assetlinks.json` (huella de la app Android, p
 | `privacidad.html`, `terminos.html` | Páginas legales |
 | `videos/tutorial-atajo-iphone.mp4` (+ `.jpg` de portada) | Video tutorial del atajo de iPhone (1:43, 1080×1920, voz «Camila»). El service worker no lo guarda en caché: Safari pide los videos por partes (Range). |
 
+## Carga y límites (muchas personas a la vez)
+
+| Qué | Cómo |
+| --- | --- |
+| Trabajo pesado | `limites.js`: colas con tope de tareas a la vez. Capturas (sharp) 2 a la vez, PDF 2, IA 6. Si la cola se llena (60 / 30 / 120 en espera) responde 503 «Hay mucha gente usando DUOLAB…» en vez de agotar la memoria. Las llamadas anidadas (reintentos de la IA) no vuelven a hacer cola. |
+| Peticiones por persona | 240 por minuto en `/api` (además de los límites propios de entrar, capturas, avisos y envíos). |
+| Gmail | La revisión periódica recorre todas las cuentas con un cursor, de 4 en 4 (antes una por una y hasta 500). Avisa en el registro si la vuelta tarda más que el intervalo. |
+| Base de datos | Hasta 50 conexiones (`maxPoolSize`), cierre de las inactivas al minuto, consultas colgadas cortadas a los 45 s. Consultas del mes con `.lean()` y el índice `libro + fecha`. |
+| Conexiones | `keepAliveTimeout` 65 s (más que el proxy de Render, evita 502), petición máxima 2 min, tiempo real como mucho 5 conexiones por persona. |
+| Memoria | El recuerdo de sesiones se limpia cada 10 minutos; sharp con caché pequeña y un hilo por imagen. |
+
+Prueba de carga local (servidor y MongoDB en el mismo PC, 2026-11-19): 150 personas usando la app a la vez → 236 peticiones/s, mediana 98 ms, p99 514 ms, 0 errores; 40 personas sin pausas → 403 peticiones/s, p99 150 ms, 0 errores. En Render el límite real será el plan contratado (CPU y memoria) y el de MongoDB Atlas.
+
 ## App Android (`android/`)
 
 App **nativa** en Kotlin con Jetpack Compose que usa la misma API (cookie `sesion` guardada en el teléfono). Dos versiones: `web` (APK en `/descargas/duolab-gastos.apk`, sin lectura de notificaciones) y `play` (Play Store, con `LecturaAvisos`). El acceso con Google abre Chrome en `/api/auth/google?app=android` y vuelve con `duolab://login?codigo=…`, que la app canjea en `POST /api/auth/app/canjear`. Las notificaciones llegan por Firebase Cloud Messaging: el servidor guarda el código de cada teléfono (`tokenapps`) y `notificar()` en `push.js` envía a la vez web-push (navegadores) y FCM (app), firmando el acceso a Google con la cuenta de servicio (`jsonwebtoken`, RS256), sin librerías de Firebase en el servidor. Ver [android/LEEME.md](../android/LEEME.md).

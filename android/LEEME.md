@@ -2,7 +2,7 @@
 
 App **nativa** en Kotlin con Jetpack Compose. Usa la misma API que la web (`https://gastos-g63s.onrender.com/api`), así que los datos son los mismos en el teléfono, la web y WhatsApp.
 
-- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.13 (`versionCode` 17).
+- Paquete: `pe.duolab.gastos` · Android 8 o posterior · versión 2.14 (`versionCode` 18).
 - Se descarga desde la web: `https://gastos-g63s.onrender.com/descargas/duolab-gastos.apk` (Mi cuenta → Yape, Plin y avisos del teléfono → Android, y la ventana «Instala DUOLAB», pestaña Android).
 
 > **Play Protect:** Google bloquea la instalación **fuera de Play Store** (desde Chrome, WhatsApp o un gestor de archivos) de apps que piden **acceso a notificaciones**. Por eso hay dos versiones: el APK de la web **no** lee notificaciones (se instala sin bloqueo) y la lectura automática de Yape queda para la versión de **Play Store**. No se debe pedir a los usuarios que desactiven Play Protect.
@@ -37,6 +37,10 @@ Todo es nativo (Kotlin + Jetpack Compose) y con el diseño de la web en teléfon
 - **Teléfono en horizontal** (alto < 520 dp y ancho ≥ 600 dp): la barra pasa a ser vertical, a la izquierda, para no tapar el contenido. Con poco alto la barra es más baja.
 - **Teléfonos pequeños y letra grande:** se respeta el tamaño de letra del teléfono hasta 1.3×. Los montos, el mes del inicio, «Subir captura…» y las pestañas achican la letra (`TextoAjustable` en `Mes.kt`) en vez de cortarse; los títulos de las tarjetas usan hasta dos líneas; los botones tienen alto mínimo en vez de alto fijo.
 - Para probar: `adb shell wm size 1600x2560` + `wm density 320` (tableta), `wm size 720x1600` + `wm density 360` + `settings put system font_scale 1.3` (pequeño con letra grande), `settings put system user_rotation 1` (horizontal); `wm size reset` y `wm density reset` para volver.
+
+**Gestos (2.14):** «atrás» (gesto desde el borde, botón del teléfono o la flecha que aparece arriba fuera del Mes) vuelve a la **pantalla anterior** (historial en `Principal.kt`), y desde el Mes sale de la app. **Atrás predictivo** de Android 13+ (`enableOnBackInvokedCallback` + `PredictiveBackHandler`): mientras se desliza, la pantalla se encoge y se aparta; si se cancela, queda igual. Las transiciones van hacia la derecha al avanzar y hacia la izquierda al volver. **Deslizar** a los lados la tarjeta del mes cambia de mes, y la cabecera de Año cambia de año (`Modifier.deslizar` en `Toque.kt`, 72 dp, vibración suave). Tocar un mes en Año abre ese mes (`vm.vistaPedida`). Al volver a la app desde el inicio del teléfono o las recientes, si pasó más de un minuto, se ponen al día los datos. Las hojas (menú, formulario) se cierran con atrás o deslizando hacia abajo.
+
+**Liviana con mucha gente (2.14):** caché HTTP de OkHttp (10 MB; los datos sin cambios llegan como «304»), un reintento automático de las consultas si el servidor responde 502/503/504 o falla la red, al pasar meses seguidos solo se pide el último (250 ms de espera) y sin volver a pedir los libros, la precarga solo baja meses que no están en el teléfono, y con avisos al instante la revisión en segundo plano pasa a una vez por hora.
 
 **Rápida:** guarda en el teléfono la cuenta, los libros y cada mes visto (`cache` en `AppVM.kt`): abre al instante, también sin conexión, y precarga el mes anterior y el siguiente.
 

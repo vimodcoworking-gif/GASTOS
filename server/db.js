@@ -23,7 +23,9 @@ mongoose.connection.on('disconnected', () => {
 // Si falla, no se cierra la app: se anota la causa y se vuelve a intentar.
 async function intentarConexion(uri) {
   try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+    // Hasta 50 conexiones a la base en paralelo (muchas personas a la vez) y las que sobran se cierran solas;
+    // una consulta colgada no retiene la conexión más de 45 s.
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000, maxPoolSize: 50, minPoolSize: 2, maxIdleTimeMS: 60_000, socketTimeoutMS: 45_000 });
   } catch (err) {
     estadoBd.causa = /auth/i.test(err.message)
       ? 'El usuario o la contraseña de MongoDB no son correctos (variables MONGODB_USER y MONGODB_PASSWORD).'

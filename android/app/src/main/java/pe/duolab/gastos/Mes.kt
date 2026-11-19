@@ -206,6 +206,7 @@ private fun Heroe(vm: AppVM, actual: List<Movimiento>, t: Totales, editar: Boole
             .drawBehind {
                 drawCircle(Brush.radialGradient(listOf(Lima.copy(alpha = 0.16f), Color.Transparent), center = Offset(size.width * 0.85f, size.height), radius = size.width * 0.8f), radius = size.width * 0.8f, center = Offset(size.width * 0.85f, size.height))
             }
+            .deslizar({ vm.cambiarMes(1) }, { vm.cambiarMes(-1) })
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {

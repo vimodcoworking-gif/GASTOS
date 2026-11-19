@@ -130,7 +130,14 @@ object Avisos {
 class RevisarMovimientos(contexto: Context, parametros: WorkerParameters) : CoroutineWorker(contexto, parametros) {
     override suspend fun doWork(): Result = try {
         Actualizacion.avisarSiHay(applicationContext)
-        Avisos.revisar(applicationContext)
+        // Con los avisos al instante (Firebase) esta revisión es solo un respaldo: una vez por hora basta
+        // (menos peticiones al servidor con muchos teléfonos).
+        val p = applicationContext.getSharedPreferences("avisos", android.content.Context.MODE_PRIVATE)
+        val ultima = p.getLong("ultimaRevision", 0)
+        if (!Push.activo(applicationContext) || System.currentTimeMillis() - ultima > 55 * 60_000) {
+            Avisos.revisar(applicationContext)
+            p.edit().putLong("ultimaRevision", System.currentTimeMillis()).apply()
+        }
         Result.success()
     } catch (e: ApiError) {
         if (e.codigo == 0) Result.retry() else Result.success()

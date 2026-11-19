@@ -983,9 +983,24 @@ async function revisarTodos() {
   if (revisando) return;
   revisando = true;
   try {
-    const usuarios = await Usuario.find({ $or: [{ 'gmail.activo': true, 'gmail.token': { $exists: true } }, { 'gmailExtra.activo': true }] }).limit(500);
-    // Sin licencia de VIMOD vigente no se sigue leyendo su correo.
-    for (const usuario of usuarios) if ((await comprobarLicencia(usuario)).ok) await revisarUsuario(usuario);
+    // Se recorren todas las cuentas con un cursor (sin cargarlas todas en memoria) y de 4 en 4: con muchas
+    // personas la vuelta termina a tiempo, y una cuenta lenta no frena a las demás.
+    const inicio = Date.now();
+    const cursor = Usuario.find({ $or: [{ 'gmail.activo': true, 'gmail.token': { $exists: true } }, { 'gmailExtra.activo': true }] }).cursor();
+    const enCurso = new Set();
+    let revisadas = 0;
+    for await (const usuario of cursor) {
+      const tarea = (async () => {
+        // Sin licencia de VIMOD vigente no se sigue leyendo su correo.
+        if ((await comprobarLicencia(usuario)).ok) await revisarUsuario(usuario);
+      })().catch((err) => console.error(`Gmail (${usuario.email}):`, err.message)).finally(() => enCurso.delete(tarea));
+      enCurso.add(tarea);
+      revisadas += 1;
+      if (enCurso.size >= 4) await Promise.race(enCurso);
+    }
+    await Promise.all(enCurso);
+    const segundos = Math.round((Date.now() - inicio) / 1000);
+    if (segundos > config.minutosGmail * 60) console.warn(`Gmail: la vuelta de ${revisadas} cuentas tardó ${segundos} s (más que el intervalo).`);
   } catch (err) {
     console.error('Revisión de Gmail:', err.message);
   } finally {

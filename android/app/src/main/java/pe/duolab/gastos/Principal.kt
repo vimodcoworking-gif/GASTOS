@@ -6,6 +6,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -85,9 +92,37 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     }
     val pedirCaptura = { elegirCaptura.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
     PedirPermisoNotificaciones()
-    // «Atrás» vuelve al Mes antes de salir, como en la web instalada.
+    // Historial de pantallas: «atrás» (gesto, botón del teléfono o la flecha de arriba) vuelve a la anterior,
+    // y desde el Mes sale de la app. Ir al Mes desde la barra empieza de nuevo.
+    val historial = rememberSaveable(saver = listSaver(save = { l -> l.map { it.name } }, restore = { l -> mutableStateListOf(*l.map(Vista::valueOf).toTypedArray()) })) { mutableStateListOf<Vista>() }
+    var haciaAtras by remember { mutableStateOf(false) }
+    val ir: (Vista) -> Unit = { v ->
+        if (v != vista) {
+            haciaAtras = false
+            if (v == Vista.MES) historial.clear() else { historial.remove(v); historial.add(vista); while (historial.size > 12) historial.removeAt(0) }
+            vista = v
+        }
+    }
+    val volver: () -> Unit = { haciaAtras = true; vista = historial.removeLastOrNull() ?: Vista.MES }
+    LaunchedEffect(vm.vistaPedida) { vm.vistaPedida?.let { ir(it); vm.vistaPedida = null } }
     BackHandler(enabled = menu) { menu = false }
-    BackHandler(enabled = vista != Vista.MES) { vista = Vista.MES }
+    // Atrás predictivo (Android 13+): mientras se desliza desde el borde, la pantalla se encoge y se aparta;
+    // al soltar vuelve a la anterior, y si se cancela, queda como estaba.
+    var progresoAtras by remember { mutableFloatStateOf(0f) }
+    PredictiveBackHandler(enabled = !menu && vista != Vista.MES) { eventos ->
+        try {
+            eventos.collect { progresoAtras = it.progress }
+            volver()
+        } catch (_: kotlin.coroutines.cancellation.CancellationException) {
+        } finally {
+            progresoAtras = 0f
+        }
+    }
+    // Al volver a la app (desde el inicio del teléfono o las apps recientes) se ponen al día los datos.
+    LifecycleResumeEffect(Unit) {
+        vm.alVolverALaApp()
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         containerColor = t.fondo,
@@ -95,6 +130,12 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
         topBar = {
             Box(Modifier.statusBarsPadding().fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Row(Modifier.widthIn(max = ANCHO_MAX).fillMaxWidth().padding(horizontal = 16.dp, vertical = if (pantallaBaja()) 4.dp else 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (vista != Vista.MES) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(t.sup).toque(escala = 0.9f, alTocar = volver), contentAlignment = Alignment.Center) {
+                        Icon(Iconos.flechaIzq, "Atrás", modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                }
                 Image(painterResource(if (t.oscuro) R.drawable.logo_blanco else R.drawable.logo_negro), "DUOLAB", Modifier.height(21.dp))
                 Text(vm.libro?.let { "${it.nombre} · ${it.moneda}" }.orEmpty(), color = t.tenue, fontSize = 13.sp, maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -115,13 +156,25 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     ) { relleno ->
         val lateral = pantallaBaja() && androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
         Box(Modifier.padding(top = relleno.calculateTopPadding()).fillMaxSize().padding(start = if (lateral) 84.dp else 0.dp), contentAlignment = Alignment.TopCenter) {
-            PullToRefreshBox(isRefreshing = vm.cargando, onRefresh = vm::refrescar, modifier = Modifier.widthIn(max = ANCHO_MAX).fillMaxSize()) {
+            PullToRefreshBox(
+                isRefreshing = vm.cargando, onRefresh = vm::refrescar,
+                modifier = Modifier.widthIn(max = ANCHO_MAX).fillMaxSize().graphicsLayer {
+                    val escala = 1f - progresoAtras * 0.08f
+                    scaleX = escala; scaleY = escala
+                    translationX = progresoAtras * 48.dp.toPx()
+                    alpha = 1f - progresoAtras * 0.25f
+                },
+            ) {
                 AnimatedContent(
                     targetState = vista,
-                    transitionSpec = { (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 }) togetherWith fadeOut(tween(120)) },
+                    // Hacia adelante entra desde la derecha; hacia atrás, desde la izquierda.
+                    transitionSpec = {
+                        val dir = if (haciaAtras) -1 else 1
+                        (fadeIn(tween(220)) + slideInHorizontally(tween(260)) { dir * it / 10 }) togetherWith (fadeOut(tween(140)) + slideOutHorizontally(tween(260)) { -dir * it / 16 })
+                    },
                     label = "vista",
                 ) { v -> when (v) {
-                    Vista.MES -> VistaMes(vm, seccion, { seccion = it }, { edicion = it }, pedirCaptura, { vista = Vista.INFORME })
+                    Vista.MES -> VistaMes(vm, seccion, { seccion = it }, { edicion = it }, pedirCaptura, { ir(Vista.INFORME) })
                     Vista.METAS -> VistaMetas(vm)
                     Vista.CATEGORIAS -> VistaCategorias(vm)
                     Vista.ASISTENTE -> VistaAsistente(vm)
@@ -133,14 +186,14 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
                     Vista.CONFIGURACION -> VistaConfiguracion(vm) { disenos = true }
                 } }
             }
-            if (!lateral) BarraInferior(vista, vm.ajustes, { vista = it }, { menu = true }, Modifier.align(Alignment.BottomCenter))
+            if (!lateral) BarraInferior(vista, vm.ajustes, ir, { menu = true }, Modifier.align(Alignment.BottomCenter))
         }
-        if (lateral) BarraInferior(vista, vm.ajustes, { vista = it }, { menu = true }, Modifier.padding(top = relleno.calculateTopPadding()), vertical = true)
+        if (lateral) BarraInferior(vista, vm.ajustes, ir, { menu = true }, Modifier.padding(top = relleno.calculateTopPadding()), vertical = true)
     }
     edicion?.let { e -> if (editar) FormularioMovimiento(vm, e) { edicion = null } else edicion = null }
     DialogoCaptura(vm)
     // Menú «Más»: hoja con tarjetas grandes (el que eligió el usuario, el de la 2.4).
-    if (menu) MenuMas(vm, { menu = false }) { vista = it; menu = false }
+    if (menu) MenuMas(vm, { menu = false }) { ir(it); menu = false }
     if (Actualizacion.encontrada != null && actualizacionPedida) DialogoActualizacion { actualizacionPedida = false }
     if (disenos) DialogoDisenoWeb(vm) { disenos = false }
 }

@@ -197,6 +197,8 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     private fun precargar(id: String, centro: YearMonth) {
         viewModelScope.launch {
             for (m in listOf(centro.minusMonths(1), centro.plusMonths(1))) {
+                // Solo los meses que aún no están en el teléfono: los demás se ponen al día al abrirlos.
+                if (cache.contains(claveMes(id, m))) continue
                 runCatching {
                     val j = Api.get("/libros/$id/mes?mes=$m&hasta=${LocalDate.now().plusDays(30)}")
                     cache.edit().putString(claveMes(id, m), j.toString()).apply()
@@ -205,13 +207,19 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun refrescar() {
+    /**
+     * Vuelve a traer los datos. «conLibros» = también la lista de libros (al abrir, al volver a la app);
+     * al cambiar de mes basta el mes. «espera»: al pasar meses seguidos (deslizando) solo se pide el último.
+     */
+    fun refrescar(conLibros: Boolean = true, espera: Long = 0) {
         if (usuario == null) return
+        ultimaCarga = System.currentTimeMillis()
         carga?.cancel()
         carga = viewModelScope.launch {
+            if (espera > 0) kotlinx.coroutines.delay(espera)
             cargando = true
             try {
-                cargarLibros()
+                if (conLibros || libros.isEmpty()) cargarLibros()
                 cargarMesAhora()
             } catch (e: ApiError) {
                 if (e.codigo == 401) cerrarSesion() else aviso = e.message
@@ -224,7 +232,7 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     fun cambiarMes(delta: Long) {
         mes = mes.plusMonths(delta)
         datos = mesGuardado()
-        refrescar()
+        refrescar(conLibros = false, espera = 250)
     }
 
     fun irAHoy() {
@@ -235,10 +243,20 @@ class AppVM(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Una vista pide abrir otra (p. ej. Año → tocar un mes abre ese mes). Principal la atiende y la limpia. */
+    var vistaPedida by mutableStateOf<Vista?>(null)
+
+    private var ultimaCarga = 0L
+
+    /** Al volver a la app tras un rato fuera, se ponen al día los datos (sin parpadeo: la copia sigue en pantalla). */
+    fun alVolverALaApp() {
+        if (usuario != null && System.currentTimeMillis() - ultimaCarga > 60_000) refrescar()
+    }
+
     fun irAMes(nuevo: YearMonth) {
         mes = nuevo
         datos = mesGuardado()
-        refrescar()
+        refrescar(conLibros = false)
     }
 
     fun elegirLibro(id: String) {

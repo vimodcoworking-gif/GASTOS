@@ -18,6 +18,12 @@ rutasEventos.get('/', (req, res) => {
   res.flushHeaders?.();
   const id = String(req.usuario.id);
   const lista = conexiones.get(id) ?? new Set();
+  // Como mucho 5 pestañas o teléfonos a la vez por persona: se cierra la más antigua (evita conexiones olvidadas).
+  if (lista.size >= 5) {
+    const vieja = lista.values().next().value;
+    lista.delete(vieja);
+    try { vieja.end(); } catch { /* ya cerrada */ }
+  }
   lista.add(res);
   conexiones.set(id, lista);
   escribir(res, 'hola', { ok: true });

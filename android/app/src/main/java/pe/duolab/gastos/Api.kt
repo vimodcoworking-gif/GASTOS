@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import okhttp3.Cache
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -13,6 +15,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -37,12 +40,19 @@ object Api {
             // El plan gratuito de Render puede tardar casi un minuto en despertar.
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(90, TimeUnit.SECONDS)
+            // Caché HTTP: si los datos no cambiaron, el servidor responde «304» sin mandarlos otra vez
+            // (menos datos móviles y menos trabajo para el servidor con mucha gente a la vez).
+            .cache(Cache(File(contexto.cacheDir, "http"), 10L * 1024 * 1024))
             .build()
     }
 
     fun haySesion() = prefs.getString("cookie", null) != null
 
-    fun olvidarSesion() = prefs.edit().remove("cookie").apply()
+    fun olvidarSesion() {
+        prefs.edit().remove("cookie").apply()
+        // Los datos de la cuenta anterior no se quedan en la caché del teléfono.
+        runCatching { cliente.cache?.evictAll() }
+    }
 
     suspend fun get(ruta: String) = pedir("GET", ruta, null)
     suspend fun post(ruta: String, cuerpo: JSONObject = JSONObject()) = pedir("POST", ruta, cuerpo)
@@ -76,7 +86,22 @@ object Api {
         }
     }
 
-    private suspend fun pedir(metodo: String, ruta: String, cuerpo: JSONObject?): JSONObject = withContext(Dispatchers.IO) {
+    /**
+     * Las consultas (GET) se reintentan una vez si el servidor está ocupado, reiniciándose (Render) o la red
+     * falla un momento. Las que cambian datos no se repiten solas, para no registrar nada dos veces.
+     */
+    private suspend fun pedir(metodo: String, ruta: String, cuerpo: JSONObject?): JSONObject {
+        if (metodo != "GET") return pedirUnaVez(metodo, ruta, cuerpo)
+        return try {
+            pedirUnaVez(metodo, ruta, cuerpo)
+        } catch (e: ApiError) {
+            if (e.codigo != 0 && e.codigo !in listOf(502, 503, 504)) throw e
+            delay(1500)
+            pedirUnaVez(metodo, ruta, cuerpo)
+        }
+    }
+
+    private suspend fun pedirUnaVez(metodo: String, ruta: String, cuerpo: JSONObject?): JSONObject = withContext(Dispatchers.IO) {
         val peticion = Request.Builder()
             .url("$BASE/api$ruta")
             .header("Accept", "application/json")
