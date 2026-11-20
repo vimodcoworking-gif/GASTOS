@@ -68,7 +68,8 @@ export const config = {
     ? { clave: process.env.GROQ_API_KEY.trim(), url: 'https://api.groq.com/openai/v1', modelo: 'whisper-large-v3-turbo' }
     : { clave: process.env.OPENAI_API_KEY?.trim() || '', url: 'https://api.openai.com/v1', modelo: 'whisper-1' },
   // Cada cuántos minutos se revisa el Gmail de quienes lo vincularon.
-  minutosGmail: Math.max(2, Number(process.env.GMAIL_MINUTOS) || 3),
+  // Cada minuto por defecto: un yape o plin que llega por correo se registra (y se avisa) en 1-2 minutos.
+  minutosGmail: Math.max(1, Number(process.env.GMAIL_MINUTOS) || 1),
   produccion: process.env.NODE_ENV === 'production',
   // Licencias de VIMOD: la base del Panel administrador y el software de esta app en su catálogo
   // (su nombre tal como aparece en «Softwares y planes», o su id).

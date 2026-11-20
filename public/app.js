@@ -3779,7 +3779,16 @@ var refrescoPendiente = false; // eslint-disable-line no-var
 var ultimaAccionPropia = 0; // eslint-disable-line no-var
 var ocultaDesde = 0; // eslint-disable-line no-var
 
+// Al abrir la app o volver a ella: el servidor revisa el Gmail ya (un yape o plin recién hecho entra sin
+// esperar a la vuelta de cada minuto). El servidor lo limita a una vez cada 45 s; lo nuevo llega por los eventos.
+function revisarCorreoAhora() {
+  if (!estado.usuario?.correos?.length) return;
+  fetch('/api/auth/google/gmail/al-abrir', { method: 'POST' }).catch(() => {});
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') revisarCorreoAhora(); });
+
 function escucharCambios() {
+  revisarCorreoAhora();
   if (!('EventSource' in window) || (fuenteEventos && fuenteEventos.readyState !== 2)) return;
   fuenteEventos = new EventSource('/api/eventos');
   fuenteEventos.addEventListener('cambio', (ev) => {

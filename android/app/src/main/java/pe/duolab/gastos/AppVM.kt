@@ -252,6 +252,18 @@ class AppVM(app: Application) : AndroidViewModel(app) {
     /** Al volver a la app tras un rato fuera, se ponen al día los datos (sin parpadeo: la copia sigue en pantalla). */
     fun alVolverALaApp() {
         if (usuario != null && System.currentTimeMillis() - ultimaCarga > 60_000) refrescar()
+        revisarCorreoAhora()
+    }
+
+    /** Pide al servidor revisar el Gmail ya (el yape o plin que se acaba de hacer entra sin esperar). */
+    private fun revisarCorreoAhora() {
+        if (usuario?.json?.optJSONArray("correos")?.length() ?: 0 == 0) return
+        viewModelScope.launch { runCatching { Api.post("/auth/google/gmail/al-abrir") } }
+    }
+
+    init {
+        // Lo que entra mientras la app está en pantalla (correo, yape, otra persona) aparece solo.
+        TiempoReal.alCambio = { viewModelScope.launch { refrescar(conLibros = false) } }
     }
 
     fun irAMes(nuevo: YearMonth) {

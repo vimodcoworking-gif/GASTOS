@@ -206,6 +206,20 @@ rutasGoogle.post('/gmail/revisar', requiereSesion, async (req, res) => {
   res.json({ nuevos, usuario: await publico(await Usuario.findById(usuario._id)) });
 });
 
+// Al abrir la app (o volver a ella): se revisa el Gmail ya, sin esperar a la vuelta de cada minuto. Responde al
+// momento y revisa por detrás; como mucho una vez cada 45 s por persona. Lo nuevo llega por el tiempo real.
+const revisadoAlAbrir = new Map();
+rutasGoogle.post('/gmail/al-abrir', requiereSesion, async (req, res) => {
+  const ahora = Date.now();
+  if ((revisadoAlAbrir.get(req.usuario.id) ?? 0) > ahora - 45_000) return res.json({ ok: true, revisando: false });
+  revisadoAlAbrir.set(req.usuario.id, ahora);
+  if (revisadoAlAbrir.size > 5000) for (const [id, t] of revisadoAlAbrir) if (t < ahora - 45_000) revisadoAlAbrir.delete(id);
+  const usuario = await Usuario.findById(req.usuario.id);
+  if (!usuario || !cuentasDe(usuario).length || algunaEnCurso(usuario)) return res.json({ ok: true, revisando: false });
+  revisarUsuario(usuario).catch((err) => console.error('Gmail (al abrir):', err.message));
+  res.json({ ok: true, revisando: true });
+});
+
 // Los últimos correos revisados y qué se hizo con cada uno, para saber por qué un aviso no aparece.
 // Diagnóstico de las últimas 24 horas: qué avisos de pago hay en cada Gmail y qué pasó con cada uno,
 // si la IA y el bot de WhatsApp funcionan, y lo último que llegó del teléfono.
@@ -581,6 +595,14 @@ function avisoDeConsumo(correo) {
   };
 }
 
+// ¿Es un aviso de Yape o Plin con importe (no una promoción ni un código)? Para avisar si no se pudo leer.
+function pareceBilletera(correo) {
+  const cabecera = `${correo.remitente} ${correo.asunto} ${correo.texto.slice(0, 300)}`;
+  if (!/plin|yape/i.test(cabecera)) return false;
+  if (NO_ES_MOVIMIENTO.test(correo.asunto) || /afiliaci|novedad|bienvenid|t[eé]rminos/i.test(correo.asunto)) return false;
+  return /(?:S\/\.?|US\$)\s?\d/.test(correo.texto.slice(0, 900));
+}
+
 // Dirección del dinero en avisos de Yape o Plin, o null si el texto no lo deja claro.
 export function direccionDeBilletera(texto) {
   const t = String(texto ?? '').trim();
@@ -726,7 +748,7 @@ async function yaRegistrado(libro, datos) {
 }
 
 // Lee un correo y registra el gasto o ingreso que avise, anotando en «resultado» lo hecho.
-async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar) {
+async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar, alNoLeer) {
   // Ya hay un movimiento sacado de este correo (p. ej. si se vuelve a revisar): no se lee otra vez.
   if (await Movimiento.exists({ correoId: id, creadoPor: usuario._id })) {
     await CorreoVisto.updateOne({ _id: `${usuario.id}:${id}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
@@ -758,6 +780,8 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
       }
     }
   }
+  // Un aviso de Yape o Plin con importe que no se pudo leer: se avisa a la persona en vez de callarlo.
+  if (!datos && pareceBilletera(correo)) alNoLeer?.(correo);
   await CorreoRevisado.updateOne({ _id: `${usuario.id}:${id}` }, {
     $set: { usuario: usuario._id, asunto: correo.asunto, remitente: correo.remitente, resultado: decision, registrado, cuenta: cuenta.clave, buzon: cuenta.datos.email, extracto: `${correo.resumen}\n---\n${correo.texto}`.slice(0, 250), cuando: new Date() },
   }, { upsert: true }).catch(() => {});
@@ -767,7 +791,7 @@ async function procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, 
  * Revisa una tanda de correos que cumplen «q» y registra los gastos e ingresos, los más antiguos primero.
  * Va anotando en «resultado» { revisados, registrados, duplicados, quedan }: así se sabe lo hecho aunque falle a mitad.
  */
-async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultado, { maxCorreos, alRegistrar, alAvanzar, debeParar, releer = false, hechos = null }) {
+async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultado, { maxCorreos, alRegistrar, alNoLeer, alAvanzar, debeParar, releer = false, hechos = null }) {
   const busqueda = await buscarPendientes(usuario, autorizacion, q, maxCorreos, { releer, hechos });
   const pendientes = busqueda.pendientes.reverse();
   // Solo en la primera tanda: en las siguientes ya se cuentan también los que acaba de leer.
@@ -781,7 +805,7 @@ async function procesarCorreos(usuario, cuenta, libro, autorizacion, q, resultad
 
   for (const id of tanda) {
     if (debeParar?.()) return;
-    await procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar);
+    await procesarUno(usuario, cuenta, libro, autorizacion, id, resultado, alRegistrar, alNoLeer);
     hechos?.add(id);
     resultado.leidos += 1;
     // Cada aviso pasa por la IA y tarda unos segundos: se guarda el avance tras cada uno.
@@ -832,6 +856,11 @@ async function revisarCuenta(usuario, cuenta) {
     await procesarCorreos(usuario, cuenta, libro, autorizacion, `after:${desde} ${BUSQUEDA}`, resultado, {
       maxCorreos: MAX_CORREOS,
       alRegistrar: (confirmacion, correo, movId) => avisarPorWhatsapp(usuario, `📧 *Desde tu correo*${desdeDonde} (${correo.asunto.slice(0, 80)})\n${confirmacion}`, movId ? [movId] : []),
+      alNoLeer: (correo) => {
+        const marca = /plin/i.test(`${correo.remitente} ${correo.asunto} ${correo.texto.slice(0, 300)}`) ? 'Plin' : 'Yape';
+        const importe = /S\/\.?\s?[\d.,]+/.exec(correo.texto.slice(0, 900))?.[0] ?? '';
+        avisarPorWhatsapp(usuario, `📧 *Llegó un aviso de ${marca} que no pude leer*${desdeDonde}\n«${correo.asunto.slice(0, 80)}»${importe ? ` · ${importe}` : ''}\nRegístralo con «+ Nuevo» o mándale este correo a soporte para que lo lea solo la próxima vez.`);
+      },
     });
     await actualizarCuenta(usuario, cuenta, { $set: { ultimaRevision: new Date() }, $unset: { error: 1 }, $inc: { registrados: resultado.registrados } });
   } catch (err) {

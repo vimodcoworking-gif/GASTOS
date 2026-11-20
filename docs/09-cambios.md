@@ -4,6 +4,7 @@ Cambios publicados, del más reciente al más antiguo. Cada fila es un commit de
 
 | Fecha | Versión | Cambio |
 | --- | --- | --- |
+| 2026-11-20 | (2.16) | Gmail cada minuto y al abrir la app (web y Android); aviso por WhatsApp y notificación si llega un correo de Yape o Plin que no se pudo leer; la app en pantalla se actualiza sola cuando entra algo |
 | 2026-11-20 | (servidor) | Gmail: lector nuevo de constancias de Plin y Yape enviados y recibidos (Interbank, BBVA, Scotiabank, BCP, Yape), sin IA; búsqueda con «plineaste» y «plineo»; se vuelven a leer una vez los correos del último mes que no se registraron |
 | 2026-11-19 | (2.15) | App Android 2.15: avisos en tiempo real con la app cerrada (servicio en primer plano conectado a /api/eventos; el servidor manda cada aviso también por ahí, sin Firebase), vuelve tras reiniciar el teléfono, ayudas de batería en Configuración; icono de Google con sus colores |
 | 2026-11-19 | (2.14) | Gestos en la app Android (atrás a la pantalla anterior con animación predictiva, flecha arriba, deslizar mes/año, tocar un mes en Año lo abre) y optimización para muchas personas: colas para capturas, PDF e IA, límite de 240 peticiones/min por persona, Gmail de 4 en 4 sin tope, más conexiones a la base, tiempos del proxy; en la app caché HTTP, reintento y menos peticiones |

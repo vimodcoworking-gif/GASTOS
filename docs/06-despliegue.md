@@ -30,7 +30,7 @@ Se ponen en Render → Environment (y en local, en un archivo `.env` que nunca s
 | `ALMACENAMIENTO_MB` | No | Límite del plan de MongoDB (512) |
 | `ZONA_HORARIA` | No | Por defecto `America/Lima` |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Para Gmail | Entrar con Google y leer Gmail (Google Cloud: Gmail API, permiso `gmail.readonly`, redirección `https://<dominio>/api/auth/google/callback`) |
-| `GMAIL_MINUTOS` | No | Cada cuántos minutos se revisa Gmail (por defecto 3, mínimo 2) |
+| `GMAIL_MINUTOS` | No | Cada cuántos minutos se revisa Gmail (por defecto 1, mínimo 1) |
 | `ANTHROPIC_API_KEY`, `NVIDIA_API_KEY` | No | Claves de IA (también se pueden poner en Admin → IA) |
 | `GROQ_API_KEY` u `OPENAI_API_KEY` | No | Audios de WhatsApp a texto |
 | `CORREO_REMITENTE`, `CORREO_NOMBRE` + Cloudflare / Brevo / SMTP | No | Enviar correos (estado de cuenta, recuperar contraseña). Render gratuito bloquea los puertos SMTP. |

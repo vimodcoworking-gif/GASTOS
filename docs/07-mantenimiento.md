@@ -4,7 +4,7 @@
 
 | Tarea | Frecuencia | Archivo |
 | --- | --- | --- |
-| Revisar los Gmail activos | Cada 3 min (`GMAIL_MINUTOS`) | `google.js` (`revisarTodos`) |
+| Revisar los Gmail activos | Cada minuto (`GMAIL_MINUTOS`) y al abrir la app | `google.js` (`revisarTodos`) |
 | Mantener despierto el servidor mientras hay Gmail activo | Cada 4 min (comprobación cada 30 min) | `google.js` |
 | Recordatorios de pago (8:00–21:00) | Cada 20 min; la primera al minuto de arrancar | `recordatorios.js` |
 | Recuperar avisos de banco/billetera de los últimos 3 días que no se registraron | Cada 6 horas | `google.js` (`recuperarAvisosRecientes`) |

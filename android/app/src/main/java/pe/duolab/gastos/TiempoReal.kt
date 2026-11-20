@@ -35,6 +35,9 @@ object TiempoReal {
     /** true mientras la app está en pantalla: entonces no hace falta notificar (la app se actualiza sola). */
     @Volatile var appVisible = false
 
+    /** La app en pantalla se pone al día cuando el servidor avisa de un cambio. */
+    @Volatile var alCambio: (() -> Unit)? = null
+
     fun iniciar(contexto: Context) {
         if (!Api.haySesion() || !Ajustes.leer(contexto).segundoPlano) return
         runCatching { ContextCompat.startForegroundService(contexto, Intent(contexto, ServicioTiempoReal::class.java)) }
@@ -138,7 +141,8 @@ class ServicioTiempoReal : Service() {
                 // Lo avisado no se repite en la revisión de cada 15 minutos.
                 alcance.launch { delay(1500); runCatching { Avisos.revisar(applicationContext, avisar = false) } }
             }
-            "cambio" -> if (datos.optInt("nuevos") > 0) alcance.launch {
+            "cambio" -> if (TiempoReal.appVisible) TiempoReal.alCambio?.let { f -> android.os.Handler(android.os.Looper.getMainLooper()).post { f() } }
+            else if (datos.optInt("nuevos") > 0) alcance.launch {
                 // Movimientos de otra persona del libro (no traen aviso propio): se avisan si en 10 s no llegó uno.
                 delay(3000)
                 val yaAvisado = System.currentTimeMillis() - ultimoAviso < 10_000

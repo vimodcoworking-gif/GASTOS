@@ -18,7 +18,8 @@ flowchart LR
 ## 1. Gmail
 
 - Cada persona vincula uno o varios Gmail (hasta 5) en **Mi cuenta → Gastos desde tu Gmail**. Solo se pide permiso de lectura.
-- Se revisa **cada 3 minutos** (variable `GMAIL_MINUTOS`), también con la app cerrada. Mientras hay un Gmail activo, el servidor se mantiene despierto en Render.
+- Se revisa **cada minuto** (variable `GMAIL_MINUTOS`), también con la app cerrada, y **además al abrir la app o volver a ella** (`POST /api/auth/google/gmail/al-abrir`, como mucho una vez cada 45 s): un yape o plin recién hecho entra en cuanto llega el correo del banco. Mientras hay un Gmail activo, el servidor se mantiene despierto en Render.
+- Si llega un aviso de **Yape o Plin con importe que no se pudo leer**, se avisa por WhatsApp y notificación («Llegó un aviso de Plin que no pude leer…») en vez de descartarlo en silencio.
 - Solo se abren correos de remitentes financieros y con palabras de pago (filtro `FILTRO` en `server/google.js`).
 - Cada correo se lee así, en este orden (los lectores fijos van primero: registran aunque la IA esté caída o se equivoque):
   1. **Correos de Yape** («Acabas de yapear»): lector exacto (`server/yape.js`). Toma monto, quién yapeó, beneficiario, fecha y hora.
