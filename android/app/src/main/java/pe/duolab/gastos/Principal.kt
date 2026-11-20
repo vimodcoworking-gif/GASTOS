@@ -197,7 +197,7 @@ fun Principal(vm: AppVM, avisos: SnackbarHostState) {
     DialogoCaptura(vm)
     // Menú «Más»: hoja con tarjetas grandes (el que eligió el usuario, el de la 2.4).
     if (menu) MenuMas(vm, { menu = false }) { ir(it); menu = false }
-    if (Actualizacion.encontrada != null && actualizacionPedida) DialogoActualizacion { actualizacionPedida = false }
+    if (Actualizacion.encontrada != null && (actualizacionPedida || Actualizacion.pedirInstalar)) DialogoActualizacion { actualizacionPedida = false; Actualizacion.pedirInstalar = false }
     if (disenos) DialogoDisenoWeb(vm) { disenos = false }
 }
 
@@ -253,9 +253,7 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
     var libros by remember { mutableStateOf(false) }
     var salir by remember { mutableStateOf(false) }
     var nuevoLibro by remember { mutableStateOf(false) }
-    var buscarOtraVez by remember { mutableStateOf(false) }
     val u = vm.usuario ?: return
-    val alcance = rememberCoroutineScope()
     val libro = vm.libro
     ModalBottomSheet(onDismissRequest = alCerrar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = t.fondo) {
         Column(
@@ -316,30 +314,10 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
                 if (u.esAdmin) ({ FilaMenu(Iconos.escudo, "Administración", "Usuarios, WhatsApp, IA y almacenamiento") { alVista(Vista.ADMIN) } }) else null,
             ))
 
-            SeccionMenu("Preferencias", listOfNotNull(
-                {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconoCaja(Iconos.luna, t.elev, t.tinta, 36, 11)
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text("Tema", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                Text(if (vm.tema == ModoTema.AUTO) "Automático: como el teléfono" else vm.tema.nombre, color = t.tenue, fontSize = 12.sp)
-                            }
-                        }
-                        SelectorTema(vm.tema, Modifier.padding(top = 10.dp)) { vm.elegirTema(it) }
-                    }
-                },
-                { FilaMenu(Iconos.diseno, "Configuración", "Notificaciones, inicio, barra y datos") { alVista(Vista.CONFIGURACION) } },
-                if (Actualizacion.disponible) ({
-                    FilaMenu(Iconos.descargar, "Buscar actualizaciones", "Tienes la versión ${BuildConfig.VERSION_NAME}") {
-                        alcance.launch {
-                            Actualizacion.encontrada = Actualizacion.buscar()
-                            if (Actualizacion.encontrada == null) vm.aviso = "Tienes la última versión (${BuildConfig.VERSION_NAME})"
-                            else { buscarOtraVez = true; alCerrar() }
-                        }
-                    }
-                }) else null,
+            // Una sola entrada a Configuración: ahí están el tema, las notificaciones, el inicio, los datos
+            // y las actualizaciones (no se repiten aquí).
+            SeccionMenu("Aplicación", listOf(
+                { FilaMenu(Iconos.diseno, "Configuración", "Tema, notificaciones, inicio y datos") { alVista(Vista.CONFIGURACION) } },
             ))
 
             // Cerrar sesión, aparte y en rojo, para no tocarlo sin querer.
@@ -370,7 +348,6 @@ private fun MenuMas(vm: AppVM, alCerrar: () -> Unit, alVista: (Vista) -> Unit) {
             confirmButton = { TextButton(onClick = { libros = false }) { Text("Cerrar") } },
         )
     }
-    if (buscarOtraVez && Actualizacion.encontrada != null) DialogoActualizacion { buscarOtraVez = false }
     if (nuevoLibro) {
         var nombre by remember { mutableStateOf("") }
         var moneda by remember { mutableStateOf("PEN") }

@@ -50,6 +50,8 @@ object Actualizacion {
     private val cliente by lazy { OkHttpClient.Builder().connectTimeout(60, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).build() }
 
     var encontrada by mutableStateOf<VersionNueva?>(null)
+    // Pedir mostrar el diálogo de instalar (p. ej. desde Configuración → Buscar actualizaciones).
+    var pedirInstalar by mutableStateOf(false)
     var progreso by mutableStateOf<Float?>(null)
 
     suspend fun buscar(): VersionNueva? = withContext(Dispatchers.IO) {

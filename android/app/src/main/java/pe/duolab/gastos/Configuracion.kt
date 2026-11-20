@@ -148,6 +148,7 @@ fun VistaConfiguracion(vm: AppVM, alDiseno: () -> Unit) {
                         alcance.launch {
                             Actualizacion.encontrada = Actualizacion.buscar()
                             if (Actualizacion.encontrada == null) vm.aviso = "Tienes la última versión (${BuildConfig.VERSION_NAME})"
+                            else Actualizacion.pedirInstalar = true
                         }
                     }
                 }
