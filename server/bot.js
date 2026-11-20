@@ -979,6 +979,16 @@ const AVISOS_DE_PAGO = [
   { tipo: 'ingreso', patron: new RegExp(`te\\s+(?:han\\s+)?(?:abonamos|abonado|depositado|transferido|enviado)\\s+${IMPORTE}(?:\\s+(?:de|desde)\\s+([^.!\\n]{2,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
   // «Yapeaste S/ 25 a NILSON GON», «¡Yapeaste! S/ 25 Nilson Gon*», «Plineaste S/ 10 a…», «Enviaste S/ 50 a…»
   { tipo: 'gasto', patron: new RegExp(`(?:yapeaste|plineaste|enviaste|transferiste|pagaste)[!¡]?\\s+(?:un\\s+(?:yape|plin|pago)\\s+(?:de|por)\\s+)?${IMPORTE}(?:\\s+(?:(?:a|para)\\s+)?([A-Za-zÁÉÍÓÚÑáéíóúñ][^.!\\n]{1,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Realizaste un yapeo de S/ 10 a JUAN», «Hiciste un plin de S/ 5 a…», «Has realizado un pago de S/ 20 a…»
+  { tipo: 'gasto', patron: new RegExp(`(?:realizaste|hiciste|has\\s+realizado)\\s+un[ao]?\\s+(?:yape|yapeo|plin|plineo|pago|env[ií]o|transferencia)\\s+(?:de|por)\\s+${IMPORTE}(?:\\s+(?:a|para)\\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][^.!\\n]{1,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «¡Acabas de yapear S/ 10 a JUAN!», «Acabas de enviar S/ 5 a…»
+  { tipo: 'gasto', patron: new RegExp(`acabas\\s+de\\s+(?:yapear|plinear|enviar|pagar|transferir)\\s+(?:un\\s+(?:yape|plin|pago)\\s+(?:de|por)\\s+)?${IMPORTE}(?:\\s+(?:a|para)\\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][^.!\\n]{1,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Tu yapeo de S/ 10 a JUAN fue exitoso», «Tu pago de S/ 20 se realizó con éxito»
+  { tipo: 'gasto', patron: new RegExp(`tu\\s+(?:yape|yapeo|plin|plineo|pago|env[ií]o|transferencia)\\s+(?:de|por)\\s+${IMPORTE}(?:\\s+(?:a|para)\\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][^.!\\n]{1,60}?))?\\s+(?:fue|se\\s+realiz[oó]|ha\\s+sido|est[aá]|se\\s+envi[oó])`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Yapeo exitoso S/ 10 a JUAN», «¡Pago realizado! S/ 20 a…», «Envío exitoso de S/ 5»
+  { tipo: 'gasto', patron: new RegExp(`(?:yapeo|yape|plineo|plin|pago|env[ií]o)\\s+(?:exitoso|realizado|enviado|confirmado)[!.:]?\\s*(?:de|por)?\\s*${IMPORTE}(?:\\s+(?:a|para)\\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][^.!\\n]{1,60}))?`, 'i'), simbolo: 1, numero: 2, quien: 3 },
+  // «Yape a JUAN PEREZ por S/ 10», «Yapeo para MARIA: S/ 5»
+  { tipo: 'gasto', patron: new RegExp(`(?:yapeo|yape|plineo|plin)\\s+(?:a|para)\\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][^:!\\n]{1,60}?)\\s*(?:por|de|:)\\s*${IMPORTE}`, 'i'), quien: 1, simbolo: 2, numero: 3 },
 ];
 
 /**
@@ -995,7 +1005,11 @@ export function leerAvisoDePago(texto, { app = '' } = {}) {
     const monto = Number(/^\d+,\d{1,2}$/.test(numero) ? numero.replace(',', '.') : numero.replace(/,/g, ''));
     if (!(monto > 0)) continue;
     const simbolo = m[aviso.simbolo];
-    const quien = (m[aviso.quien] ?? '').replace(/^(yape|plin|bcp|interbank|bbva)\s*[!:.-]?\s*/i, '').replace(/\s+/g, ' ').trim();
+    // Sin el título de la notificación pegado delante («Confirmación de Pago Franko Val*» → «Franko Val*»).
+    const quien = (m[aviso.quien] ?? '')
+      .replace(/^(?:(?:confirmaci[oó]n|constancia|aviso|notificaci[oó]n) de (?:pago|yapeo|yape|plin|plineo|transferencia|operaci[oó]n)|pago (?:recibido|enviado)|yape|plin|bcp|interbank|bbva)\s*[!:.-]?\s*/i, '')
+      .replace(/^(?:yape|plin|bcp|interbank|bbva)\s*[!:.-]?\s*/i, '')
+      .replace(/\s+/g, ' ').trim();
     const origen = /plin/i.test(`${app} ${limpio}`) ? 'Plin' : /yape/i.test(`${app} ${limpio}`) ? 'Yape' : '';
     return {
       tipo: aviso.tipo,

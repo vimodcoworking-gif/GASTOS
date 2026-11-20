@@ -180,7 +180,8 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
     const lectura = libro && await leerComprobante({ texto: `${app ? `App: ${app}\n` : ''}${completo}` }, { hoy: hoyLocal(), moneda: libro.moneda, titular: usuario.nombre }).catch(() => null);
     [movimiento] = lectura?.movimientos ?? [];
   }
-  if (!movimiento) return responderAviso(res, usuario, { ok: false, mensaje: 'No es un aviso de pago: no se registró nada.', origen: app || 'Notificación' });
+  // Con el texto que llegó (recortado): así en «Últimos envíos» se ve qué formato no se reconoció.
+  if (!movimiento) return responderAviso(res, usuario, { ok: false, mensaje: `No es un aviso de pago: no se registró nada. Llegó: «${completo.replace(/\s+/g, ' ').slice(0, 120)}»`, origen: app || 'Notificación' });
 
   const mensaje = await registrarVarios(usuario, [{ ...movimiento, fecha: movimiento.fecha ?? hoyLocal(), pistas: `${app} ${completo}` }], { origen: `desde ${app || 'tu teléfono'}`, repetidos: 'reciente' });
   if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
