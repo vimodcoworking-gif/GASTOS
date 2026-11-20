@@ -96,7 +96,7 @@ Cada persona crea su enlace en **Mi cuenta → Yape, Plin y avisos del teléfono
 | Pago con hora (lista de Yape, correo de Yape) | Huella `fecha|hora|tipo|monto`: el mismo pago no se repite; dos pagos iguales a distintas horas se registran los dos. |
 | Correo frente a algo anotado a mano, por WhatsApp o captura | Mismo tipo y monto con un día de diferencia como mucho = el mismo. |
 | Dos correos con el mismo monto | Solo son el mismo si la descripción se parece (dos avisos del mismo pago); si no, son dos operaciones. |
-| Notificación del teléfono repetida | El mismo texto en 3 minutos cuenta una vez. |
+| Notificación del teléfono repetida | App Android de DUOLAB: cada notificación lleva su identidad (clave de Android + hora), así la misma notificación publicada otra vez cuenta una sola vez y dos yapes iguales seguidos se registran los dos; solo se descarta si ese yape ya entró por el correo en los últimos 15 min. MacroDroid y otros (sin identidad): el mismo texto en el mismo minuto, o el mismo monto y descripción en 2 minutos, cuenta una vez. |
 | Lo escrito por WhatsApp | Solo se evita el doble envío accidental (mismo texto en 3 minutos). |
 
 ## Límites conocidos

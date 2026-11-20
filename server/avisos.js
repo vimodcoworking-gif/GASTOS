@@ -76,6 +76,8 @@ function textoDelAviso(req) {
     titulo: campo('titulo', 'title', 'notification_title'),
     texto: campo('texto', 'text', 'mensaje', 'message', 'notification', 'notification_text', 'body'),
     app: campo('app', 'app_name', 'aplicacion', 'package'),
+    // Identidad de la notificación (app Android de DUOLAB): distingue dos yapes iguales de una notificación repetida.
+    id: campo('id', 'clave', 'notification_id').slice(0, 200),
   };
 }
 
@@ -161,14 +163,15 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
   }
 
   // Notificación en texto.
-  const { titulo, texto, app } = textoDelAviso(req);
+  const { titulo, texto, app, id } = textoDelAviso(req);
   const completo = `${titulo} ${texto}`.trim();
   if (!completo) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'El aviso llegó vacío. En el atajo, el cuerpo de la solicitud debe ser «Archivo» con la captura de pantalla.', origen: 'Vacío' });
   if (completo.length > 2000) return responderAviso(res, usuario, { estado: 400, ok: false, mensaje: 'El aviso es demasiado largo.', origen: 'Texto' });
 
   // La misma notificación puede llegar dos veces seguidas (al actualizarse en el teléfono): solo cuenta la primera.
-  // Pasados unos minutos, el mismo texto sí es otro aviso («¡Te yapearon S/ 5!» dos veces en el día).
-  const tramo = Math.floor(Date.now() / (3 * 60_000));
+  // Con la identidad de la notificación (app de DUOLAB) es exacto: la misma notificación nunca se repite y dos
+  // yapes iguales seguidos se registran los dos. Sin ella (MacroDroid), el mismo texto dentro del mismo minuto.
+  const tramo = id ? `id:${id}` : Math.floor(Date.now() / 60_000);
   const huella = createHash('sha256').update(`${usuario.id}|${tramo}|${completo}`).digest('hex').slice(0, 32);
   const nueva = await CorreoVisto.updateOne({ _id: `aviso:${huella}` }, { $setOnInsert: { visto: new Date() } }, { upsert: true });
   if (!nueva.upsertedCount) return responderAviso(res, usuario, { ok: false, mensaje: 'Ese aviso ya se había recibido.', origen: app || 'Notificación' });
@@ -183,7 +186,7 @@ rutasAvisos.post('/:token', limite, async (req, res) => {
   // Con el texto que llegó (recortado): así en «Últimos envíos» se ve qué formato no se reconoció.
   if (!movimiento) return responderAviso(res, usuario, { ok: false, mensaje: `No es un aviso de pago: no se registró nada. Llegó: «${completo.replace(/\s+/g, ' ').slice(0, 120)}»`, origen: app || 'Notificación' });
 
-  const mensaje = await registrarVarios(usuario, [{ ...movimiento, fecha: movimiento.fecha ?? hoyLocal(), pistas: `${app} ${completo}` }], { origen: `desde ${app || 'tu teléfono'}`, repetidos: 'reciente' });
+  const mensaje = await registrarVarios(usuario, [{ ...movimiento, fecha: movimiento.fecha ?? hoyLocal(), pistas: `${app} ${completo}` }], { origen: `desde ${app || 'tu teléfono'}`, repetidos: id ? 'telefono' : 'reciente' });
   if (mensaje.startsWith('✅')) avisarPorWhatsapp(usuario, `📲 ${mensaje}`, inicio);
   return responderAviso(res, usuario, { ok: mensaje.startsWith('✅'), mensaje, origen: app || 'Notificación', inicio });
 });

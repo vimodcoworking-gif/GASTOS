@@ -57,6 +57,15 @@ final class Enviador {
 
     /** Envía un aviso (título, texto y app de origen). La respuesta llega en el hilo principal. */
     static void enviar(Context contexto, String titulo, String texto, String app, Respuesta respuesta) {
+        enviar(contexto, titulo, texto, app, null, respuesta);
+    }
+
+    /**
+     * «id»: identidad de la notificación en Android (clave + hora en que se creó). La misma notificación
+     * publicada otra vez (Android la actualiza) trae el mismo id y no se cuenta dos veces; dos yapes distintos
+     * del mismo monto traen ids distintos y se registran los dos.
+     */
+    static void enviar(Context contexto, String titulo, String texto, String app, String id, Respuesta respuesta) {
         Context c = contexto.getApplicationContext();
         String enlace = enlace(c);
         if (!enlaceValido(enlace)) {
@@ -64,15 +73,16 @@ final class Enviador {
             return;
         }
         // Android vuelve a publicar la misma notificación al actualizarla: se manda una sola vez.
-        String huella = app + "|" + titulo + "|" + texto;
+        String huella = id != null ? id : app + "|" + titulo + "|" + texto;
         SharedPreferences p = prefs(c);
         long ahora = System.currentTimeMillis();
-        if (respuesta == null && huella.equals(p.getString("huella", "")) && ahora - p.getLong("huellaEn", 0) < REPETIDO_MS) return;
+        if (respuesta == null && huella.equals(p.getString("huella", "")) && (id != null || ahora - p.getLong("huellaEn", 0) < REPETIDO_MS)) return;
         p.edit().putString("huella", huella).putLong("huellaEn", ahora).apply();
 
         HILO.execute(() -> {
             try {
                 JSONObject aviso = new JSONObject().put("titulo", titulo).put("texto", texto).put("app", app);
+                if (id != null) aviso.put("id", id);
                 enviarPendientes(c, enlace);
                 String[] r = post(enlace, aviso);
                 if (r == null) {

@@ -637,7 +637,8 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
     // Mismo movimiento ya anotado (p. ej. la misma boleta enviada dos veces, o ya llegado por correo).
     // Qué cuenta como «ya anotado» según de dónde viene:
     // - «dia» (boletas, fotos, correos): mismo tipo y monto con un día de diferencia como mucho.
-    // - «reciente» (notificaciones del teléfono): lo anotado en los últimos 20 minutos.
+    // - «telefono» (app de DUOLAB, cada notificación con su identidad): solo si ya entró por el correo (15 min).
+    // - «reciente» (MacroDroid y otros, sin identidad): mismo monto y descripción en los últimos 2 minutos.
     // - «manual» (lo que la persona escribe o dicta): solo el doble envío accidental, mismo monto y descripción
     //   en los últimos 3 minutos. Si alguien dice «gasté 30 en taxi», se registra aunque ya haya otro de 30.
     const dia = aFecha(fecha).getTime();
@@ -653,9 +654,13 @@ export async function registrarVarios(usuario, movimientos, { origen = '', libro
       ...(datos.moneda ? { moneda: datos.moneda, montoOriginal: datos.montoOriginal } : { monto: datos.monto }),
       ...(modoRepetidos === 'manual'
         ? { createdAt: { $gte: new Date(Date.now() - 3 * 60_000) }, descripcion: String(datos.descripcion ?? '').trim().slice(0, 120) }
-        : modoRepetidos === 'reciente'
-          ? { createdAt: { $gte: new Date(Date.now() - 20 * 60_000) } }
-          : { fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) } }),
+        : modoRepetidos === 'telefono'
+          // App de DUOLAB (cada notificación trae su identidad): solo si el mismo yape ya entró por el correo.
+          ? { correoId: { $exists: true }, createdAt: { $gte: new Date(Date.now() - 15 * 60_000) } }
+          : modoRepetidos === 'reciente'
+            // MacroDroid y otros (sin identidad): el mismo aviso repetido en 2 minutos.
+            ? { createdAt: { $gte: new Date(Date.now() - 2 * 60_000) }, descripcion: String(datos.descripcion ?? '').trim().slice(0, 120) }
+            : { fecha: { $gte: new Date(dia - 86400000), $lte: new Date(dia + 86400000) } }),
       }));
     if (igual) {
       repetidos.push(`${datos.descripcion ?? tipo}: ${datos.moneda ? `${datos.moneda} ${monto.toFixed(2)}` : dinero(monto)}`);

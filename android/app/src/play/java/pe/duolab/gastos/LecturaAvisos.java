@@ -48,7 +48,9 @@ public class LecturaAvisos extends NotificationListenerService {
             String cuerpo = texto(extras.getCharSequence(Notification.EXTRA_BIG_TEXT));
             if (cuerpo.isEmpty()) cuerpo = texto(extras.getCharSequence(Notification.EXTRA_TEXT));
             if (!MONTO.matcher(titulo + " " + cuerpo).find()) return;
-            Enviador.enviar(this, titulo, cuerpo, app, null);
+            // Identidad de esta notificación: la misma si Android solo la actualiza, distinta si es otro yape.
+            String id = sbn.getKey() + "|" + (n.when != 0 ? n.when : sbn.getPostTime());
+            Enviador.enviar(this, titulo, cuerpo, app, id, null);
         } catch (Exception ignorado) {
             // Una notificación rara no debe tumbar el servicio.
         }
